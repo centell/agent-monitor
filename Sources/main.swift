@@ -86,18 +86,16 @@ if args.contains("--list") {
     for s in sessions {
         let name = s.name.paddedDisplay(to: nameWidth)
         let label = s.state.label.fitted(to: 10)
-        let age = MenuBarController.elapsed(s.age())
-        let mark = s.isEstimated ? " (추정)" : ""
-        print(" \(s.state.symbol) \(name)  \(label)\(String(repeating: " ", count: max(1, 5 - age.count)))\(age)\(mark)")
-
-        let tool = (s.currentTool ?? "—").fitted(to: 12)
-        var second = "   \(tool)"
+        let tool = (s.currentTool ?? "—").fitted(to: 14)
+        let age = MenuBarController.elapsed(s.age()).rightAligned(to: 4)
+        let mark = s.isEstimated ? "  (추정)" : ""
+        var line = " \(s.state.symbol)  \(name)  \(label)  \(tool)\(age)\(mark)"
         if let m = s.metrics {
-            second += MetricFormat.bar(bytes: m.memoryBytes).paddedDisplay(to: 7)
-            second += MetricFormat.gigabytes(m.memoryBytes)
-            if let cpu = m.cpuPercent, cpu >= 5 { second += String(format: "   CPU %.0f%%", cpu) }
+            line += "     " + MetricFormat.bar(bytes: m.memoryBytes).paddedDisplay(to: 7)
+            line += MetricFormat.gigabytes(m.memoryBytes).rightAligned(to: 5)
+            if let cpu = m.cpuPercent, cpu >= 5 { line += String(format: "  %3.0f%%", cpu) }
         }
-        print(second)
+        print(line)
     }
     if let memory = systemMemory {
         let agentBytes = sessions.compactMap { $0.metrics?.memoryBytes }.reduce(0, +)

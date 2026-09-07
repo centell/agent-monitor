@@ -136,46 +136,43 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func row(for session: Session, nameWidth: Int) -> NSMenuItem {
-        // 첫 줄은 물음 — 누가, 어떤 상태로, 얼마나 기다렸나.
+        // 왼쪽은 물음 — 누가, 어떤 상태로, 무엇을 하다, 얼마나 기다렸나.
         let name = session.name.paddedDisplay(to: nameWidth)
         let label = session.state.label.fitted(to: 10)
-        let age = Self.elapsed(session.age())
+        let tool = (session.currentTool ?? "—").fitted(to: 14)
+        let age = Self.elapsed(session.age()).rightAligned(to: 4)
         let estimated = session.isEstimated ? "  (추정)" : ""
-        let line1 = "\(session.state.symbol)  \(name)  \(label)\(String(repeating: " ", count: max(1, 5 - age.count)))\(age)\(estimated)"
+        let left = "\(session.state.symbol)  \(name)  \(label)  \(tool)\(age)\(estimated)"
 
-        // 둘째 줄은 진단 — 무엇으로, 얼마나 먹으며 돌고 있나.
-        let tool = (session.currentTool ?? "—").fitted(to: 12)
-        var line2 = "   \(tool)"
+        // 오른쪽은 진단. 메모리 숫자를 맨 끝에 고정해, CPU 가 들고 나도 열이 흔들리지 않게 한다.
+        var right = ""
         if let metrics = session.metrics {
             let bar = MetricFormat.bar(bytes: metrics.memoryBytes).paddedDisplay(to: 7)
-            line2 += "\(bar)\(MetricFormat.gigabytes(metrics.memoryBytes))"
+            right = "     \(bar)\(MetricFormat.gigabytes(metrics.memoryBytes).rightAligned(to: 5))"
             // CPU 는 의미 있을 때만 나타난다. 쉬는 세션까지 0% 를 늘어놓지 않는다.
             if let cpu = metrics.cpuPercent, cpu >= 5 {
-                line2 += String(format: "   CPU %.0f%%", cpu)
+                right += String(format: "  %3.0f%%", cpu)
             }
         }
 
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.lineSpacing = 2
         let text = NSMutableAttributedString(
-            string: line1 + "\n" + line2,
+            string: left + right,
             attributes: [
                 .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
                 .foregroundColor: NSColor.labelColor,
-                .paragraphStyle: paragraph,
             ]
         )
         // 표식만 색을 준다. 줄 전체를 물들이면 목록이 시끄러워진다.
         text.addAttribute(.foregroundColor,
                           value: color(for: session.state),
                           range: NSRange(location: 0, length: 1))
-        // 둘째 줄은 한 단계 작고 흐리게 — 볼 때만 보이면 된다.
-        let secondStart = (line1 as NSString).length + 1
-        text.addAttributes(
-            [.font: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
-             .foregroundColor: NSColor.secondaryLabelColor],
-            range: NSRange(location: secondStart, length: (line2 as NSString).length)
-        )
+        // 지표는 흐리게 — 평소엔 눈에 안 걸리고 찾을 때만 보이면 된다.
+        if !right.isEmpty {
+            text.addAttribute(.foregroundColor,
+                              value: NSColor.secondaryLabelColor,
+                              range: NSRange(location: (left as NSString).length,
+                                             length: (right as NSString).length))
+        }
 
         let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         item.attributedTitle = text

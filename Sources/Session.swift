@@ -129,8 +129,6 @@ protocol SessionSource {
     func scan() -> [Session]
 }
 
-// MARK: - 정렬
-
 // MARK: - 칸 맞추기
 
 extension Character {
@@ -175,12 +173,20 @@ extension String {
         return (out + "…").paddedDisplay(to: width)
     }
 
+    /// 표시 폭 기준으로 왼쪽을 채운다 (오른쪽 정렬).
+    func rightAligned(to width: Int) -> String {
+        let w = displayWidth
+        return w >= width ? self : String(repeating: " ", count: width - w) + self
+    }
+
     /// 고정폭 글꼴에서 차지하는 칸 수.
     ///
     /// `isASCII` 로 가르면 `…` 이나 `—` 까지 두 칸으로 세어 열이 어긋난다.
     /// 실제로 두 칸을 먹는 것은 한글·CJK·전각 문자다.
     var displayWidth: Int { reduce(0) { $0 + $1.displayWidth } }
 }
+
+// MARK: - 정렬
 
 extension Array where Element == Session {
     /// 손이 필요한 것을 위로, 그 안에서는 오래 기다린 것을 위로.
