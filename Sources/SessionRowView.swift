@@ -1,0 +1,93 @@
+import AppKit
+
+/// 메뉴 한 줄을 직접 그리는 뷰.
+///
+/// **왜 커스텀 뷰인가.** 항목에 `keyEquivalent` 가 하나라도 있으면 AppKit 이 메뉴 **전체**
+/// 오른쪽에 단축키 칸을 예약하고, 단축키가 없는 세션 줄까지 그만큼 밀려난다.
+/// 실측 338pt. 커스텀 뷰 항목은 제 폭을 스스로 보고하므로 그 칸이 붙지 않아 296pt 가 된다.
+/// 덕분에 `⌘,` · `⌘Q` 를 유지하면서도 메뉴가 넓어지지 않는다.
+///
+/// 대신 AppKit 이 공짜로 해 주던 **강조와 클릭을 직접** 해야 한다.
+final class SessionRowView: NSView {
+
+    private let normalText: NSAttributedString
+    private let highlightedText: NSAttributedString
+    private let onClick: (() -> Void)?
+    private var isHighlighted = false
+    private var tracking: NSTrackingArea?
+
+    /// 메뉴 항목의 좌우 여백. 기본 메뉴 항목의 글자 시작 위치에 맞춘 값이다.
+    private static let insetX: CGFloat = 20
+    private static let insetY: CGFloat = 3
+
+    init(text: NSAttributedString, enabled: Bool, onClick: (() -> Void)?) {
+        self.onClick = enabled ? onClick : nil
+
+        // 눌릴 수 없는 줄은 흐리게 둔다. 눌리는 줄과 생김새로 구분되어야 한다.
+        let base = NSMutableAttributedString(attributedString: text)
+        if !enabled {
+            base.addAttribute(.foregroundColor, value: NSColor.tertiaryLabelColor,
+                              range: NSRange(location: 0, length: base.length))
+        }
+        normalText = base
+
+        // 강조된 줄은 네이티브 메뉴와 같이 글자를 흰색 계열로 바꾼다.
+        // 상태는 표식의 «모양»(◆○●◐)으로도 읽히므로 색을 잃어도 뜻이 남는다.
+        let highlighted = NSMutableAttributedString(attributedString: base)
+        highlighted.addAttribute(.foregroundColor, value: NSColor.selectedMenuItemTextColor,
+                                 range: NSRange(location: 0, length: highlighted.length))
+        highlightedText = highlighted
+
+        let unbounded = NSSize(width: CGFloat.greatestFiniteMagnitude,
+                               height: CGFloat.greatestFiniteMagnitude)
+        let size = base.boundingRect(with: unbounded,
+                                     options: [.usesLineFragmentOrigin, .usesFontLeading]).size
+        super.init(frame: NSRect(x: 0, y: 0,
+                                 width: ceil(size.width) + Self.insetX * 2,
+                                 height: ceil(size.height) + Self.insetY * 2))
+    }
+
+    required init?(coder: NSCoder) { fatalError("사용하지 않음") }
+
+    // MARK: 그리기
+
+    override func draw(_ dirtyRect: NSRect) {
+        if isHighlighted {
+            NSColor.selectedContentBackgroundColor.setFill()
+            // 네이티브 메뉴처럼 좌우를 살짝 들여 둥근 사각형으로 칠한다.
+            NSBezierPath(roundedRect: bounds.insetBy(dx: 5, dy: 0), xRadius: 4, yRadius: 4).fill()
+        }
+        (isHighlighted ? highlightedText : normalText)
+            .draw(at: NSPoint(x: Self.insetX, y: Self.insetY))
+    }
+
+    // MARK: 마우스
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let tracking { removeTrackingArea(tracking) }
+        let area = NSTrackingArea(rect: bounds,
+                                  options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                  owner: self)
+        addTrackingArea(area)
+        tracking = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        guard onClick != nil else { return }
+        isHighlighted = true
+        needsDisplay = true
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        isHighlighted = false
+        needsDisplay = true
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard let onClick else { return }
+        // 메뉴를 먼저 닫고 동작한다. 열린 채로 창을 띄우면 메뉴가 위에 남는다.
+        enclosingMenuItem?.menu?.cancelTracking()
+        onClick()
+    }
+}

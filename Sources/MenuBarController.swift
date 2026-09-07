@@ -1,9 +1,5 @@
 import AppKit
 
-/// 메뉴바에 숫자 하나, 눌러서 여는 평면 목록.
-///
-/// 커스텀 팝오버 대신 `NSMenu` 를 쓴다. 「접힘 없는 한 화면」이 메뉴의 기본 생김새라
-/// 요구사항과 그대로 맞고, 키보드 접근성이 따라온다.
 final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private let source: SessionSource
@@ -146,13 +142,11 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
-        // 단축키를 달지 않는다. 항목 하나라도 단축키를 가지면 AppKit 이 메뉴 **전체** 오른쪽에
-        // 단축키 칸을 예약해, 단축키가 없는 세션 줄까지 그만큼 밀린다. 실측 338pt → 291pt.
-        // 상태 메뉴의 단축키는 메뉴가 열려 있는 동안에만 듣는 것이라 값이 크지 않다.
-        let preferences = NSMenuItem(title: S.settingsItem, action: #selector(openSettings), keyEquivalent: "")
+        // 세션 줄이 커스텀 뷰라 단축키 칸이 그 줄들을 밀지 않는다. 그래서 단축키를 그대로 쓴다.
+        let preferences = NSMenuItem(title: S.settingsItem, action: #selector(openSettings), keyEquivalent: ",")
         preferences.target = self
         menu.addItem(preferences)
-        let quit = NSMenuItem(title: S.quitItem, action: #selector(quit), keyEquivalent: "")
+        let quit = NSMenuItem(title: S.quitItem, action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
     }
@@ -177,7 +171,6 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // 지표는 흐리게 — 평소엔 눈에 안 걸리고 찾을 때만 보이면 된다.
         if let dim = row.dimRange {
             text.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: dim)
-            // 둘째 줄로 내려간 경우에는 한 단계 작게도 만든다.
             if row.secondLineStart != nil {
                 text.addAttribute(.font,
                                   value: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
@@ -185,27 +178,20 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
 
-        let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-        item.attributedTitle = text
-
         // 누르면 그 세션이 도는 터미널 창으로 간다.
-        if TerminalJump.canJump(pid: session.pid) {
-            item.target = self
-            item.action = #selector(jumpToSession(_:))
-            item.representedObject = session
-            item.isEnabled = true
-            var tip = "\(session.cwd)\n" + S.jumpHint
-            if let m = session.metrics { tip += "\n" + S.descendants(m.descendantCount) }
-            item.toolTip = tip
-        } else {
-            item.isEnabled = false
-            item.toolTip = session.cwd
+        let canJump = TerminalJump.canJump(pid: session.pid)
+        let item = NSMenuItem()
+        item.view = SessionRowView(text: text, enabled: canJump) { [weak self] in
+            self?.jump(to: session)
         }
+        var tip = session.cwd
+        if canJump { tip += "\n" + S.jumpHint }
+        if let m = session.metrics { tip += "\n" + S.descendants(m.descendantCount) }
+        item.toolTip = tip
         return item
     }
 
-    @objc private func jumpToSession(_ sender: NSMenuItem) {
-        guard let session = sender.representedObject as? Session else { return }
+    private func jump(to session: Session) {
         TerminalJump.report(TerminalJump.jump(pid: session.pid), sessionName: session.name)
     }
 
