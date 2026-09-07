@@ -146,10 +146,13 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
-        let preferences = NSMenuItem(title: S.settingsItem, action: #selector(openSettings), keyEquivalent: ",")
+        // 단축키를 달지 않는다. 항목 하나라도 단축키를 가지면 AppKit 이 메뉴 **전체** 오른쪽에
+        // 단축키 칸을 예약해, 단축키가 없는 세션 줄까지 그만큼 밀린다. 실측 338pt → 291pt.
+        // 상태 메뉴의 단축키는 메뉴가 열려 있는 동안에만 듣는 것이라 값이 크지 않다.
+        let preferences = NSMenuItem(title: S.settingsItem, action: #selector(openSettings), keyEquivalent: "")
         preferences.target = self
         menu.addItem(preferences)
-        let quit = NSMenuItem(title: S.quitItem, action: #selector(quit), keyEquivalent: "q")
+        let quit = NSMenuItem(title: S.quitItem, action: #selector(quit), keyEquivalent: "")
         quit.target = self
         menu.addItem(quit)
     }
