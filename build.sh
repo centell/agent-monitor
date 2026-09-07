@@ -45,6 +45,7 @@ cat > "$DEST/Contents/Info.plist" <<PLIST
     <key>CFBundleVersion</key><string>${VERSION}</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSUIElement</key><true/>
+    <key>NSAppleEventsUsageDescription</key><string>세션을 누르면 그 세션이 도는 터미널 창으로 이동하기 위해 Terminal 제어 권한이 필요합니다.</string>
     <key>NSHumanReadableCopyright</key><string>MIT</string>
 </dict>
 </plist>

@@ -94,7 +94,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if sessions.isEmpty {
             menu.addItem(disabledRow("살아있는 세션이 없습니다"))
         } else {
-            let nameWidth = max(12, sessions.map(\.name.count).max() ?? 12)
+            let nameWidth = max(12, sessions.map(\.name.displayWidth).max() ?? 12)
             var previousNeededAttention: Bool?
 
             for session in sessions {
@@ -116,13 +116,13 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func row(for session: Session, nameWidth: Int) -> NSMenuItem {
-        let name = session.name.padding(toLength: nameWidth, withPad: " ", startingAt: 0)
-        let label = session.state.label.paddedDisplay(to: 8)
-        let tool = (session.currentTool ?? "—").padding(toLength: 14, withPad: " ", startingAt: 0)
+        let name = session.name.paddedDisplay(to: nameWidth)
+        let label = session.state.label.fitted(to: 10)
+        let tool = (session.currentTool ?? "—").fitted(to: 14)
         let age = Self.elapsed(session.age())
         let estimated = session.isEstimated ? "  (추정)" : ""
 
-        let text = "\(session.state.symbol)  \(name)  \(label)  \(tool)\(age)\(estimated)"
+        let text = "\(session.state.symbol)  \(name)  \(label)  \(tool) \(age)\(estimated)"
         let attributed = NSMutableAttributedString(
             string: text,
             attributes: [
@@ -137,9 +137,26 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         item.attributedTitle = attributed
-        item.toolTip = session.cwd
-        item.isEnabled = false
+
+        // 누르면 그 세션이 도는 터미널 창으로 간다.
+        // 갈 수 없는 세션(터미널이 없는 것)은 누를 수 없게 두어, 눌리는 줄과
+        // 아닌 줄이 생김새로 구분되게 한다.
+        if TerminalJump.canJump(pid: session.pid) {
+            item.target = self
+            item.action = #selector(jumpToSession(_:))
+            item.representedObject = session
+            item.isEnabled = true
+            item.toolTip = "\(session.cwd)\n눌러서 이 세션의 터미널로 이동"
+        } else {
+            item.isEnabled = false
+            item.toolTip = session.cwd
+        }
         return item
+    }
+
+    @objc private func jumpToSession(_ sender: NSMenuItem) {
+        guard let session = sender.representedObject as? Session else { return }
+        TerminalJump.report(TerminalJump.jump(pid: session.pid), sessionName: session.name)
     }
 
     private func color(for state: SessionState) -> NSColor {
@@ -171,11 +188,3 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 }
 
-private extension String {
-    /// 한글은 글자 하나가 두 칸을 차지한다. `count` 로 맞추면 줄이 어긋나므로
-    /// 표시 폭을 세어 맞춘다.
-    func paddedDisplay(to width: Int) -> String {
-        let w = reduce(0) { $0 + ($1.isASCII ? 1 : 2) }
-        return w >= width ? self : self + String(repeating: " ", count: width - w)
-    }
-}

@@ -128,6 +128,57 @@ protocol SessionSource {
 
 // MARK: - 정렬
 
+// MARK: - 칸 맞추기
+
+extension Character {
+    /// 고정폭 글꼴에서 두 칸을 먹는가 (한글·CJK·전각).
+    var displayWidth: Int {
+        guard let v = unicodeScalars.first?.value else { return 1 }
+        let wide = (0x1100...0x115F).contains(v)     // 한글 자모
+            || (0x2E80...0xA4CF).contains(v)         // CJK 부수 ~ 이(彝)
+            || (0xAC00...0xD7A3).contains(v)         // 한글 음절
+            || (0xF900...0xFAFF).contains(v)         // CJK 호환
+            || (0xFE30...0xFE6F).contains(v)         // 세로쓰기·소형 변형
+            || (0xFF00...0xFF60).contains(v)         // 전각
+            || (0xFFE0...0xFFE6).contains(v)
+        return wide ? 2 : 1
+    }
+}
+
+extension String {
+    /// 표시 폭 기준으로 오른쪽을 채운다.
+    ///
+    /// 한글은 글자 하나가 두 칸을 차지한다. `count` 로 맞추면 한글이 섞인 순간
+    /// 열이 어긋난다 (`작업 중` 은 3글자지만 6칸이다).
+    func paddedDisplay(to width: Int) -> String {
+        let w = displayWidth
+        return w >= width ? self : self + String(repeating: " ", count: width - w)
+    }
+
+    /// 칸에 맞춰 자르거나 채운다.
+    ///
+    /// `padding(toLength:)` 는 긴 문자열을 자르기만 하고 뒤에 공백을 남기지 않아
+    /// 다음 칸과 글자가 맞붙는다 (`AskUserQuestio4m`). 여기서는 잘릴 때 말줄임표를
+    /// 넣고 **언제나 한 칸은 비워** 다음 값과 붙지 않게 한다.
+    func fitted(to width: Int) -> String {
+        guard width > 2 else { return self }
+        // 딱 맞는 것은 자르지 않는다. 넘칠 때만 줄인다.
+        guard displayWidth > width else { return paddedDisplay(to: width) }
+        var out = ""
+        for ch in self {
+            if out.displayWidth + ch.displayWidth > width - 1 { break }
+            out.append(ch)
+        }
+        return (out + "…").paddedDisplay(to: width)
+    }
+
+    /// 고정폭 글꼴에서 차지하는 칸 수.
+    ///
+    /// `isASCII` 로 가르면 `…` 이나 `—` 까지 두 칸으로 세어 열이 어긋난다.
+    /// 실제로 두 칸을 먹는 것은 한글·CJK·전각 문자다.
+    var displayWidth: Int { reduce(0) { $0 + $1.displayWidth } }
+}
+
 extension Array where Element == Session {
     /// 손이 필요한 것을 위로, 그 안에서는 오래 기다린 것을 위로.
     func sortedForDisplay(now: Date = Date()) -> [Session] {

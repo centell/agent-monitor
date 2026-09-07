@@ -65,11 +65,11 @@ if args.contains("--list") {
     }
     let waiting = sessions.attentionCount
     print("\(waiting)/\(sessions.count)  — 기다리는 중 \(waiting) · 전체 \(sessions.count)\n")
-    let nameWidth = max(12, sessions.map(\.name.count).max() ?? 12)
+    let nameWidth = max(12, sessions.map(\.name.displayWidth).max() ?? 12)
     for s in sessions {
-        let name = s.name.padding(toLength: nameWidth, withPad: " ", startingAt: 0)
-        let label = s.state.label.padding(toLength: 12, withPad: " ", startingAt: 0)
-        let tool = (s.currentTool ?? "—").padding(toLength: 16, withPad: " ", startingAt: 0)
+        let name = s.name.paddedDisplay(to: nameWidth)
+        let label = s.state.label.fitted(to: 10)
+        let tool = (s.currentTool ?? "—").fitted(to: 16)
         let mark = s.isEstimated ? " (추정)" : ""
         print(" \(s.state.symbol) \(name)  \(label) \(tool) \(MenuBarController.elapsed(s.age()))\(mark)")
     }
