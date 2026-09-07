@@ -17,6 +17,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var sessions: [Session] = []
     private let sampler = MetricsSampler()
     private var systemMemory: SystemMemory?
+    private let settings = Settings.shared
 
     init(source: SessionSource, interval: TimeInterval = 2) {
         self.source = source
@@ -35,7 +36,23 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
 
         refresh()
-        let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in self?.refresh() }
+        restartTimer()
+
+        // 갱신 주기 같은 설정은 즉시 반영돼야 한다.
+        NotificationCenter.default.addObserver(
+            forName: Settings.didChange, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.restartTimer()
+            self?.refresh()
+        }
+    }
+
+    /// 설정된 주기로 타이머를 다시 건다.
+    private func restartTimer() {
+        timer?.invalidate()
+        let t = Timer(timeInterval: settings.refreshInterval, repeats: true) { [weak self] _ in
+            self?.refresh()
+        }
         RunLoop.main.add(t, forMode: .common)    // 메뉴가 열려 있어도 제목은 계속 갱신된다
         timer = t
     }
@@ -107,7 +124,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if sessions.isEmpty {
             menu.addItem(disabledRow("살아있는 세션이 없습니다"))
         } else {
-            let nameWidth = max(12, sessions.map(\.name.displayWidth).max() ?? 12)
+            let formatter = RowFormatter(settings: settings,
+                                         nameWidth: RowFormatter.nameWidth(for: sessions))
             var previousNeededAttention: Bool?
 
             for session in sessions {
@@ -118,48 +136,37 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     menu.addItem(.separator())
                 }
                 previousNeededAttention = needs
-                menu.addItem(row(for: session, nameWidth: nameWidth))
+                menu.addItem(row(for: session, formatter: formatter))
             }
         }
 
         // 시스템 요약 — 「지금 이 맥이 쪼들리나」에 답하는 줄.
-        if let memory = systemMemory {
+        if settings.showSummary, let memory = systemMemory {
             menu.addItem(.separator())
             let agentBytes = sessions.compactMap { $0.metrics?.memoryBytes }.reduce(0, +)
             menu.addItem(disabledRow(MetricFormat.systemSummary(memory, agentBytes: agentBytes)))
         }
 
         menu.addItem(.separator())
+        let preferences = NSMenuItem(title: "설정…", action: #selector(openSettings), keyEquivalent: ",")
+        preferences.target = self
+        menu.addItem(preferences)
         let quit = NSMenuItem(title: "종료", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
     }
 
-    private func row(for session: Session, nameWidth: Int) -> NSMenuItem {
-        // 왼쪽은 물음 — 누가, 어떤 상태로, 무엇을 하다, 얼마나 기다렸나.
-        let name = session.name.paddedDisplay(to: nameWidth)
-        let label = session.state.label.fitted(to: 10)
-        let tool = (session.currentTool ?? "—").fitted(to: 14)
-        let age = Self.elapsed(session.age()).rightAligned(to: 4)
-        let estimated = session.isEstimated ? "  (추정)" : ""
-        let left = "\(session.state.symbol)  \(name)  \(label)  \(tool)\(age)\(estimated)"
+    private func row(for session: Session, formatter: RowFormatter) -> NSMenuItem {
+        let row = formatter.row(for: session)
 
-        // 오른쪽은 진단. 메모리 숫자를 맨 끝에 고정해, CPU 가 들고 나도 열이 흔들리지 않게 한다.
-        var right = ""
-        if let metrics = session.metrics {
-            let bar = MetricFormat.bar(bytes: metrics.memoryBytes).paddedDisplay(to: 7)
-            right = "     \(bar)\(MetricFormat.gigabytes(metrics.memoryBytes).rightAligned(to: 5))"
-            // CPU 는 의미 있을 때만 나타난다. 쉬는 세션까지 0% 를 늘어놓지 않는다.
-            if let cpu = metrics.cpuPercent, cpu >= 5 {
-                right += String(format: "  %3.0f%%", cpu)
-            }
-        }
-
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineSpacing = 2
         let text = NSMutableAttributedString(
-            string: left + right,
+            string: row.text,
             attributes: [
                 .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
                 .foregroundColor: NSColor.labelColor,
+                .paragraphStyle: paragraph,
             ]
         )
         // 표식만 색을 준다. 줄 전체를 물들이면 목록이 시끄러워진다.
@@ -167,11 +174,14 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                           value: color(for: session.state),
                           range: NSRange(location: 0, length: 1))
         // 지표는 흐리게 — 평소엔 눈에 안 걸리고 찾을 때만 보이면 된다.
-        if !right.isEmpty {
-            text.addAttribute(.foregroundColor,
-                              value: NSColor.secondaryLabelColor,
-                              range: NSRange(location: (left as NSString).length,
-                                             length: (right as NSString).length))
+        if let dim = row.dimRange {
+            text.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: dim)
+            // 둘째 줄로 내려간 경우에는 한 단계 작게도 만든다.
+            if row.secondLineStart != nil {
+                text.addAttribute(.font,
+                                  value: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
+                                  range: dim)
+            }
         }
 
         let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
@@ -212,6 +222,10 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let item = NSMenuItem(title: text, action: nil, keyEquivalent: "")
         item.isEnabled = false
         return item
+    }
+
+    @objc private func openSettings() {
+        SettingsWindowController.shared.show { [weak self] in self?.sessions ?? [] }
     }
 
     @objc private func quit() { NSApp.terminate(nil) }

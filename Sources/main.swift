@@ -82,22 +82,12 @@ if args.contains("--list") {
     }
     let waiting = sessions.attentionCount
     print("\(waiting)/\(sessions.count)  — 기다리는 중 \(waiting) · 전체 \(sessions.count)\n")
-    let nameWidth = max(12, sessions.map(\.name.displayWidth).max() ?? 12)
+    let formatter = RowFormatter(settings: .shared,
+                                 nameWidth: RowFormatter.nameWidth(for: sessions))
     for s in sessions {
-        let name = s.name.paddedDisplay(to: nameWidth)
-        let label = s.state.label.fitted(to: 10)
-        let tool = (s.currentTool ?? "—").fitted(to: 14)
-        let age = MenuBarController.elapsed(s.age()).rightAligned(to: 4)
-        let mark = s.isEstimated ? "  (추정)" : ""
-        var line = " \(s.state.symbol)  \(name)  \(label)  \(tool)\(age)\(mark)"
-        if let m = s.metrics {
-            line += "     " + MetricFormat.bar(bytes: m.memoryBytes).paddedDisplay(to: 7)
-            line += MetricFormat.gigabytes(m.memoryBytes).rightAligned(to: 5)
-            if let cpu = m.cpuPercent, cpu >= 5 { line += String(format: "  %3.0f%%", cpu) }
-        }
-        print(line)
+        print(" " + formatter.row(for: s).text)
     }
-    if let memory = systemMemory {
+    if Settings.shared.showSummary, let memory = systemMemory {
         let agentBytes = sessions.compactMap { $0.metrics?.memoryBytes }.reduce(0, +)
         print("\n" + MetricFormat.systemSummary(memory, agentBytes: agentBytes))
     }
