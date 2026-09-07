@@ -47,26 +47,29 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     /// 메뉴바에는 숫자만 둔다. 세션이 몇 개든 제목 길이가 자라지 않는다.
+    ///
+    /// 강조에 색을 쓰지 않는다. 메뉴바의 배경은 사용자의 배경화면이라 어떤 색을 골라도
+    /// 누군가의 화면에서는 묻힌다. 실제로 파란 배경화면 위에서 `controlAccentColor`(파랑)가
+    /// 보이지 않았다. 시스템이 밝기에 맞춰 뒤집어 주는 `labelColor` 만 쓰고,
+    /// 강조는 **굵기와 글자**로 한다.
     private func updateTitle() {
         guard let button = statusItem.button else { return }
         let waiting = sessions.attentionCount
         let total = sessions.count
-        let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: waiting > 0 ? .semibold : .regular)
 
+        // 기다리는 것이 있으면 굵게, 없으면 보통. 0일 때만 흐리게 한다.
+        let hasWaiting = waiting > 0
+        let font = NSFont.monospacedDigitSystemFont(
+            ofSize: NSFont.systemFontSize,
+            weight: hasWaiting ? .bold : .regular
+        )
         let title = NSMutableAttributedString(
             string: "\(waiting)/\(total)",
-            attributes: [.font: font, .foregroundColor: NSColor.labelColor]
+            attributes: [
+                .font: font,
+                .foregroundColor: hasWaiting ? NSColor.labelColor : NSColor.secondaryLabelColor,
+            ]
         )
-        // 기다리는 것이 있을 때만 앞자리를 강조한다. 0이면 조용히 있는다.
-        if waiting > 0 {
-            title.addAttribute(.foregroundColor,
-                               value: NSColor.controlAccentColor,
-                               range: NSRange(location: 0, length: String(waiting).count))
-        } else {
-            title.addAttribute(.foregroundColor,
-                               value: NSColor.secondaryLabelColor,
-                               range: NSRange(location: 0, length: title.length))
-        }
         button.attributedTitle = title
         button.toolTip = waiting > 0
             ? "\(waiting)개가 기다리는 중 · 전체 \(total)개"
