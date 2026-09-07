@@ -64,7 +64,7 @@ enum TerminalJump {
         """
 
         var error: NSDictionary?
-        guard let apple = NSAppleScript(source: script) else { return .failed("스크립트를 만들지 못함") }
+        guard let apple = NSAppleScript(source: script) else { return .failed(S.errScript) }
         let result = apple.executeAndReturnError(&error)
 
         if let error {
@@ -73,7 +73,7 @@ enum TerminalJump {
             if code == -1743 || code == errAEEventNotPermitted {
                 return .notPermitted
             }
-            return .failed(error[NSAppleScript.errorMessage] as? String ?? "알 수 없는 오류(\(code))")
+            return .failed(error[NSAppleScript.errorMessage] as? String ?? S.errUnknown(code))
         }
         return result.stringValue == "moved" ? .moved : .windowNotFound
     }
@@ -92,28 +92,23 @@ enum TerminalJump {
         case .notPermitted:
             NSApp.activate(ignoringOtherApps: true)
             let alert = NSAlert()
-            alert.messageText = "터미널을 제어할 권한이 없습니다"
-            alert.informativeText = """
-            세션 창으로 이동하려면 Terminal 제어를 허용해야 합니다.
-
-            시스템 설정 → 개인정보 보호 및 보안 → 자동화 에서
-            AgentMonitor 아래의 Terminal 을 켜 주세요.
-            """
+            alert.messageText = S.permissionTitle
+            alert.informativeText = S.permissionBody
             alert.alertStyle = .informational
-            alert.addButton(withTitle: "확인")
+            alert.addButton(withTitle: S.okButton)
             alert.runModal()
 
         case .noTTY:
             NSSound.beep()
-            FileHandle.standardError.write(Data("\(sessionName): 터미널이 없는 세션입니다\n".utf8))
+            FileHandle.standardError.write(Data("\(sessionName): \(S.logNoTTY)\n".utf8))
 
         case .windowNotFound:
             NSSound.beep()
-            FileHandle.standardError.write(Data("\(sessionName): tty 는 있으나 Terminal 창을 못 찾았습니다\n".utf8))
+            FileHandle.standardError.write(Data("\(sessionName): \(S.logNoWindow)\n".utf8))
 
         case .failed(let message):
             NSSound.beep()
-            FileHandle.standardError.write(Data("\(sessionName): 이동 실패 — \(message)\n".utf8))
+            FileHandle.standardError.write(Data("\(sessionName): \(S.logFailed(message))\n".utf8))
         }
     }
 }

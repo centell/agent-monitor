@@ -101,9 +101,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             ]
         )
         button.attributedTitle = title
-        button.toolTip = waiting > 0
-            ? "\(waiting)개가 기다리는 중 · 전체 \(total)개"
-            : "전체 \(total)개 · 기다리는 것 없음"
+        button.toolTip = S.menuTooltip(waiting: waiting, total: total)
     }
 
     // MARK: 메뉴
@@ -122,7 +120,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.removeAllItems()
 
         if sessions.isEmpty {
-            menu.addItem(disabledRow("살아있는 세션이 없습니다"))
+            menu.addItem(disabledRow(S.noSessions))
         } else {
             let formatter = RowFormatter(settings: settings,
                                          nameWidth: RowFormatter.nameWidth(for: sessions))
@@ -148,10 +146,10 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
-        let preferences = NSMenuItem(title: "설정…", action: #selector(openSettings), keyEquivalent: ",")
+        let preferences = NSMenuItem(title: S.settingsItem, action: #selector(openSettings), keyEquivalent: ",")
         preferences.target = self
         menu.addItem(preferences)
-        let quit = NSMenuItem(title: "종료", action: #selector(quit), keyEquivalent: "q")
+        let quit = NSMenuItem(title: S.quitItem, action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
     }
@@ -193,8 +191,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             item.action = #selector(jumpToSession(_:))
             item.representedObject = session
             item.isEnabled = true
-            var tip = "\(session.cwd)\n눌러서 이 세션의 터미널로 이동"
-            if let m = session.metrics { tip += "\n자손 프로세스 \(m.descendantCount)개 포함" }
+            var tip = "\(session.cwd)\n" + S.jumpHint
+            if let m = session.metrics { tip += "\n" + S.descendants(m.descendantCount) }
             item.toolTip = tip
         } else {
             item.isEnabled = false

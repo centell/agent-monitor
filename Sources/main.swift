@@ -4,19 +4,7 @@ import Foundation
 let args = Array(CommandLine.arguments.dropFirst())
 
 if args.contains("-h") || args.contains("--help") {
-    print("""
-    agent-monitor — 로컬 에이전트 세션 중 무엇이 나를 기다리는지 보여준다
-
-    사용법
-      agent-monitor            메뉴바에 띄운다
-      agent-monitor --list     사람이 읽는 표로 한 번 출력하고 끝낸다
-      agent-monitor --json     JSON 으로 출력하고 끝낸다 (검증용)
-      agent-monitor --roots    훑는 계정 루트를 보여준다
-      agent-monitor --memory   이 맥의 메모리를 누가 쓰는지 보여준다
-
-    메뉴바에는 «기다리는 중/전체» 숫자만 띄운다. 세션이 몇 개든 잘라내지 않는다.
-    상태는 Claude Code 가 <계정루트>/sessions/<pid>.json 에 직접 적은 것을 그대로 읽는다.
-    """)
+    print(S.helpText)
     exit(0)
 }
 
@@ -38,7 +26,7 @@ func measuredSessions(sampleCPU: Bool) -> ([Session], SystemMemory?) {
 
 if args.contains("--roots") {
     let roots = source.accountRoots()
-    print("계정 루트 \(roots.count)개")
+    print(S.roots(roots.count))
     for root in roots { print("  \(root.path)") }
     exit(0)
 }
@@ -49,30 +37,30 @@ if args.contains("--memory") {
     func gb(_ v: UInt64) -> String { MetricFormat.size(v) }
 
     if let system = report.system {
-        print("이 맥")
-        print("  사용 중   \(gb(system.usedBytes)) / \(gb(system.totalBytes))")
-        print("  스왑      \(gb(system.swapUsedBytes))")
-        print("  압축됨    \(gb(system.compressedBytes))")
+        print(S.thisMac)
+        print("  " + S.used.paddedDisplay(to: 12) + "\(gb(system.usedBytes)) / \(gb(system.totalBytes))")
+        print("  " + S.swap.paddedDisplay(to: 12) + gb(system.swapUsedBytes))
+        print("  " + S.compressed.paddedDisplay(to: 12) + gb(system.compressedBytes))
         print("")
     }
-    print("에이전트 세션  \(gb(report.agentBytes))  (세션 \(sessions.count)개 · 프로세스 \(report.agentProcessCount)개)")
+    print(S.agentTotal(gb(report.agentBytes), sessions: sessions.count, processes: report.agentProcessCount))
 
     if !report.suspected.isEmpty {
         print("")
-        print("세션이 띄운 것으로 보이는 것  — 작업 폴더로 미루어 본 추정이며 위 합계에 넣지 않음")
+        print(S.suspectedCLIHeader)
         for entry in report.suspected {
             print("  \(entry.name.fitted(to: 34))\(gb(entry.bytes).rightAligned(to: 8))   → \(entry.suspectedOwner ?? "")")
         }
     }
 
     print("")
-    print("세션 밖")
+    print(S.outsideSessions)
     for entry in report.others.prefix(15) {
-        let count = entry.processCount > 1 ? "  (\(entry.processCount)개)" : ""
+        let count = entry.processCount > 1 ? S.countSuffix(entry.processCount) : ""
         print("  \(entry.name.fitted(to: 34))\(gb(entry.bytes).rightAligned(to: 8))\(count)")
     }
     print("")
-    print("30MB 미만은 생략했습니다.")
+    print(S.floorNote)
     exit(0)
 }
 
@@ -111,11 +99,11 @@ if args.contains("--json") {
 if args.contains("--list") {
     let (sessions, systemMemory) = measuredSessions(sampleCPU: true)
     if sessions.isEmpty {
-        print("살아있는 세션이 없습니다.")
+        print(S.noSessionsPeriod)
         exit(0)
     }
     let waiting = sessions.attentionCount
-    print("\(waiting)/\(sessions.count)  — 기다리는 중 \(waiting) · 전체 \(sessions.count)\n")
+    print(S.listHeader(waiting: waiting, total: sessions.count) + "\n")
     let formatter = RowFormatter(settings: .shared,
                                  nameWidth: RowFormatter.nameWidth(for: sessions))
     for s in sessions {

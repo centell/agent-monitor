@@ -56,7 +56,7 @@ struct RowFormatter {
             out += "  "
         }
         out += MenuBarController.elapsed(session.age()).rightAligned(to: 4)
-        if session.isEstimated { out += "  (추정)" }
+        if session.isEstimated { out += S.estimated }
         return out
     }
 

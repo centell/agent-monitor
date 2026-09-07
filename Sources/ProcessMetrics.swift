@@ -186,8 +186,7 @@ enum MetricFormat {
     /// 시스템 요약 한 줄.
     static func systemSummary(_ memory: SystemMemory, agentBytes: UInt64) -> String {
         let gb = { (v: UInt64) in Double(v) / 1_000_000_000 }
-        return String(format: "메모리 %.1f/%.1fGB · 스왑 %.1fGB · 에이전트 %.1fGB",
-                      gb(memory.usedBytes), gb(memory.totalBytes),
-                      gb(memory.swapUsedBytes), gb(agentBytes))
+        return S.systemSummary(used: gb(memory.usedBytes), total: gb(memory.totalBytes),
+                               swap: gb(memory.swapUsedBytes), agent: gb(agentBytes))
     }
 }

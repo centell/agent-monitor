@@ -37,11 +37,11 @@ enum SessionState: Equatable {
 
     var label: String {
         switch self {
-        case .waiting:          return "승인 대기"
-        case .idle:             return "입력 대기"
-        case .busy:             return "작업 중"
-        case .shell:            return "셸 실행 중"
-        case .unknown(let s):   return "알 수 없음(\(s))"
+        case .waiting:          return S.stateWaiting
+        case .idle:             return S.stateIdle
+        case .busy:             return S.stateBusy
+        case .shell:            return S.stateShell
+        case .unknown(let raw): return S.stateUnknown(raw)
         }
     }
 

@@ -8,7 +8,7 @@ import Foundation
 enum RowLayout: String, CaseIterable, Identifiable {
     case single, double
     var id: String { rawValue }
-    var label: String { self == .single ? "한 줄" : "두 줄" }
+    var label: String { self == .single ? S.layoutSingle : S.layoutDouble }
 }
 
 /// 지표를 어디까지 보여줄 것인가.
@@ -17,10 +17,10 @@ enum MetricDisplay: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .none:        return "끄기"
-        case .bar:         return "막대만"
-        case .barAndValue: return "막대 + 숫자"
-        case .all:         return "전부 (CPU 포함)"
+        case .none:        return S.metricNone
+        case .bar:         return S.metricBar
+        case .barAndValue: return S.metricBarValue
+        case .all:         return S.metricAll
         }
     }
     var showsBar: Bool { self != .none }
@@ -36,6 +36,7 @@ final class Settings: ObservableObject {
     /// 설정이 바뀌었음을 알린다. 폴링 주기처럼 즉시 반영이 필요한 것이 있다.
     static let didChange = Notification.Name("me.centell.agent-monitor.settingsDidChange")
 
+    @Published var language: Language               { didSet { persist() } }
     @Published var layout: RowLayout                { didSet { persist() } }
     @Published var showStateLabel: Bool             { didSet { persist() } }
     @Published var showTool: Bool                   { didSet { persist() } }
@@ -52,6 +53,7 @@ final class Settings: ObservableObject {
     private var loading = true
 
     private init() {
+        language = Language(rawValue: store.string(forKey: Key.language) ?? "") ?? .system
         layout = RowLayout(rawValue: store.string(forKey: Key.layout) ?? "") ?? .single
         showStateLabel = store.object(forKey: Key.stateLabel) as? Bool ?? true
         showTool = store.object(forKey: Key.tool) as? Bool ?? true
@@ -64,6 +66,7 @@ final class Settings: ObservableObject {
     /// 처음 모습으로 되돌린다. 만지다 길을 잃었을 때 빠져나올 문.
     func resetToDefaults() {
         loading = true
+        language = .system
         layout = .single
         showStateLabel = true
         showTool = true
@@ -76,6 +79,7 @@ final class Settings: ObservableObject {
 
     private func persist() {
         guard !loading else { return }
+        store.set(language.rawValue, forKey: Key.language)
         store.set(layout.rawValue, forKey: Key.layout)
         store.set(showStateLabel, forKey: Key.stateLabel)
         store.set(showTool, forKey: Key.tool)
@@ -85,7 +89,15 @@ final class Settings: ObservableObject {
         NotificationCenter.default.post(name: Settings.didChange, object: nil)
     }
 
+    /// 실제로 쓸 언어. `system` 이면 맥의 언어를 따른다.
+    var resolvedLanguage: Language {
+        guard language == .system else { return language }
+        let preferred = Locale.preferredLanguages.first ?? "en"
+        return preferred.hasPrefix("ko") ? .korean : .english
+    }
+
     private enum Key {
+        static let language = "language"
         static let layout = "rowLayout"
         static let stateLabel = "showStateLabel"
         static let tool = "showTool"

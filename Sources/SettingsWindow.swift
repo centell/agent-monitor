@@ -16,33 +16,40 @@ struct LayoutSettingsView: View {
     private let tick = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     var body: some View {
+        // 손잡이가 하나 늘 때마다 높이 상수를 올리는 것은 깨지기 쉽다. 넘치면 스크롤한다.
+        ScrollView {
         VStack(alignment: .leading, spacing: 16) {
             Form {
-                Picker("줄 배치", selection: $settings.layout) {
+                Picker(S.language, selection: $settings.language) {
+                    ForEach(Language.allCases) { Text($0.label).tag($0) }
+                }
+
+                Picker(S.rowLayout, selection: $settings.layout) {
                     ForEach(RowLayout.allCases) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
 
-                Toggle("상태를 글자로 보이기", isOn: $settings.showStateLabel)
-                Toggle("도구 이름 보이기", isOn: $settings.showTool)
+                Toggle(S.showStateLabel, isOn: $settings.showStateLabel)
+                Toggle(S.showTool, isOn: $settings.showTool)
 
-                Picker("지표", selection: $settings.metrics) {
+                Picker(S.metrics, selection: $settings.metrics) {
                     ForEach(MetricDisplay.allCases) { Text($0.label).tag($0) }
                 }
 
-                Toggle("아래에 시스템 요약 보이기", isOn: $settings.showSummary)
+                Toggle(S.showSummary, isOn: $settings.showSummary)
 
-                Picker("갱신 주기", selection: $settings.refreshInterval) {
-                    Text("1초").tag(1.0)
-                    Text("2초").tag(2.0)
-                    Text("5초").tag(5.0)
+                Picker(S.refresh, selection: $settings.refreshInterval) {
+                    Text(S.seconds(1)).tag(1.0)
+                    Text(S.seconds(2)).tag(2.0)
+                    Text(S.seconds(5)).tag(5.0)
                 }
                 .pickerStyle(.segmented)
             }
             .formStyle(.grouped)
+            .frame(height: 372)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("미리보기")
+                Text(S.preview)
                     .font(.headline)
                 Text(previewText)
                     .font(.system(size: 11, design: .monospaced))
@@ -52,26 +59,27 @@ struct LayoutSettingsView: View {
                     .padding(10)
                     .background(Color(nsColor: .textBackgroundColor))
                     .clipShape(RoundedRectangle(cornerRadius: 6))
-                Text("실제 세션을 메뉴와 같은 코드로 그린 것입니다. 폭이 곧 메뉴 폭입니다.")
+                Text(S.previewNote)
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 20)
 
             HStack {
-                Button("처음 모습으로") { settings.resetToDefaults() }
+                Button(S.resetButton) { settings.resetToDefaults() }
                 Spacer()
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        }
         .onAppear { sessions = sessionsProvider() }
         .onReceive(tick) { _ in sessions = sessionsProvider() }
     }
 
     private var previewText: String {
-        guard !sessions.isEmpty else { return "살아있는 세션이 없습니다." }
+        guard !sessions.isEmpty else { return S.noSessionsPeriod }
         let formatter = RowFormatter(settings: settings,
                                      nameWidth: RowFormatter.nameWidth(for: sessions))
         var lines = sessions.prefix(6).map { formatter.row(for: $0).text }
@@ -92,9 +100,9 @@ struct SettingsWindowView: View {
     var body: some View {
         TabView {
             LayoutSettingsView(sessionsProvider: sessionsProvider)
-                .tabItem { Label("표시", systemImage: "list.bullet") }
+                .tabItem { Label(S.tabDisplay, systemImage: "list.bullet") }
             MemoryView(sessionsProvider: sessionsProvider)
-                .tabItem { Label("메모리", systemImage: "memorychip") }
+                .tabItem { Label(S.tabMemory, systemImage: "memorychip") }
         }
         .padding(.top, 8)
         // 높이를 못 박지 않으면 SwiftUI 내용이 접혀 창이 179pt 로 나온다.
@@ -119,30 +127,30 @@ struct MemoryView: View {
             VStack(alignment: .leading, spacing: 14) {
                 if let report {
                     if let system = report.system {
-                        GroupBox("이 맥") {
+                        GroupBox(S.thisMac) {
                             VStack(alignment: .leading, spacing: 4) {
-                                line("사용 중", gb(system.usedBytes) + " / " + gb(system.totalBytes))
-                                line("스왑", gb(system.swapUsedBytes))
-                                line("압축됨", gb(system.compressedBytes))
+                                line(S.used, gb(system.usedBytes) + " / " + gb(system.totalBytes))
+                                line(S.swap, gb(system.swapUsedBytes))
+                                line(S.compressed, gb(system.compressedBytes))
                             }
                             .padding(6)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
 
-                    GroupBox("에이전트 세션") {
-                        line(gb(report.agentBytes), "프로세스 \(report.agentProcessCount)개")
+                    GroupBox(S.agentSessions) {
+                        line(gb(report.agentBytes), S.processCount(report.agentProcessCount))
                             .padding(6)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
                     if !report.suspected.isEmpty {
-                        GroupBox("세션이 띄운 것으로 보이는 것") {
+                        GroupBox(S.suspectedGroup) {
                             VStack(alignment: .leading, spacing: 4) {
                                 ForEach(report.suspected) { entry in
                                     line(entry.name, gb(entry.bytes) + "   → " + (entry.suspectedOwner ?? ""))
                                 }
-                                Text("작업 폴더로 미루어 본 **추정**입니다. 세션 합계에는 넣지 않았습니다.")
+                                Text(.init(S.suspectedNote))
                                     .font(.caption)
                                     .foregroundStyle(.tertiary)
                                     .padding(.top, 4)
@@ -152,22 +160,22 @@ struct MemoryView: View {
                         }
                     }
 
-                    GroupBox("세션 밖") {
+                    GroupBox(S.outsideSessions) {
                         VStack(alignment: .leading, spacing: 4) {
                             ForEach(report.others.prefix(12)) { entry in
                                 line(entry.name,
-                                     gb(entry.bytes) + (entry.processCount > 1 ? "   (\(entry.processCount)개)" : ""))
+                                     gb(entry.bytes) + (entry.processCount > 1 ? S.countSuffix(entry.processCount) : ""))
                             }
                         }
                         .padding(6)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
-                    Text("30MB 미만은 생략했습니다. 세션 트리에 속한 것은 «에이전트 세션» 에만 셉니다.")
+                    Text(S.memoryFootnote)
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 } else {
-                    Text("재는 중…").foregroundStyle(.secondary)
+                    Text(S.measuring).foregroundStyle(.secondary)
                 }
             }
             .padding(20)
@@ -206,7 +214,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         if window == nil {
             let hosting = NSHostingController(rootView: SettingsWindowView(sessionsProvider: sessionsProvider))
             let w = NSWindow(contentViewController: hosting)
-            w.title = "AgentMonitor 설정"
+            w.title = S.windowTitle
             w.styleMask = [.titled, .closable, .resizable]
             w.isReleasedWhenClosed = false
             w.delegate = self

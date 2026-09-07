@@ -57,7 +57,7 @@ struct MemoryReport {
                 continue
             }
             guard info.residentBytes >= floor else { continue }
-            let name = label(of: entry.pid) ?? "(알 수 없음)"
+            let name = label(of: entry.pid) ?? S.unknownProcess
             let owner = suspectedOwner(of: entry.pid, sessions: sessions)
             let previous = grouped[name]
             grouped[name] = (
@@ -173,6 +173,6 @@ struct MemoryReport {
             }
         }
         guard !names.isEmpty else { return nil }
-        return names.count == 1 ? names[0] : "여러 세션 (\(names.count))"
+        return names.count == 1 ? names[0] : S.multipleSessions(names.count)
     }
 }
