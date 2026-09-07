@@ -172,6 +172,13 @@ enum MetricFormat {
         return out
     }
 
+    /// 크기에 맞춰 단위를 고른다. 1GB 미만을 `0.0GB` 로 적으면 아무 뜻도 없다.
+    static func size(_ bytes: UInt64) -> String {
+        let gb = Double(bytes) / 1_000_000_000
+        if gb >= 1 { return String(format: "%.1fGB", gb) }
+        return String(format: "%.0fMB", Double(bytes) / 1_000_000)
+    }
+
     static func gigabytes(_ bytes: UInt64) -> String {
         String(format: "%.1fG", Double(bytes) / 1_000_000_000)
     }

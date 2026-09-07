@@ -57,7 +57,7 @@ struct MemoryReport {
                 continue
             }
             guard info.residentBytes >= floor else { continue }
-            let name = executableName(of: entry.pid) ?? "(알 수 없음)"
+            let name = label(of: entry.pid) ?? "(알 수 없음)"
             let owner = suspectedOwner(of: entry.pid, sessions: sessions)
             let previous = grouped[name]
             grouped[name] = (
@@ -87,6 +87,59 @@ struct MemoryReport {
         var buffer = [CChar](repeating: 0, count: 4096)
         guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { return nil }
         return URL(fileURLWithPath: String(cString: buffer)).lastPathComponent
+    }
+
+    /// 스크립트를 실행할 뿐이라 이름만으로는 정체를 알 수 없는 것들.
+    private static let runtimes: Set<String> = [
+        "node", "python", "python3", "ruby", "deno", "bun", "java", "perl", "php",
+    ]
+
+    /// 목록에 적을 이름.
+    ///
+    /// 실행 파일 이름만 쓰면 `next-server` 도 `node`, MCP 서버도 `node` 로 뭉쳐진다.
+    /// 「무엇이 먹고 있나」를 알려는 화면에서 그건 절반쯤 실패다. 그래서
+    /// `argv[0]`(스스로 바꿔 단 이름)과 실행 스크립트 이름까지 본다.
+    private static func label(of pid: Int32) -> String? {
+        let executable = executableName(of: pid)
+        guard let args = arguments(of: pid), let first = args.first, !first.isEmpty else {
+            return executable
+        }
+        let titled = URL(fileURLWithPath: first).lastPathComponent
+
+        // next-server 처럼 제 이름을 고쳐 단 프로세스는 그 이름이 곧 정체다.
+        if let executable, titled != executable, !titled.isEmpty { return titled }
+
+        // node·python 처럼 남의 코드를 돌리는 것이면 무엇을 돌리는지 덧붙인다.
+        if let executable, runtimes.contains(executable),
+           let script = args.dropFirst().first(where: { !$0.hasPrefix("-") }) {
+            return "\(executable) (\(URL(fileURLWithPath: script).lastPathComponent))"
+        }
+        return executable
+    }
+
+    /// `KERN_PROCARGS2` 배치: `[argc(4)][실행 경로\0][정렬용 \0…][argv0\0][argv1\0]…`
+    private static func arguments(of pid: Int32) -> [String]? {
+        var size = 0
+        var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
+        guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > 4 else { return nil }
+        var buffer = [UInt8](repeating: 0, count: size)
+        guard sysctl(&mib, 3, &buffer, &size, nil, 0) == 0 else { return nil }
+
+        let count = buffer.withUnsafeBytes { $0.loadUnaligned(as: Int32.self) }
+        guard count > 0 else { return nil }
+
+        var index = 4
+        while index < size, buffer[index] != 0 { index += 1 }   // 실행 경로
+        while index < size, buffer[index] == 0 { index += 1 }   // 정렬용 널
+
+        var out: [String] = []
+        while index < size, out.count < Int(count) {
+            let start = index
+            while index < size, buffer[index] != 0 { index += 1 }
+            out.append(String(decoding: buffer[start..<index], as: UTF8.self))
+            index += 1
+        }
+        return out
     }
 
     private static func workingDirectory(of pid: Int32) -> String? {

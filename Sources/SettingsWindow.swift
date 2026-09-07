@@ -178,9 +178,7 @@ struct MemoryView: View {
 
     private func refresh() { report = MemoryReport.build(sessions: sessionsProvider()) }
 
-    private func gb(_ bytes: UInt64) -> String {
-        String(format: "%.1fGB", Double(bytes) / 1_000_000_000)
-    }
+    private func gb(_ bytes: UInt64) -> String { MetricFormat.size(bytes) }
 
     private func line(_ left: String, _ right: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
