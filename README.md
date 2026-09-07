@@ -80,8 +80,7 @@ To allow it:
 
 Once is enough; later launches are normal.
 
-If you would rather not run an unsigned binary — a reasonable position — build it yourself. It is
-two commands and takes about fifteen seconds.
+Or build it yourself instead — two commands, about fifteen seconds.
 
 ### Build from source
 
@@ -99,8 +98,8 @@ again replaces the app and relaunches it if it was running. Pass `--no-run` to s
 `build.sh` produces a **universal binary** (Apple Silicon and Intel) targeting macOS 13. If an
 architecture cannot be built on your machine it is skipped rather than failing the build.
 
-It compiles against the macOS 13 SDK, but it has only been *run* on macOS 26. An older release is
-untested ground rather than a supported configuration — please open an issue if it misbehaves.
+It compiles against the macOS 13 SDK, but has only been *run* on macOS 26. Older releases are
+untested — please open an issue if something misbehaves.
 
 The first time you click a session row, macOS asks for permission to control Terminal. That
 permission is what moves the window; without it the jump does nothing.
@@ -138,20 +137,16 @@ agent-monitor --roots     # which account roots are scanned
   session's process tree is not in that session's total. The memory tab surfaces them, but the
   attribution is a guess from the working directory and says so — when several sessions share a
   project it reports "multiple sessions (n)" instead of picking one.
-- **Unsigned.** Built locally; there is no notarised release yet.
+- **Unsigned.** Releases are not signed or notarised, so macOS blocks the first launch.
 - **macOS only**, and it only knows about Claude Code so far. `SessionSource` is the seam where
   another CLI would attach.
 
 ## Contributing
 
-Issues and pull requests welcome. A few things worth knowing:
+Issues and pull requests welcome.
 
-- Comments are in Korean and fairly dense — they carry *why*, including decisions that were
-  reversed. Please keep that habit rather than stripping it.
-- All user-facing text lives in `Sources/Strings.swift`, with the Korean and English wording on
-  adjacent lines so a one-sided edit is visible. Adding a language means extending that file.
-- Claims in this repo are meant to be measured, not assumed. If you state a number, say how you
-  got it; if you could not measure something, say that instead.
+Comments are in Korean. All user-facing text lives in `Sources/Strings.swift`, with the Korean and
+English wording on adjacent lines — adding a language means extending that file.
 
 ## License
 
