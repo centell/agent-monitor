@@ -102,7 +102,7 @@ final class MetricsSampler {
         return out
     }
 
-    private static func info(of pid: Int32) -> (residentBytes: UInt64, cpuSeconds: Double)? {
+    static func info(of pid: Int32) -> (residentBytes: UInt64, cpuSeconds: Double)? {
         var info = proc_taskallinfo()
         let size = Int32(MemoryLayout<proc_taskallinfo>.size)
         let rc = withUnsafeMutablePointer(to: &info) {

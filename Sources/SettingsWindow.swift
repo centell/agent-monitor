@@ -7,7 +7,7 @@ import SwiftUI
 ///
 /// 미리보기는 실제 세션을 실제 행 그리기 코드(`RowFormatter`)로 그린다.
 /// 흉내를 내면 손잡이를 만져 보는 의미가 없어진다.
-struct SettingsView: View {
+struct LayoutSettingsView: View {
 
     @ObservedObject private var settings = Settings.shared
     let sessionsProvider: () -> [Session]
@@ -65,8 +65,7 @@ struct SettingsView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
         }
-        // 높이를 못 박지 않으면 SwiftUI 내용이 접혀 창이 179pt 로 나온다.
-        .frame(minWidth: 620, maxWidth: 620, minHeight: 600, alignment: .top)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear { sessions = sessionsProvider() }
         .onReceive(tick) { _ in sessions = sessionsProvider() }
     }
@@ -85,6 +84,113 @@ struct SettingsView: View {
     }
 }
 
+// MARK: - 탭 묶음
+
+struct SettingsWindowView: View {
+    let sessionsProvider: () -> [Session]
+
+    var body: some View {
+        TabView {
+            LayoutSettingsView(sessionsProvider: sessionsProvider)
+                .tabItem { Label("표시", systemImage: "list.bullet") }
+            MemoryView(sessionsProvider: sessionsProvider)
+                .tabItem { Label("메모리", systemImage: "memorychip") }
+        }
+        .padding(.top, 8)
+        // 높이를 못 박지 않으면 SwiftUI 내용이 접혀 창이 179pt 로 나온다.
+        .frame(minWidth: 640, maxWidth: 640, minHeight: 620, alignment: .top)
+    }
+}
+
+// MARK: - 메모리
+
+/// 「이 맥의 메모리를 누가 먹고 있나」.
+///
+/// 세션 합계만으로는 답이 안 나온다. 세션이 띄운 개발 서버나 컨테이너는 트리에서
+/// 떨어져 나가 우리 합계에 안 잡히고, 정작 가장 많이 먹는 것이 브라우저일 때도 있다.
+struct MemoryView: View {
+
+    let sessionsProvider: () -> [Session]
+    @State private var report: MemoryReport?
+    private let tick = Timer.publish(every: 3, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                if let report {
+                    if let system = report.system {
+                        GroupBox("이 맥") {
+                            VStack(alignment: .leading, spacing: 4) {
+                                line("사용 중", gb(system.usedBytes) + " / " + gb(system.totalBytes))
+                                line("스왑", gb(system.swapUsedBytes))
+                                line("압축됨", gb(system.compressedBytes))
+                            }
+                            .padding(6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+
+                    GroupBox("에이전트 세션") {
+                        line(gb(report.agentBytes), "프로세스 \(report.agentProcessCount)개")
+                            .padding(6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    if !report.suspected.isEmpty {
+                        GroupBox("세션이 띄운 것으로 보이는 것") {
+                            VStack(alignment: .leading, spacing: 4) {
+                                ForEach(report.suspected) { entry in
+                                    line(entry.name, gb(entry.bytes) + "   → " + (entry.suspectedOwner ?? ""))
+                                }
+                                Text("작업 폴더로 미루어 본 **추정**입니다. 세션 합계에는 넣지 않았습니다.")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                    .padding(.top, 4)
+                            }
+                            .padding(6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+
+                    GroupBox("세션 밖") {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(report.others.prefix(12)) { entry in
+                                line(entry.name,
+                                     gb(entry.bytes) + (entry.processCount > 1 ? "   (\(entry.processCount)개)" : ""))
+                            }
+                        }
+                        .padding(6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    Text("30MB 미만은 생략했습니다. 세션 트리에 속한 것은 «에이전트 세션» 에만 셉니다.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                } else {
+                    Text("재는 중…").foregroundStyle(.secondary)
+                }
+            }
+            .padding(20)
+        }
+        .onAppear { refresh() }
+        .onReceive(tick) { _ in refresh() }
+    }
+
+    private func refresh() { report = MemoryReport.build(sessions: sessionsProvider()) }
+
+    private func gb(_ bytes: UInt64) -> String {
+        String(format: "%.1fGB", Double(bytes) / 1_000_000_000)
+    }
+
+    private func line(_ left: String, _ right: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(left).font(.system(size: 12, design: .monospaced))
+            Spacer(minLength: 12)
+            Text(right).font(.system(size: 12, design: .monospaced)).foregroundStyle(.secondary)
+        }
+    }
+}
+
 // MARK: - 창
 
 /// Dock 아이콘이 없는 앱(`LSUIElement`)이라 창을 앞으로 끌어오는 처리를 직접 해야 한다.
@@ -100,7 +206,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     func show(sessionsProvider: @escaping () -> [Session]) {
         if window == nil {
-            let hosting = NSHostingController(rootView: SettingsView(sessionsProvider: sessionsProvider))
+            let hosting = NSHostingController(rootView: SettingsWindowView(sessionsProvider: sessionsProvider))
             let w = NSWindow(contentViewController: hosting)
             w.title = "AgentMonitor 설정"
             w.styleMask = [.titled, .closable, .resizable]
