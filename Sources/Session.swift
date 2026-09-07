@@ -45,13 +45,17 @@ enum SessionState: Equatable {
         }
     }
 
+    /// 목록 맨 앞에 붙는 표식.
+    ///
+    /// 이모지를 쓰지 않는다. 고정폭 글꼴에서도 이모지는 폭이 튀어 줄이 어긋난다.
+    /// 폭이 고른 도형만 쓰고, 급한 정도는 색으로 구분한다.
     var symbol: String {
         switch self {
-        case .waiting: return "⏳"
+        case .waiting: return "◆"
         case .idle:    return "○"
         case .busy:    return "●"
         case .shell:   return "◐"
-        case .unknown: return "?"
+        case .unknown: return "·"
         }
     }
 
