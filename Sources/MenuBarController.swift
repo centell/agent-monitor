@@ -216,8 +216,19 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// 누를 수 없는 안내 줄. 줄바꿈이 든 글도 그대로 그린다.
     private func disabledRow(_ text: String) -> NSMenuItem {
-        let item = NSMenuItem(title: text, action: nil, keyEquivalent: "")
+        let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineSpacing = 2
+        item.attributedTitle = NSAttributedString(
+            string: text,
+            attributes: [
+                .font: NSFont.menuFont(ofSize: 0),
+                .foregroundColor: NSColor.secondaryLabelColor,
+                .paragraphStyle: paragraph,
+            ]
+        )
         item.isEnabled = false
         return item
     }

@@ -62,10 +62,15 @@ enum S {
 
     // MARK: 요약
 
+    /// 두 줄로 나눈다.
+    ///
+    /// 한 줄로 두면 49칸이 되어 세션 줄(38칸)보다 넓어지고, 메뉴는 가장 긴 줄에 맞춰지므로
+    /// **요약 하나 때문에 메뉴 전체가 넓어진다.** 이름을 떼어 줄이는 방법도 있지만,
+    /// 숫자에서 이름을 빼면 만든 사람에게만 뜻이 통하게 된다.
     static func systemSummary(used: Double, total: Double, swap: Double, agent: Double) -> String {
         isKorean
-            ? String(format: "메모리 %.1f/%.1fGB · 스왑 %.1fGB · 에이전트 %.1fGB", used, total, swap, agent)
-            : String(format: "Memory %.1f/%.1fGB · Swap %.1fGB · Agents %.1fGB", used, total, swap, agent)
+            ? String(format: "메모리 %.1f/%.1fGB · 스왑 %.1fGB\n에이전트 %.1fGB", used, total, swap, agent)
+            : String(format: "Memory %.1f/%.1fGB · Swap %.1fGB\nAgents %.1fGB", used, total, swap, agent)
     }
 
     // MARK: 설정창
