@@ -65,13 +65,27 @@ A full sample costs about 12 ms — roughly 0.6 % of the default two-second cycl
 
 ## Install
 
+### Download a build
+
+[Releases](https://github.com/centell/agent-monitor/releases) carries a prebuilt universal app.
+
+> **It is not signed or notarised.** Signing for distribution needs a paid Apple Developer
+> account, which this project does not have. macOS will refuse to open it the first time.
+
+To allow it:
+
+1. Unzip, and put `AgentMonitor.app` wherever you keep apps
+2. **Right-click the app → Open**, then confirm in the dialog
+3. If macOS still refuses: System Settings → Privacy & Security → scroll down → **Open Anyway**
+
+Once is enough; later launches are normal.
+
+If you would rather not run an unsigned binary — a reasonable position — build it yourself. It is
+two commands and takes about fifteen seconds.
+
+### Build from source
+
 Requires the Swift compiler (`xcode-select --install`). No other dependencies.
-
-`build.sh` produces a **universal binary** (Apple Silicon and Intel) targeting macOS 13. If an
-architecture cannot be built on your machine it is skipped rather than failing the build.
-
-It compiles against the macOS 13 SDK, but it has only been *run* on macOS 26. An older release is
-untested ground rather than a supported configuration — please open an issue if it misbehaves.
 
 ```sh
 git clone https://github.com/centell/agent-monitor.git
@@ -81,6 +95,12 @@ cd agent-monitor
 
 `build.sh` compiles and installs to `~/Applications/AgentMonitor.app`, then launches it. Building
 again replaces the app and relaunches it if it was running. Pass `--no-run` to skip the relaunch.
+
+`build.sh` produces a **universal binary** (Apple Silicon and Intel) targeting macOS 13. If an
+architecture cannot be built on your machine it is skipped rather than failing the build.
+
+It compiles against the macOS 13 SDK, but it has only been *run* on macOS 26. An older release is
+untested ground rather than a supported configuration — please open an issue if it misbehaves.
 
 The first time you click a session row, macOS asks for permission to control Terminal. That
 permission is what moves the window; without it the jump does nothing.
