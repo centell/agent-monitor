@@ -68,8 +68,11 @@ transcript 파일이 언제 바뀌었는지로 상태를 추측하면, **오래 
 
 Swift 컴파일러(`xcode-select --install`)가 필요합니다. 그 외 의존성은 없습니다.
 
-번들에는 **macOS 13 이상**이라 적어 두었지만, **실제로 돌려 본 것은 macOS 26 뿐입니다.**
-옛 판에서 안 되면 지원 범위가 아니라 «확인 못 한 땅»입니다 — 이슈로 알려주세요.
+`build.sh` 는 **유니버설 바이너리**(Apple Silicon + Intel)를 macOS 13 대상으로 만듭니다.
+어느 한 아키텍처를 만들 수 없는 환경이면 그것만 건너뛰고 빌드는 계속됩니다.
+
+macOS 13 SDK 로 **컴파일되는 것은 확인했지만, 실제로 돌려 본 것은 macOS 26 뿐입니다.**
+옛 판은 지원 범위가 아니라 «확인 못 한 땅»입니다 — 이상하면 이슈로 알려주세요.
 
 ```sh
 git clone https://github.com/centell/agent-monitor.git

@@ -67,8 +67,11 @@ A full sample costs about 12 ms — roughly 0.6 % of the default two-second cycl
 
 Requires the Swift compiler (`xcode-select --install`). No other dependencies.
 
-The bundle declares **macOS 13+**, but it has only been run on macOS 26. If it fails on an
-older release, that is untested ground rather than a supported configuration — please open an issue.
+`build.sh` produces a **universal binary** (Apple Silicon and Intel) targeting macOS 13. If an
+architecture cannot be built on your machine it is skipped rather than failing the build.
+
+It compiles against the macOS 13 SDK, but it has only been *run* on macOS 26. An older release is
+untested ground rather than a supported configuration — please open an issue if it misbehaves.
 
 ```sh
 git clone https://github.com/centell/agent-monitor.git
