@@ -64,14 +64,15 @@ struct RowFormatter {
     private func metrics(for session: Session) -> String {
         guard settings.metrics.showsBar, let m = session.metrics else { return "" }
         var out = "     " + MetricFormat.bar(bytes: m.memoryBytes).paddedDisplay(to: 7)
+        // 숫자에 이름을 붙인다. `0.5G` 와 `3%` 는 만든 사람에게만 뜻이 분명하다.
         if settings.metrics.showsValue {
-            out += MetricFormat.gigabytes(m.memoryBytes).rightAligned(to: 5)
+            out += "RAM " + MetricFormat.gigabytes(m.memoryBytes).rightAligned(to: 5)
         }
         // 문턱을 두지 않는다. 「전부 (CPU 포함)」을 고른 것이 곧 «보여 달라»는 뜻이며,
         // 골라 놓았는데 아무것도 안 나오면 설정이 고장 난 것처럼 보인다.
         // 조용히 두고 싶으면 지표 단계를 낮추면 된다 — 그게 손잡이의 일이다.
         if settings.metrics.showsCPU, let cpu = m.cpuPercent {
-            out += String(format: "  %3.0f%%", cpu)
+            out += String(format: "  CPU %3.0f%%", cpu)
         }
         return out
     }
