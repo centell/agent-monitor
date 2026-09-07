@@ -53,7 +53,7 @@ PLIST
 
 echo "빌드 완료"
 echo "  앱  : $DEST"
-echo "  CLI : build/agent-monitor   (--list · --json · --roots)"
+echo "  CLI : build/agent-monitor   (--list · --json · --memory · --roots)"
 
 if [[ "${1:-}" == "--no-run" ]]; then
     [[ $WAS_RUNNING -eq 1 ]] && echo "  → 내려둔 채로 두었습니다 (--no-run)"
