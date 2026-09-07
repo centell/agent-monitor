@@ -21,6 +21,20 @@ if args.contains("-h") || args.contains("--help") {
 
 let source = ClaudeCodeSource()
 
+/// 한 번 실행하고 끝나는 모드용. CPU 사용률은 두 표본의 차이로만 구할 수 있으므로
+/// 잠깐 사이를 두고 두 번 잰다.
+func measuredSessions(sampleCPU: Bool) -> ([Session], SystemMemory?) {
+    let sampler = MetricsSampler()
+    var scanned = source.scan()
+    if sampleCPU {
+        _ = sampler.sample(pids: scanned.map(\.pid))
+        Thread.sleep(forTimeInterval: 0.5)
+    }
+    let metrics = sampler.sample(pids: scanned.map(\.pid))
+    for index in scanned.indices { scanned[index].metrics = metrics[scanned[index].pid] }
+    return (scanned.sortedForDisplay(), MetricsSampler.systemMemory())
+}
+
 if args.contains("--roots") {
     let roots = source.accountRoots()
     print("계정 루트 \(roots.count)개")
@@ -29,7 +43,7 @@ if args.contains("--roots") {
 }
 
 if args.contains("--json") {
-    let sessions = source.scan().sortedForDisplay()
+    let (sessions, _) = measuredSessions(sampleCPU: true)
     let iso = ISO8601DateFormatter()
     let payload: [[String: Any]] = sessions.map { s in
         var row: [String: Any] = [
@@ -49,6 +63,9 @@ if args.contains("--json") {
         row["statusUpdatedAt"] = s.statusUpdatedAt.map { iso.string(from: $0) }
         row["lastActivity"] = s.lastActivity.map { iso.string(from: $0) }
         row["ageSeconds"] = s.age().map { Int($0) }
+        row["memoryBytes"] = s.metrics.map { Int($0.memoryBytes) }
+        row["cpuPercent"] = s.metrics?.cpuPercent.map { ($0 * 10).rounded() / 10 }
+        row["descendantCount"] = s.metrics.map { $0.descendantCount }
         return row.compactMapValues { $0 }
     }
     let data = try JSONSerialization.data(withJSONObject: payload,
@@ -58,7 +75,7 @@ if args.contains("--json") {
 }
 
 if args.contains("--list") {
-    let sessions = source.scan().sortedForDisplay()
+    let (sessions, systemMemory) = measuredSessions(sampleCPU: true)
     if sessions.isEmpty {
         print("살아있는 세션이 없습니다.")
         exit(0)
@@ -69,9 +86,22 @@ if args.contains("--list") {
     for s in sessions {
         let name = s.name.paddedDisplay(to: nameWidth)
         let label = s.state.label.fitted(to: 10)
-        let tool = (s.currentTool ?? "—").fitted(to: 16)
+        let age = MenuBarController.elapsed(s.age())
         let mark = s.isEstimated ? " (추정)" : ""
-        print(" \(s.state.symbol) \(name)  \(label) \(tool) \(MenuBarController.elapsed(s.age()))\(mark)")
+        print(" \(s.state.symbol) \(name)  \(label)\(String(repeating: " ", count: max(1, 5 - age.count)))\(age)\(mark)")
+
+        let tool = (s.currentTool ?? "—").fitted(to: 12)
+        var second = "   \(tool)"
+        if let m = s.metrics {
+            second += MetricFormat.bar(bytes: m.memoryBytes).paddedDisplay(to: 7)
+            second += MetricFormat.gigabytes(m.memoryBytes)
+            if let cpu = m.cpuPercent, cpu >= 5 { second += String(format: "   CPU %.0f%%", cpu) }
+        }
+        print(second)
+    }
+    if let memory = systemMemory {
+        let agentBytes = sessions.compactMap { $0.metrics?.memoryBytes }.reduce(0, +)
+        print("\n" + MetricFormat.systemSummary(memory, agentBytes: agentBytes))
     }
     exit(0)
 }

@@ -105,6 +105,9 @@ struct Session {
     /// 조용히 틀리지 않기 위한 표식이다. 이 값이 참이면 화면에도 추정치라고 적어야 한다.
     var isEstimated: Bool = false
 
+    /// 프로세스 트리의 메모리·CPU. 재지 못했으면 없다.
+    var metrics: SessionMetrics?
+
     var shortID: String { String(id.prefix(8)) }
 
     /// 마지막 활동 이후 흐른 시간. transcript 가 없으면 상태 갱신 시각으로 대신한다.

@@ -15,6 +15,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// 흔들리면 누르려던 줄이 다른 줄로 바뀐다.
     private var menuIsOpen = false
     private var sessions: [Session] = []
+    private let sampler = MetricsSampler()
+    private var systemMemory: SystemMemory?
 
     init(source: SessionSource, interval: TimeInterval = 2) {
         self.source = source
@@ -41,9 +43,20 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: 갱신
 
     private func refresh() {
-        sessions = source.scan().sortedForDisplay()
+        sessions = measured(source.scan()).sortedForDisplay()
         updateTitle()
         if !menuIsOpen { rebuildMenu() }
+    }
+
+    /// 세션마다 프로세스 트리의 메모리·CPU 를 붙인다.
+    private func measured(_ scanned: [Session]) -> [Session] {
+        let metrics = sampler.sample(pids: scanned.map(\.pid))
+        systemMemory = MetricsSampler.systemMemory()
+        return scanned.map { session in
+            var copy = session
+            copy.metrics = metrics[session.pid]
+            return copy
+        }
     }
 
     /// 메뉴바에는 숫자만 둔다. 세션이 몇 개든 제목 길이가 자라지 않는다.
@@ -80,7 +93,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuWillOpen(_ menu: NSMenu) {
         menuIsOpen = true
-        sessions = source.scan().sortedForDisplay()   // 열기 직전 값으로 그린다
+        sessions = measured(source.scan()).sortedForDisplay()   // 열기 직전 값으로 그린다
         updateTitle()
         rebuildMenu()
     }
@@ -109,6 +122,13 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
 
+        // 시스템 요약 — 「지금 이 맥이 쪼들리나」에 답하는 줄.
+        if let memory = systemMemory {
+            menu.addItem(.separator())
+            let agentBytes = sessions.compactMap { $0.metrics?.memoryBytes }.reduce(0, +)
+            menu.addItem(disabledRow(MetricFormat.systemSummary(memory, agentBytes: agentBytes)))
+        }
+
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "종료", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
@@ -116,37 +136,59 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func row(for session: Session, nameWidth: Int) -> NSMenuItem {
+        // 첫 줄은 물음 — 누가, 어떤 상태로, 얼마나 기다렸나.
         let name = session.name.paddedDisplay(to: nameWidth)
         let label = session.state.label.fitted(to: 10)
-        let tool = (session.currentTool ?? "—").fitted(to: 14)
         let age = Self.elapsed(session.age())
         let estimated = session.isEstimated ? "  (추정)" : ""
+        let line1 = "\(session.state.symbol)  \(name)  \(label)\(String(repeating: " ", count: max(1, 5 - age.count)))\(age)\(estimated)"
 
-        let text = "\(session.state.symbol)  \(name)  \(label)  \(tool) \(age)\(estimated)"
-        let attributed = NSMutableAttributedString(
-            string: text,
+        // 둘째 줄은 진단 — 무엇으로, 얼마나 먹으며 돌고 있나.
+        let tool = (session.currentTool ?? "—").fitted(to: 12)
+        var line2 = "   \(tool)"
+        if let metrics = session.metrics {
+            let bar = MetricFormat.bar(bytes: metrics.memoryBytes).paddedDisplay(to: 7)
+            line2 += "\(bar)\(MetricFormat.gigabytes(metrics.memoryBytes))"
+            // CPU 는 의미 있을 때만 나타난다. 쉬는 세션까지 0% 를 늘어놓지 않는다.
+            if let cpu = metrics.cpuPercent, cpu >= 5 {
+                line2 += String(format: "   CPU %.0f%%", cpu)
+            }
+        }
+
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineSpacing = 2
+        let text = NSMutableAttributedString(
+            string: line1 + "\n" + line2,
             attributes: [
                 .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
                 .foregroundColor: NSColor.labelColor,
+                .paragraphStyle: paragraph,
             ]
         )
         // 표식만 색을 준다. 줄 전체를 물들이면 목록이 시끄러워진다.
-        attributed.addAttribute(.foregroundColor,
-                                value: color(for: session.state),
-                                range: NSRange(location: 0, length: 1))
+        text.addAttribute(.foregroundColor,
+                          value: color(for: session.state),
+                          range: NSRange(location: 0, length: 1))
+        // 둘째 줄은 한 단계 작고 흐리게 — 볼 때만 보이면 된다.
+        let secondStart = (line1 as NSString).length + 1
+        text.addAttributes(
+            [.font: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
+             .foregroundColor: NSColor.secondaryLabelColor],
+            range: NSRange(location: secondStart, length: (line2 as NSString).length)
+        )
 
         let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-        item.attributedTitle = attributed
+        item.attributedTitle = text
 
         // 누르면 그 세션이 도는 터미널 창으로 간다.
-        // 갈 수 없는 세션(터미널이 없는 것)은 누를 수 없게 두어, 눌리는 줄과
-        // 아닌 줄이 생김새로 구분되게 한다.
         if TerminalJump.canJump(pid: session.pid) {
             item.target = self
             item.action = #selector(jumpToSession(_:))
             item.representedObject = session
             item.isEnabled = true
-            item.toolTip = "\(session.cwd)\n눌러서 이 세션의 터미널로 이동"
+            var tip = "\(session.cwd)\n눌러서 이 세션의 터미널로 이동"
+            if let m = session.metrics { tip += "\n자손 프로세스 \(m.descendantCount)개 포함" }
+            item.toolTip = tip
         } else {
             item.isEnabled = false
             item.toolTip = session.cwd
