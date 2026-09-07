@@ -43,7 +43,12 @@ final class Settings: ObservableObject {
     @Published var showSummary: Bool                { didSet { persist() } }
     @Published var refreshInterval: Double          { didSet { persist() } }
 
-    private let store = UserDefaults.standard
+    /// 저장소를 도메인 이름으로 못 박는다.
+    ///
+    /// `UserDefaults.standard` 는 번들 식별자를 따라가는데, 앱은 번들 안에서 돌고
+    /// CLI(`--list`)는 번들 없이 돈다. 그래서 둘이 **서로 다른 곳**을 보고 있었다.
+    /// 앱에서 두 줄로 바꿔도 `--list` 는 한 줄로 그리던 것이 이 때문이다.
+    private let store = UserDefaults(suiteName: "me.centell.agent-monitor") ?? .standard
     private var loading = true
 
     private init() {
