@@ -156,10 +156,13 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineSpacing = 2
+        // 머리(이름·상태·시간)는 굵게, 지표는 흐리게. 두 줄 배치에서는 첫 줄이 굵어지고
+        // 한 줄 배치에서는 왼쪽 절반이 굵어진다 — 배치가 달라도 규칙은 하나다.
+        // 각 세션이 어디서 시작하는지가 눈에 바로 들어온다.
         let text = NSMutableAttributedString(
             string: row.text,
             attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
+                .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .semibold),
                 .foregroundColor: NSColor.labelColor,
                 .paragraphStyle: paragraph,
             ]
@@ -171,11 +174,10 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // 지표는 흐리게 — 평소엔 눈에 안 걸리고 찾을 때만 보이면 된다.
         if let dim = row.dimRange {
             text.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: dim)
-            if row.secondLineStart != nil {
-                text.addAttribute(.font,
-                                  value: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
-                                  range: dim)
-            }
+            text.addAttribute(.font,
+                              value: NSFont.monospacedSystemFont(
+                                  ofSize: row.secondLineStart != nil ? 11 : 12, weight: .regular),
+                              range: dim)
         }
 
         // 누르면 그 세션이 도는 터미널 창으로 간다.
