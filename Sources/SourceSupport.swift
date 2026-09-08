@@ -1,5 +1,6 @@
 import Foundation
 import Darwin
+import SQLite3
 
 /// 여러 출처가 함께 쓰는 도구.
 ///
@@ -121,5 +122,44 @@ enum Transcript {
         let withFraction = ISO8601DateFormatter()
         withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return withFraction.date(from: text) ?? ISO8601DateFormatter().date(from: text)
+    }
+}
+
+// MARK: - codex 스레드 이름
+
+enum CodexThreads {
+
+    /// codex 가 스레드에 붙여 둔 이름. `<id> → 제목`.
+    ///
+    /// `state_5.sqlite` 를 **읽기 전용**으로 열어 훑는다. 못 읽으면 빈 표를 돌려준다 —
+    /// 이름은 보기 좋으라고 있는 것이지 세션의 뼈대가 아니므로, 실패해도 부르는 쪽이
+    /// 원래 쓰던 이름(작업 폴더)으로 돌아가면 그만이다. 세션이 사라지지는 않는다.
+    static func titles(codexHome: URL) -> [String: String] {
+        let path = codexHome.appendingPathComponent("state_5.sqlite").path
+        guard FileManager.default.fileExists(atPath: path) else { return [:] }
+
+        var db: OpaquePointer?
+        guard sqlite3_open_v2("file:\(path)?mode=ro", &db,
+                              SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, nil) == SQLITE_OK else {
+            sqlite3_close(db)
+            return [:]
+        }
+        defer { sqlite3_close(db) }
+
+        let sql = """
+        SELECT id, COALESCE(NULLIF(name, ''), NULLIF(title, ''), '') FROM threads
+        """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [:] }
+        defer { sqlite3_finalize(stmt) }
+
+        var out: [String: String] = [:]
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            guard let id = sqlite3_column_text(stmt, 0),
+                  let name = sqlite3_column_text(stmt, 1) else { continue }
+            let title = String(cString: name)
+            if !title.isEmpty { out[String(cString: id)] = title }
+        }
+        return out
     }
 }

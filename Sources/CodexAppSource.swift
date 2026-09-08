@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SQLite3
 
@@ -47,6 +48,11 @@ struct CodexAppSource: SessionSource {
         let window = settings.codexAppWindow
         guard window > 0 else { return [] }
 
+        // 앱이 꺼져 있으면 그 안의 어떤 스레드도 «지금 나를 기다리는» 것이 아니다.
+        // 스레드마다 프로세스가 없어 살아있음을 잴 수 없다고 했지만, 앱 자체가 도는지는
+        // 잴 수 있다. 이것이 이 출처가 가진 유일하고 확실한 살아있음 신호다.
+        guard Self.appIsRunning else { return [] }
+
         return threads(since: Date().addingTimeInterval(-window * 60)).map { thread in
             var session = Session(
                 id: thread.id,
@@ -69,6 +75,14 @@ struct CodexAppSource: SessionSource {
             return session
         }
     }
+
+    /// ChatGPT 앱이 지금 도는가.
+    private static var appIsRunning: Bool {
+        !NSRunningApplication.runningApplications(withBundleIdentifier: appBundleID).isEmpty
+    }
+
+    /// ChatGPT 앱의 번들 식별자. `codex` 스킴을 등록한 그 앱이다.
+    private static let appBundleID = "com.openai.codex"
 
     /// 앱이 등록한 `codex` 스킴으로 그 스레드를 연다.
     /// 주소 형태는 앱 번들에 박혀 있는 것을 그대로 따랐다 (`codex://threads/<id>`).
@@ -97,7 +111,11 @@ struct CodexAppSource: SessionSource {
     ///   · `source = 'vscode'` — 앱 스레드만. `cli` 는 터미널 출처가 따로 다루고,
     ///     `exec` 는 사람이 앉아 있지 않으며, `{"subagent":…}` 는 남의 턴의 부품이지
     ///     세션이 아니다 (Claude 쪽에서 sidechain 을 세지 않는 것과 같은 이유).
-    ///   · 도는 중이 아니면 창 안의 것만.
+    ///   · 창 밖의 것. 끝난 턴은 시작 시각으로, **도는 중인 턴은 스레드의 갱신 시각**으로 잰다.
+    ///     턴이 정말 돌고 있으면 스레드가 계속 갱신되므로 몇 시간짜리 긴 턴도 살아남고,
+    ///     중간에 죽어 `inProgress` 로 굳은 턴은 갱신이 멈추므로 걸러진다.
+    ///     («N시간 넘으면 죽은 것으로 친다» 는 임의의 상한을 두지 않기 위해서다.
+    ///      실제로 19일째 `inProgress` 인 스레드가 있었고, 그것의 갱신은 21분 만에 멈춰 있었다.)
     private func threads(since cutoff: Date) -> [Thread] {
         var db: OpaquePointer?
         // 읽기 전용으로 연다. 남의 앱이 쓰는 DB 를 우리가 건드리는 일은 없어야 한다.
@@ -123,7 +141,8 @@ struct CodexAppSource: SessionSource {
           ON u.thread_id = t.id AND u.rn = 1
         WHERE t.archived = 0
           AND t.source = 'vscode'
-          AND (u.status = 'inProgress' OR u.started_at >= ?)
+          AND (u.started_at >= ?1
+               OR (u.status = 'inProgress' AND t.updated_at_ms >= ?1 * 1000))
         ORDER BY u.started_at DESC
         """
         var stmt: OpaquePointer?

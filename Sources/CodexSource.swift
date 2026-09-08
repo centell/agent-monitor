@@ -48,6 +48,10 @@ struct CodexSource: SessionSource {
         let metas = recentRollouts(in: sessionsDir).compactMap(parseMeta)
         guard !metas.isEmpty else { return [] }
 
+        // 이름은 두 곳에서 찾는다. codex 가 붙인 제목(`state_5`)이 가장 읽기 좋고,
+        // 없으면 앱이 남긴 색인, 그것도 없으면 작업 폴더 이름으로 내려간다.
+        // 앞의 둘이 다 비어도 세션은 그대로 나온다 — 이름은 뼈대가 아니다.
+        let titles = CodexThreads.titles(codexHome: root)
         let names = threadNames()
         let processes = LiveProcessTable()
         var used = Set<Int32>()
@@ -65,7 +69,8 @@ struct CodexSource: SessionSource {
             var session = Session(
                 id: meta.sessionID,
                 pid: pid,
-                name: names[meta.sessionID] ?? URL(fileURLWithPath: meta.cwd).lastPathComponent,
+                name: titles[meta.sessionID] ?? names[meta.sessionID]
+                    ?? URL(fileURLWithPath: meta.cwd).lastPathComponent,
                 source: "codex",
                 cwd: meta.cwd,
                 state: facts.state,
