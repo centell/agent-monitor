@@ -25,6 +25,17 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)   // Dock 에 뜨지 않는다
 
+        // 툴팁이 뜰 때까지 기다리는 시간(밀리초).
+        //
+        // 기본값은 3초에 가깝다. 그건 «덧붙이는 설명» 을 전제한 값이라, 목록을 연 이유
+        // 그 자체를 담은 여기서는 너무 길다. 반대로 0.3초는 눌러야 할 줄로 내려가는 길에
+        // 지나친 줄마다 말풍선이 터져 시끄러웠다. 실측으로 그 사이에 앉혔다 —
+        // 머무르면 나오고, 지나가면 안 나오는 값.
+        //
+        // `register` 로 넣는다 — 저장하지 않고 이번 실행에만 얹는 것이라 사용자가 맥 전체에
+        // 맞춰 둔 값을 우리가 덮어써 남기지 않는다.
+        UserDefaults.standard.register(defaults: ["NSInitialToolTipDelay": 800])
+
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         let menu = NSMenu()
         menu.delegate = self
@@ -187,7 +198,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // 누르면 그 세션이 사는 곳으로 간다 — 터미널 창이거나, 앱이거나.
         let canJump = SessionJump.canJump(session)
         let item = NSMenuItem()
-        item.view = SessionRowView(
+        let view = SessionRowView(
             text: text,
             enabled: canJump,
             pinned: session.isPinned,
@@ -204,7 +215,14 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if canJump { tip += "\n" + SessionJump.hint(for: session) }
         tip += "\n" + (session.isPinned ? S.unpinHint : S.pinHint)
         if let m = session.metrics { tip += "\n" + S.descendants(m.descendantCount) }
+        // 툴팁은 **뷰**에 단다.
+        //
+        // 항목에 커스텀 뷰가 붙으면 AppKit 은 그 칸을 통째로 뷰에 넘기므로, 항목에 매단
+        // `toolTip` 은 뜰 자리가 없다. 커스텀 뷰로 바꾼 뒤로 경로·안내 툴팁이 조용히
+        // 죽어 있었던 것이 이 때문이다.
+        view.toolTip = tip
         item.toolTip = tip
+        item.view = view
         return item
     }
 
