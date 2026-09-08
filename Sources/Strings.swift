@@ -96,12 +96,11 @@ enum S {
     static var showStateLabel: String { p("상태를 글자로 보이기", "Show status as text") }
     static var showTool: String      { p("도구 이름 보이기", "Show tool name") }
     static var metrics: String       { p("지표", "Metrics") }
-    static var metricNone: String    { p("끄기", "Off") }
-    // 무엇이 나오는지를 줄에 실제로 찍히는 말(RAM·CPU)로 적는다.
-    // 「숫자」·「전부」는 고르기 전에 무엇이 나올지 알 수 없어, 골라 보고서야 알게 된다.
-    static var metricBar: String     { p("막대 (메모리)", "Bar (memory)") }
-    static var metricBarValue: String { p("막대 + RAM", "Bar + RAM") }
-    static var metricAll: String     { p("막대 + RAM + CPU", "Bar + RAM + CPU") }
+    // 줄에 실제로 찍히는 말(RAM·CPU)을 그대로 쓴다. 「숫자」·「전부」로 적으면
+    // 켜 보기 전에는 무엇이 나올지 알 수 없다.
+    static var metricBar: String     { p("RAM 막대", "RAM bar") }
+    static var metricValue: String   { "RAM GB" }
+    static var metricCPU: String     { "CPU %" }
     static var showSummary: String   { p("아래에 시스템 요약 보이기", "Show system summary below") }
     static var refresh: String       { p("갱신 주기", "Refresh") }
     static func seconds(_ n: Int) -> String { p("\(n)초", "\(n)s") }

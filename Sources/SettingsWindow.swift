@@ -32,8 +32,14 @@ struct LayoutSettingsView: View {
                 Toggle(S.showStateLabel, isOn: $settings.showStateLabel)
                 Toggle(S.showTool, isOn: $settings.showTool)
 
-                Picker(S.metrics, selection: $settings.metrics) {
-                    ForEach(MetricDisplay.allCases) { Text($0.label).tag($0) }
+                // 셋을 한 줄에 나란히 둔다. 줄 수가 늘지 않아 창 높이 상수를 안 건드리고,
+                // 셋이 한 짝이라는 것도 보인다.
+                LabeledContent(S.metrics) {
+                    HStack(spacing: 14) {
+                        Toggle(S.metricBar, isOn: $settings.showMemoryBar)
+                        Toggle(S.metricValue, isOn: $settings.showMemoryValue)
+                        Toggle(S.metricCPU, isOn: $settings.showCPU)
+                    }
                 }
 
                 Toggle(S.showSummary, isOn: $settings.showSummary)

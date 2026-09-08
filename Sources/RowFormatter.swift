@@ -60,21 +60,28 @@ struct RowFormatter {
         return out
     }
 
-    /// 막대 · 메모리 · CPU. 메모리 숫자를 맨 끝에 두어 CPU 가 들고 나도 열이 흔들리지 않게 한다.
+    /// 막대 · 메모리 · CPU. 셋을 따로 켜고 끄므로 켜진 것만 이어 붙인다.
+    ///
+    /// 조각마다 폭이 고정이라 어떤 조합을 골라도 줄과 줄 사이에서 열이 맞는다.
+    /// 메모리 숫자를 CPU 앞에 두는 것도 그래서다 — CPU 가 들고 나도 앞이 안 흔들린다.
     private func metrics(for session: Session) -> String {
-        guard settings.metrics.showsBar, let m = session.metrics else { return "" }
-        var out = "     " + MetricFormat.bar(bytes: m.memoryBytes).paddedDisplay(to: 7)
+        guard let m = session.metrics else { return "" }
+        var out = ""
+        if settings.showMemoryBar {
+            out += MetricFormat.bar(bytes: m.memoryBytes).paddedDisplay(to: 7)
+        }
         // 숫자에 이름을 붙인다. `0.5G` 와 `3%` 는 만든 사람에게만 뜻이 분명하다.
-        if settings.metrics.showsValue {
+        if settings.showMemoryValue {
             out += "RAM " + MetricFormat.gigabytes(m.memoryBytes).rightAligned(to: 5)
         }
-        // 문턱을 두지 않는다. 「막대 + RAM + CPU」를 고른 것이 곧 «보여 달라»는 뜻이며,
-        // 골라 놓았는데 아무것도 안 나오면 설정이 고장 난 것처럼 보인다.
-        // 조용히 두고 싶으면 지표 단계를 낮추면 된다 — 그게 손잡이의 일이다.
-        if settings.metrics.showsCPU, let cpu = m.cpuPercent {
-            out += String(format: "  CPU %3.0f%%", cpu)
+        // 문턱을 두지 않는다. 「CPU %」를 켜 둔 것이 곧 «보여 달라»는 뜻이며,
+        // 켜 놓았는데 아무것도 안 나오면 설정이 고장 난 것처럼 보인다.
+        // 조용히 두고 싶으면 그 스위치를 끄면 된다 — 그게 손잡이의 일이다.
+        if settings.showCPU, let cpu = m.cpuPercent {
+            if !out.isEmpty { out += "  " }
+            out += String(format: "CPU %3.0f%%", cpu)
         }
-        return out
+        return out.isEmpty ? "" : "     " + out
     }
 
     // MARK: 출처 붙이기

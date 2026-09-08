@@ -11,23 +11,6 @@ enum RowLayout: String, CaseIterable, Identifiable {
     var label: String { self == .single ? S.layoutSingle : S.layoutDouble }
 }
 
-/// 지표를 어디까지 보여줄 것인가.
-enum MetricDisplay: String, CaseIterable, Identifiable {
-    case none, bar, barAndValue, all
-    var id: String { rawValue }
-    var label: String {
-        switch self {
-        case .none:        return S.metricNone
-        case .bar:         return S.metricBar
-        case .barAndValue: return S.metricBarValue
-        case .all:         return S.metricAll
-        }
-    }
-    var showsBar: Bool { self != .none }
-    var showsValue: Bool { self == .barAndValue || self == .all }
-    var showsCPU: Bool { self == .all }
-}
-
 /// 출처를 줄에 어떻게 드러낼 것인가.
 ///
 /// 터미널 세션과 앱 세션을 가르는 방법은 하나가 아니고, 무엇이 나은지는 폭을 얼마나
@@ -62,7 +45,14 @@ final class Settings: ObservableObject {
     @Published var layout: RowLayout                { didSet { persist() } }
     @Published var showStateLabel: Bool             { didSet { persist() } }
     @Published var showTool: Bool                   { didSet { persist() } }
-    @Published var metrics: MetricDisplay           { didSet { persist() } }
+    /// 지표 셋을 각각 켜고 끈다.
+    ///
+    /// 예전에는 사다리였다 — 끄기 → 막대 → 막대+숫자 → 전부. 그러면 「막대는 빼고
+    /// 숫자만」이나 「CPU만」처럼 멀쩡한 조합이 아예 불가능하다.
+    /// 셋은 서로 독립인 것을 재므로 손잡이도 셋이어야 한다.
+    @Published var showMemoryBar: Bool              { didSet { persist() } }
+    @Published var showMemoryValue: Bool            { didSet { persist() } }
+    @Published var showCPU: Bool                    { didSet { persist() } }
     @Published var showSummary: Bool                { didSet { persist() } }
     @Published var refreshInterval: Double          { didSet { persist() } }
 
@@ -103,7 +93,14 @@ final class Settings: ObservableObject {
         layout = RowLayout(rawValue: store.string(forKey: Key.layout) ?? "") ?? .single
         showStateLabel = store.object(forKey: Key.stateLabel) as? Bool ?? true
         showTool = store.object(forKey: Key.tool) as? Bool ?? true
-        metrics = MetricDisplay(rawValue: store.string(forKey: Key.metrics) ?? "") ?? .barAndValue
+        // 사다리였던 옛 설정에서 옮겨온다. 맞춰 두신 값이 말없이 초기값으로 돌아가면 안 된다.
+        let legacy = store.string(forKey: Key.legacyMetrics)
+        showMemoryBar = store.object(forKey: Key.memoryBar) as? Bool
+            ?? legacy.map { $0 != "none" } ?? true
+        showMemoryValue = store.object(forKey: Key.memoryValue) as? Bool
+            ?? legacy.map { $0 == "barAndValue" || $0 == "all" } ?? true
+        showCPU = store.object(forKey: Key.cpu) as? Bool
+            ?? legacy.map { $0 == "all" } ?? false
         showSummary = store.object(forKey: Key.summary) as? Bool ?? true
         refreshInterval = store.object(forKey: Key.interval) as? Double ?? 2
         codexAppWindow = store.object(forKey: Key.codexAppWindow) as? Double ?? 30
@@ -132,7 +129,9 @@ final class Settings: ObservableObject {
         layout = .single
         showStateLabel = true
         showTool = true
-        metrics = .barAndValue
+        showMemoryBar = true
+        showMemoryValue = true
+        showCPU = false
         showSummary = true
         refreshInterval = 2
         codexAppWindow = 30
@@ -149,7 +148,9 @@ final class Settings: ObservableObject {
         store.set(layout.rawValue, forKey: Key.layout)
         store.set(showStateLabel, forKey: Key.stateLabel)
         store.set(showTool, forKey: Key.tool)
-        store.set(metrics.rawValue, forKey: Key.metrics)
+        store.set(showMemoryBar, forKey: Key.memoryBar)
+        store.set(showMemoryValue, forKey: Key.memoryValue)
+        store.set(showCPU, forKey: Key.cpu)
         store.set(showSummary, forKey: Key.summary)
         store.set(refreshInterval, forKey: Key.interval)
         store.set(codexAppWindow, forKey: Key.codexAppWindow)
@@ -170,7 +171,11 @@ final class Settings: ObservableObject {
         static let layout = "rowLayout"
         static let stateLabel = "showStateLabel"
         static let tool = "showTool"
-        static let metrics = "metricDisplay"
+        /// 사다리였던 옛 설정. 새 스위치가 아직 없을 때 여기서 옮겨온다.
+        static let legacyMetrics = "metricDisplay"
+        static let memoryBar = "showMemoryBar"
+        static let memoryValue = "showMemoryValue"
+        static let cpu = "showCPU"
         static let summary = "showSummary"
         static let interval = "refreshInterval"
         static let codexAppWindow = "codexAppWindow"
