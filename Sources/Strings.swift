@@ -106,6 +106,13 @@ enum S {
     static var metricValue: String   { "RAM GB" }
     static var metricCPU: String     { "CPU %" }
     static var showSummary: String   { p("아래에 시스템 요약 보이기", "Show system summary below") }
+    static var recordStats: String {
+        p("쓰임새 기록하기 (agent-monitor --stats)", "Record usage (agent-monitor --stats)")
+    }
+    static var recordStatsNote: String {
+        p("세션 수·대기 시간·메모리를 1분 단위로 남깁니다. 대화 내용은 남기지 않습니다.",
+          "Keeps session counts, waiting times and memory per minute. No conversation content.")
+    }
     static var refresh: String       { p("갱신 주기", "Refresh") }
     static func seconds(_ n: Int) -> String { p("\(n)초", "\(n)s") }
     static var sourceStyle: String   { p("출처 표시", "Source label") }
@@ -201,6 +208,90 @@ enum S {
     }
     static var floorNote: String { p("30MB 미만은 생략했습니다.", "Under 30MB omitted.") }
 
+    // MARK: 통계
+
+    static var statsNoData: String {
+        p("""
+          아직 쌓인 기록이 없습니다.
+          메뉴바 앱이 돌고 있어야 쌓이며, 설정의 «쓰임새 기록하기» 가 켜져 있어야 합니다.
+          """,
+          """
+          Nothing recorded yet.
+          The menu bar app has to be running, with "Record usage" on in Settings.
+          """)
+    }
+    /// 기록은 되고 있으나 아직 셀 것이 없을 때. 「없음」과 가른다.
+    static var statsAwayOnly: String {
+        p("""
+          기록은 쌓이고 있으나, 아직 주인님이 앞에 계셨던 시간이 잡히지 않았습니다.
+          자리를 비운 동안의 대기는 병목이 아니라서 세지 않습니다 — 조금 쓰신 뒤 다시 보세요.
+          """,
+          """
+          Recording, but no time at the keyboard has been captured yet.
+          Waiting that piles up while you are away is not counted — check again after a while.
+          """)
+    }
+    static func statsHeader(days: Int, dataDays: Int, hours: Double) -> String {
+        isKorean
+            ? String(format: "최근 %d일 — 기록 %d일치 · 앞에 계셨던 시간 %.1f시간",
+                     days, dataDays, hours)
+            : String(format: "Last %d days — %d %@ recorded · %.1f hours at the keyboard",
+                     days, dataDays, dataDays == 1 ? "day" : "days", hours)
+    }
+    static var statsSessions: String { p("세션 수", "Sessions") }
+    static var statsRunning: String  { p("실제로 돌던 수", "Actually running") }
+    static var statsQueue: String    { p("대기 줄 길이", "Queue length") }
+    static var statsWaits: String    { p("대기 시간", "Waiting time") }
+    static var statsMemory: String   { p("에이전트 램", "Agent RAM") }
+
+    static func statsMeanMax(_ mean: Double, _ max: Int) -> String {
+        isKorean ? String(format: "평균 %.1f · 최대 %d", mean, max)
+                 : String(format: "%.1f avg · %d peak", mean, max)
+    }
+    static func statsMean(_ mean: Double) -> String {
+        isKorean ? String(format: "평균 %.1f", mean) : String(format: "%.1f avg", mean)
+    }
+    /// 줄 길이 분포. «없음» 이 손이 빈 시간이고, «둘 이상» 이 밀리고 있던 시간이다.
+    static func statsQueueSplit(none: Double, one: Double, many: Double) -> String {
+        let n = Int((none * 100).rounded()), o = Int((one * 100).rounded()), m = Int((many * 100).rounded())
+        return isKorean ? "없음 \(n)% · 하나 \(o)% · 둘 이상 \(m)%"
+                        : "none \(n)% · one \(o)% · two+ \(m)%"
+    }
+    static func statsWaitSplit(median: Double, longest: Double, total: Double, count: Int) -> String {
+        isKorean
+            ? "중앙값 \(span(median)) · 최장 \(span(longest)) · 합계 \(span(total))  (\(count)번)"
+            : "median \(span(median)) · longest \(span(longest)) · total \(span(total))  (\(count)×)"
+    }
+    static func statsMemorySplit(mean: String, peak: String, swap: String) -> String {
+        isKorean ? "평균 \(mean) · 최대 \(peak) · 스왑 평균 \(swap)"
+                 : "\(mean) avg · \(peak) peak · swap \(swap) avg"
+    }
+    static var statsFootnote: String {
+        p("""
+          모두 «앞에 계셨던 시간» 기준입니다 — 자리를 비운 동안 쌓인 대기는 빼고 셉니다.
+          여기서는 숫자만 냅니다. 「몇 개가 맞다」는 문턱은 쌓인 것을 보고 정합니다.
+          """,
+          """
+          Everything is measured over time at the keyboard — waiting that piled up while
+          you were away is not counted. These are numbers only; what counts as too many
+          is a threshold to set once there is enough recorded to set it from.
+          """)
+    }
+
+    /// 걸린 시간을 사람이 읽는 꼴로. 초 단위까지 보이는 자리가 있어 `elapsed` 와 따로 둔다.
+    static func span(_ seconds: Double) -> String {
+        let total = Int(seconds.rounded())
+        if total < 60 { return isKorean ? "\(total)초" : "\(total)s" }
+        if total < 3600 {
+            let m = total / 60, s = total % 60
+            if s == 0 { return isKorean ? "\(m)분" : "\(m)m" }
+            return isKorean ? "\(m)분 \(s)초" : "\(m)m \(s)s"
+        }
+        let h = total / 3600, m = (total % 3600) / 60
+        if m == 0 { return isKorean ? "\(h)시간" : "\(h)h" }
+        return isKorean ? "\(h)시간 \(m)분" : "\(h)h \(m)m"
+    }
+
     static var helpText: String {
         p("""
           agent-monitor — 로컬 에이전트 세션 중 무엇이 나를 기다리는지 보여준다
@@ -211,6 +302,7 @@ enum S {
             agent-monitor --json     JSON 으로 출력하고 끝낸다 (검증용)
             agent-monitor --memory   이 맥의 메모리를 누가 쓰는지 보여준다
             agent-monitor --roots    훑는 계정 루트를 보여준다
+            agent-monitor --stats    쌓아 둔 쓰임새 기록을 요약한다 (기본 7일)
 
           메뉴바에는 «기다리는 중/전체» 숫자만 띄운다. 세션이 몇 개든 잘라내지 않는다.
 
@@ -244,6 +336,7 @@ enum S {
             agent-monitor --json     print machine-readable output and exit
             agent-monitor --memory   show what is using RAM on this machine
             agent-monitor --roots    show which account roots are scanned
+            agent-monitor --stats    summarise the recorded usage (7 days by default)
 
           The menu bar shows only a "waiting/total" count. It never truncates the list.
 

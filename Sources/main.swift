@@ -43,6 +43,36 @@ if args.contains("--roots") {
     exit(0)
 }
 
+if args.contains("--stats") {
+    // 며칠치를 볼지. `--stats 30` 처럼 뒤에 숫자를 붙인다. 보관 기간을 넘겨 물어도
+    // 없는 날은 그냥 빠지므로, 머리글에 «기록 며칠치» 를 함께 적어 둔다.
+    let days = args.compactMap { Int($0) }.first.map { min(max($0, 1), 30) } ?? 7
+    guard let report = StatsReport.build(days: days) else {
+        print(StatsReport.hasRecords(days: days) ? S.statsAwayOnly : S.statsNoData)
+        exit(0)
+    }
+    print(S.statsHeader(days: days, dataDays: report.dataDays, hours: report.presentHours) + "\n")
+    // 라벨 칸을 채운 뒤에도 두 칸을 더 둔다. 딱 맞는 라벨(`Actually running`)이
+    // 값과 맞붙어 한 낱말처럼 읽히는 것을 막는다.
+    func line(_ label: String, _ value: String) {
+        print("  " + label.paddedDisplay(to: 16) + "  " + value)
+    }
+    line(S.statsSessions, S.statsMeanMax(report.meanSessions, report.maxSessions))
+    line(S.statsRunning, S.statsMean(report.meanRunning))
+    line(S.statsQueue, S.statsQueueSplit(none: report.queueNone,
+                                         one: report.queueOne,
+                                         many: report.queueMany))
+    line(S.statsWaits, S.statsWaitSplit(median: report.waitMedian,
+                                        longest: report.waitLongest,
+                                        total: report.waitTotal,
+                                        count: report.waitCount))
+    line(S.statsMemory, S.statsMemorySplit(mean: MetricFormat.size(report.agentMeanBytes),
+                                           peak: MetricFormat.size(report.agentPeakBytes),
+                                           swap: MetricFormat.size(report.swapMeanBytes)))
+    print("\n" + S.statsFootnote)
+    exit(0)
+}
+
 if args.contains("--memory") {
     let (sessions, _) = measuredSessions(sampleCPU: false)
     let report = MemoryReport.build(sessions: sessions)

@@ -15,6 +15,10 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var systemMemory: SystemMemory?
     private let settings = Settings.shared
 
+    /// 쓰임새를 쌓아 두는 곳. **메뉴바 앱만** 기록한다 — 표본 사이 간격이 곧 시간의 단위라,
+    /// 한 번 훑고 죽는 `--list` 같은 실행이 끼어들면 그 단위가 뒤죽박죽이 된다.
+    private let stats = StatsRecorder()
+
     init(source: SessionSource, interval: TimeInterval = 2) {
         self.source = source
         self.interval = interval
@@ -68,8 +72,17 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func refresh() {
         sessions = measured(source.scan()).sortedForDisplay()
+        if settings.recordStats { stats.record(sessions: sessions, memory: systemMemory) }
         updateTitle()
         if !menuIsOpen { rebuildMenu() }
+    }
+
+    /// 앱이 내려갈 때 진행 중이던 대기를 적는다.
+    ///
+    /// 없으면 껐다 켤 때마다 «가장 오래 기다린 것» 이 통째로 사라진다. 남는 것은 짧은
+    /// 대기뿐이라, 기록이 실제보다 늘 낙관적으로 보인다.
+    func applicationWillTerminate(_ notification: Notification) {
+        stats.finish()
     }
 
     /// 세션마다 프로세스 트리의 메모리·CPU 를 붙인다.

@@ -45,6 +45,15 @@ struct LayoutSettingsView: View {
 
                 Toggle(S.showSummary, isOn: $settings.showSummary)
 
+                VStack(alignment: .leading, spacing: 2) {
+                    Toggle(S.recordStats, isOn: $settings.recordStats)
+                    // 무엇을 남기는지 그 자리에 적는다. 기록을 켜 두는 손잡이 옆에
+                    // 「무엇이 남는가」가 없으면 켜 둔 사람이 무엇을 켰는지 모른다.
+                    Text(S.recordStatsNote)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+
                 Picker(S.refresh, selection: $settings.refreshInterval) {
                     Text(S.seconds(1)).tag(1.0)
                     Text(S.seconds(2)).tag(2.0)
@@ -68,7 +77,7 @@ struct LayoutSettingsView: View {
             .formStyle(.grouped)
             // 손잡이 수에 맞춘 높이. 모자라면 Form 안에서 마지막 줄이 잘리므로
             // 손잡이를 더할 때는 이 값도 한 줄만큼 올린다.
-            .frame(height: 500)
+            .frame(height: 552)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(S.preview)

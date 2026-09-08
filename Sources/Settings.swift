@@ -60,6 +60,12 @@ final class Settings: ObservableObject {
     @Published var showMemoryValue: Bool            { didSet { persist() } }
     @Published var showCPU: Bool                    { didSet { persist() } }
     @Published var showSummary: Bool                { didSet { persist() } }
+
+    /// 쓰임새를 기록해 둘 것인가 (`--stats` 의 재료).
+    ///
+    /// 기본은 켜 둔다 — 데이터는 지난 날로 돌아가 만들 수 없어서, 꺼 둔 채로 한 달이
+    /// 지나면 그 한 달은 영영 없다. 대신 끄는 손잡이를 눈에 보이는 자리에 둔다.
+    @Published var recordStats: Bool                { didSet { persist() } }
     @Published var refreshInterval: Double          { didSet { persist() } }
 
     /// codex 앱 스레드를 최근 몇 분까지 보일지. `0` 이면 아예 보이지 않는다.
@@ -109,6 +115,7 @@ final class Settings: ObservableObject {
         showCPU = store.object(forKey: Key.cpu) as? Bool
             ?? legacy.map { $0 == "all" } ?? false
         showSummary = store.object(forKey: Key.summary) as? Bool ?? true
+        recordStats = store.object(forKey: Key.recordStats) as? Bool ?? true
         refreshInterval = store.object(forKey: Key.interval) as? Double ?? 2
         codexAppWindow = store.object(forKey: Key.codexAppWindow) as? Double ?? 30
         sourceStyle = SourceStyle(rawValue: store.string(forKey: Key.sourceStyle) ?? "") ?? .short
@@ -141,6 +148,7 @@ final class Settings: ObservableObject {
         showMemoryValue = true
         showCPU = false
         showSummary = true
+        recordStats = true
         refreshInterval = 2
         codexAppWindow = 30
         sourceStyle = .short
@@ -161,6 +169,7 @@ final class Settings: ObservableObject {
         store.set(showMemoryValue, forKey: Key.memoryValue)
         store.set(showCPU, forKey: Key.cpu)
         store.set(showSummary, forKey: Key.summary)
+        store.set(recordStats, forKey: Key.recordStats)
         store.set(refreshInterval, forKey: Key.interval)
         store.set(codexAppWindow, forKey: Key.codexAppWindow)
         store.set(sourceStyle.rawValue, forKey: Key.sourceStyle)
@@ -187,6 +196,7 @@ final class Settings: ObservableObject {
         static let memoryValue = "showMemoryValue"
         static let cpu = "showCPU"
         static let summary = "showSummary"
+        static let recordStats = "recordStats"
         static let interval = "refreshInterval"
         static let codexAppWindow = "codexAppWindow"
         static let sourceStyle = "sourceStyle"
