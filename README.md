@@ -38,6 +38,10 @@ pending approval and a long shell command are told apart instead of both looking
 
 Click a row and the terminal window running that session comes to the front.
 
+Right-click a row to **pin** it. A pinned session rises above the others while it waits for you,
+and carries a tinted background. While it is working it keeps its place — there is nothing for
+you to do there yet. A pin lives with its session; restart the session and you pin it again.
+
 ## Install
 
 ### Download a build
@@ -76,9 +80,9 @@ permission is what moves the window; without it the jump does nothing.
 
 **Settings** has two tabs:
 
-- **Display** — language, line layout, which columns to show, metric detail, refresh interval. A
-  live preview renders real sessions through the same code the menu uses, so what you see is what
-  you get.
+- **Display** — language, line layout, which columns to show, which of the three metrics to show
+  (RAM bar, RAM GB, CPU % — each on its own switch), refresh interval. A live preview renders real
+  sessions through the same code the menu uses, so what you see is what you get.
 - **Memory** — system used/swap/compressed, the agent total, and the largest consumers outside
   every session tree. Per-session memory is summed across the whole process tree, not the `claude`
   process alone, which is usually several times larger.
