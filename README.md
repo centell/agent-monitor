@@ -36,12 +36,17 @@ Memory 15.6/25.8GB · Swap 12.3GB · Agents 3.7GB
 Status comes from the file Claude Code writes for itself, not from guessing at file timings — so a
 pending approval and a long shell command are told apart instead of both looking like silence.
 
-A row that needs you also says **why**. A session waiting on approval carries the call it is
-waiting on (`Bash: pnpm build`); an idle one carries the last thing it said to you
-(`Shall I commit?`). A busy row says nothing — there is nothing for you to answer yet. That
-line is read out of the transcript the app was already reading, so it costs no extra work; when
-it is not there, nothing is printed rather than a guess. Turn it off in Display if you would
-rather not have commands on screen.
+Hover a row that needs you and it says **why**. A session waiting on approval shows the call it
+is waiting on (`Bash: pnpm build --filter web`); an idle one shows the last thing it said to you
+(`Shall I commit, or leave it for the review?`). A busy row says nothing — there is nothing for
+you to answer yet.
+
+It lives on hover rather than in the row on purpose. In the row it charged width to every line,
+including the working ones that had nothing to say, and the reason itself still arrived cut in
+half — usually losing the end of the question, which is the part that asks. On hover it costs no
+width and is never truncated. The text comes out of the transcript the app was already reading,
+so it costs no extra work, and when it is not there nothing is shown rather than a guess. Turn it
+off in Display if you would rather not have commands on screen; `--json` carries it as `reason`.
 
 Click a row and the terminal window running that session comes to the front.
 
@@ -87,8 +92,8 @@ permission is what moves the window; without it the jump does nothing.
 
 **Settings** has two tabs:
 
-- **Display** — language, line layout, which columns to show (the why-it-is-waiting line among
-  them), which of the three metrics to show
+- **Display** — language, line layout, which columns to show, whether hovering a row says why it
+  is waiting, which of the three metrics to show
   (RAM bar, RAM GB, CPU % — each on its own switch), refresh interval. A live preview renders real
   sessions through the same code the menu uses, so what you see is what you get.
 - **Memory** — system used/swap/compressed, the agent total, and the largest consumers outside
