@@ -78,6 +78,7 @@ if args.contains("--json") {
             "sessionId": s.id,
             "pid": Int(s.pid),
             "name": s.name,
+            "source": s.source,
             "cwd": s.cwd,
             "status": s.state.raw,
             "label": s.state.label,

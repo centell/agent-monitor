@@ -46,7 +46,7 @@ struct RowFormatter {
 
     /// 표식 · 이름 · 상태 · 도구 · 경과 시간.
     private func header(for session: Session) -> String {
-        var out = "\(session.state.symbol)  \(session.name.paddedDisplay(to: nameWidth))"
+        var out = "\(session.state.symbol)  \(session.displayName.paddedDisplay(to: nameWidth))"
         if settings.showStateLabel {
             out += "  \(session.state.label.fitted(to: 10))"
         }
@@ -80,6 +80,6 @@ struct RowFormatter {
     // MARK: 도우미
 
     static func nameWidth(for sessions: [Session]) -> Int {
-        max(12, sessions.map(\.name.displayWidth).max() ?? 12)
+        max(12, sessions.map(\.displayName.displayWidth).max() ?? 12)
     }
 }

@@ -89,6 +89,7 @@ struct Session {
     let id: String                  // sessionId (UUID)
     let pid: Int32
     let name: String                // 레지스트리가 붙인 이름 (예: tools-91)
+    let source: String              // 어느 CLI 에서 왔는가 (claude · codex)
     let cwd: String
     let state: SessionState
     let kind: String?               // interactive 등
@@ -110,6 +111,10 @@ struct Session {
 
     var shortID: String { String(id.prefix(8)) }
 
+    /// 목록에 적을 이름. 어느 CLI 의 세션인지 이름만 봐도 알 수 있게 출처를 앞에 붙인다.
+    /// 출처가 하나뿐일 때도 붙인다 — 있다 없다 하면 열 폭이 흔들린다.
+    var displayName: String { "\(source)/\(name)" }
+
     /// 마지막 활동 이후 흐른 시간. transcript 가 없으면 상태 갱신 시각으로 대신한다.
     func age(now: Date = Date()) -> TimeInterval? {
         guard let t = lastActivity ?? statusUpdatedAt else { return nil }
@@ -121,8 +126,8 @@ struct Session {
 
 /// 세션을 어디서 긁어 오는가.
 ///
-/// 지금은 Claude Code 구현체 하나뿐이다. 나중에 다른 CLI 가 붙어도
-/// 위쪽(화면·알림)을 건드리지 않게 여기서 끊는다.
+/// Claude Code 와 codex 구현체가 있고, `CompositeSource` 가 둘을 묶는다.
+/// 다른 CLI 가 더 붙어도 위쪽(화면·알림)을 건드리지 않게 여기서 끊는다.
 protocol SessionSource {
     /// 화면에 보일 출처 이름.
     var sourceName: String { get }

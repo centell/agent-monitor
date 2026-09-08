@@ -66,6 +66,7 @@ struct CodexSource: SessionSource {
                 id: meta.sessionID,
                 pid: pid,
                 name: names[meta.sessionID] ?? URL(fileURLWithPath: meta.cwd).lastPathComponent,
+                source: "codex",
                 cwd: meta.cwd,
                 state: facts.state,
                 kind: "codex-tui",
