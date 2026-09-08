@@ -76,6 +76,20 @@ final class Settings: ObservableObject {
     /// 줄에 출처를 어떻게 적을지.
     @Published var sourceStyle: SourceStyle         { didSet { persist() } }
 
+    /// 상단에 고정한 세션들 (sessionId).
+    ///
+    /// 폴더가 아니라 **세션**에 꽂는다. 한 폴더에서 세션을 여럿 띄우는 일이 흔한데
+    /// (`vands-crm-v1` 에 둘), 폴더에 꽂으면 그 둘이 함께 올라와 정작 어느 것을
+    /// 꽂았는지 알 수 없게 된다.
+    ///
+    /// 값은 세션과 함께 산다 — 세션을 껐다 켜면 sessionId 가 새로 생기므로 핀도
+    /// 사라진다. 그게 이 손잡이의 뜻이기도 하다: 「**지금 도는 이 세션**을 놓치지 않겠다」.
+    ///
+    /// 죽은 세션의 id 는 여기 남는다. 다시 맞을 일이 없으니 화면에는 아무 영향이 없고,
+    /// 한 줄이 40바이트다. 자동으로 털어내 보았지만 **살아 있는 핀이 지워지는 것을
+    /// 한 번 봤다** — 안 지워도 되는 것을 지우는 위험이, 안 지워서 남는 것보다 크다.
+    @Published var pinnedSessions: Set<String>      { didSet { persist() } }
+
     /// 저장소를 도메인 이름으로 못 박는다.
     ///
     /// `UserDefaults.standard` 는 번들 식별자를 따라가는데, 앱은 번들 안에서 돌고
@@ -94,8 +108,22 @@ final class Settings: ObservableObject {
         refreshInterval = store.object(forKey: Key.interval) as? Double ?? 2
         codexAppWindow = store.object(forKey: Key.codexAppWindow) as? Double ?? 30
         sourceStyle = SourceStyle(rawValue: store.string(forKey: Key.sourceStyle) ?? "") ?? .short
+        pinnedSessions = Set(store.stringArray(forKey: Key.pinned) ?? [])
         loading = false
     }
+
+    /// 이 세션이 고정되어 있는가.
+    func isPinned(_ sessionID: String) -> Bool { pinnedSessions.contains(sessionID) }
+
+    /// 꽂혀 있으면 뽑고, 없으면 꽂는다.
+    func togglePin(_ sessionID: String) {
+        if pinnedSessions.contains(sessionID) {
+            pinnedSessions.remove(sessionID)
+        } else {
+            pinnedSessions.insert(sessionID)
+        }
+    }
+
 
     /// 처음 모습으로 되돌린다. 만지다 길을 잃었을 때 빠져나올 문.
     func resetToDefaults() {
@@ -109,6 +137,8 @@ final class Settings: ObservableObject {
         refreshInterval = 2
         codexAppWindow = 30
         sourceStyle = .short
+        // 핀은 되돌리지 않는다. 이 단추는 «표시 손잡이»를 처음으로 돌리는 문이지,
+        // 주인이 직접 꽂아 둔 것을 치우는 문이 아니다.
         loading = false
         persist()
     }
@@ -124,6 +154,7 @@ final class Settings: ObservableObject {
         store.set(refreshInterval, forKey: Key.interval)
         store.set(codexAppWindow, forKey: Key.codexAppWindow)
         store.set(sourceStyle.rawValue, forKey: Key.sourceStyle)
+        store.set(pinnedSessions.sorted(), forKey: Key.pinned)
         NotificationCenter.default.post(name: Settings.didChange, object: nil)
     }
 
@@ -144,5 +175,6 @@ final class Settings: ObservableObject {
         static let interval = "refreshInterval"
         static let codexAppWindow = "codexAppWindow"
         static let sourceStyle = "sourceStyle"
+        static let pinned = "pinnedSessions"
     }
 }

@@ -115,6 +115,20 @@ struct Session {
 
     var shortID: String { String(id.prefix(8)) }
 
+    /// 주인이 상단에 고정해 둔 것인가.
+    ///
+    /// 핀은 폴더가 아니라 이 세션 하나에 꽂힌다. 한 폴더에 세션을 여럿 띄우는 일이
+    /// 흔해서, 폴더에 꽂으면 꽂지 않은 것까지 딸려 올라온다.
+    var isPinned: Bool { Settings.shared.isPinned(id) }
+
+    /// 핀이 실제로 순서를 앞당기는가.
+    ///
+    /// 고정했더라도 **손을 기다릴 때만** 위로 올린다. 도는 중인 세션은 지금 할 일이
+    /// 없어서, 위에 있어 봐야 정작 급한 줄을 밀어낼 뿐이다.
+    /// 그때도 고정 표시(글자색)는 그대로 둔다 — 자리를 안 옮기는 것과 꽂힌 사실을
+    /// 숨기는 것은 다른 일이고, 숨기면 우클릭해서 뽑을 줄을 찾지 못한다.
+    var pinnedToTop: Bool { isPinned && state.needsAttention }
+
     /// `--json` 에 낼 출처 이름. 화면 설정과 무관하게 늘 같은 형태로 낸다 —
     /// 기계가 읽는 값이 사람의 설정에 따라 흔들리면 안 된다.
     var sourceTag: String { runsInApp ? "\(source)-app" : source }
@@ -199,8 +213,11 @@ extension String {
 
 extension Array where Element == Session {
     /// 손이 필요한 것을 위로, 그 안에서는 오래 기다린 것을 위로.
+    ///
+    /// 고정한 것은 그보다 앞서지만, **기다리고 있을 때만** 그렇다 (`pinnedToTop`).
     func sortedForDisplay(now: Date = Date()) -> [Session] {
         sorted { a, b in
+            if a.pinnedToTop != b.pinnedToTop { return a.pinnedToTop }
             if a.state.sortRank != b.state.sortRank {
                 return a.state.sortRank < b.state.sortRank
             }

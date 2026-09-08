@@ -125,6 +125,10 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             for session in sessions {
                 // 손이 필요한 무리와 그렇지 않은 무리 사이에만 줄을 하나 긋는다.
                 // 접는 것이 아니라 가르는 것이다.
+                //
+                // 고정한 것은 무리를 새로 만들지 않는다. 같은 무리 안에서 위로 갈 뿐이다 —
+                // 바탕색이 이미 「이건 내가 꽂은 것」을 말하고 있어서, 선까지 그으면
+                // 한 가지를 두 번 말하면서 목록만 잘게 쪼개진다.
                 let needs = session.state.needsAttention
                 if let previous = previousNeededAttention, previous != needs {
                     menu.addItem(.separator())
@@ -183,14 +187,31 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // 누르면 그 세션이 사는 곳으로 간다 — 터미널 창이거나, 앱이거나.
         let canJump = SessionJump.canJump(session)
         let item = NSMenuItem()
-        item.view = SessionRowView(text: text, enabled: canJump) { [weak self] in
-            self?.jump(to: session)
-        }
+        item.view = SessionRowView(
+            text: text,
+            enabled: canJump,
+            pinned: session.isPinned,
+            onClick: { [weak self] in self?.jump(to: session) },
+            onRightClick: { [weak self] in self?.togglePin(for: session) }
+        )
         var tip = session.cwd
         if canJump { tip += "\n" + SessionJump.hint(for: session) }
+        tip += "\n" + (session.isPinned ? S.unpinHint : S.pinHint)
         if let m = session.metrics { tip += "\n" + S.descendants(m.descendantCount) }
         item.toolTip = tip
         return item
+    }
+
+    /// 우클릭 — 이 세션을 고정하거나 푼다.
+    ///
+    /// 메뉴를 열어 둔 채 목록을 다시 그리는 **유일한** 자리다. 평소에는 읽는 중에 줄이
+    /// 흔들리면 누르려던 줄이 다른 줄로 바뀌므로 막아 두지만, 이건 주인이 방금 스스로
+    /// 바꾼 것이라 결과가 그 자리에서 보여야 한다.
+    private func togglePin(for session: Session) {
+        settings.togglePin(session.id)
+        // 설정 알림이 이미 다시 훑어 두었을 수 있지만, 순서를 여기서 한 번 더 확정한다.
+        sessions = sessions.sortedForDisplay()
+        rebuildMenu()
     }
 
     private func jump(to session: Session) {

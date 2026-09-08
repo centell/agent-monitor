@@ -59,6 +59,13 @@ enum S {
     static var jumpHintApp: String {
         p("눌러서 이 세션을 띄운 앱으로 이동", "Click to focus the app running this session")
     }
+    static var pinHint: String {
+        p("우클릭으로 고정 — 기다릴 때 맨 위로 올라옵니다",
+          "Right-click to pin — it rises to the top while waiting")
+    }
+    static var unpinHint: String {
+        p("우클릭으로 고정 해제", "Right-click to unpin")
+    }
     static func descendants(_ count: Int) -> String {
         p("자손 프로세스 \(count)개 포함", "includes \(count) descendant processes")
     }
@@ -202,6 +209,11 @@ enum S {
 
           메뉴바에는 «기다리는 중/전체» 숫자만 띄운다. 세션이 몇 개든 잘라내지 않는다.
 
+          줄을 우클릭하면 그 세션을 고정한다. 고정한 세션은 손을 기다릴 때 맨 위로
+          올라오고, 메뉴에서는 바탕이 옅게 깔린다 (`--list` 는 색을 쓰지 않으므로
+          순서로만 드러난다). 도는 중일 때는 자리를 옮기지 않는다.
+          핀은 그 세션과 함께 산다. 세션을 껐다 켜면 다시 꽂아야 한다.
+
           줄 앞의 출처로 어디서 온 세션인지 구분한다 —
           claude(터미널) · claude-app · codex(터미널) · codex-app.
 
@@ -224,6 +236,11 @@ enum S {
             agent-monitor --roots    show which account roots are scanned
 
           The menu bar shows only a "waiting/total" count. It never truncates the list.
+
+          Right-click a row to pin that session. A pinned session rises to the top while
+          it waits for you and gets a tinted background in the menu (--list has no color,
+          so there it shows only in the order). While it is working, it keeps its place.
+          A pin lives with its session — restart the session and you pin it again.
 
           Each row is prefixed with where it came from —
           claude (terminal), claude-app, codex (terminal), codex-app.

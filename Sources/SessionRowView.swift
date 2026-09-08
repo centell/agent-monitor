@@ -13,6 +13,8 @@ final class SessionRowView: NSView {
     private let normalText: NSAttributedString
     private let highlightedText: NSAttributedString
     private let onClick: (() -> Void)?
+    private let onRightClick: (() -> Void)?
+    private let isPinned: Bool
     private var isHighlighted = false
     private var tracking: NSTrackingArea?
 
@@ -20,8 +22,13 @@ final class SessionRowView: NSView {
     private static let insetX: CGFloat = 20
     private static let insetY: CGFloat = 3
 
-    init(text: NSAttributedString, enabled: Bool, onClick: (() -> Void)?) {
+    /// 우클릭은 `enabled` 와 무관하게 늘 산다. 갈 수 없는 줄이라고 고정까지 막을
+    /// 이유는 없다 — 오히려 못 가는 줄일수록 눈에 띄게 두고 싶을 수 있다.
+    init(text: NSAttributedString, enabled: Bool, pinned: Bool = false,
+         onClick: (() -> Void)?, onRightClick: (() -> Void)? = nil) {
         self.onClick = enabled ? onClick : nil
+        self.onRightClick = onRightClick
+        self.isPinned = pinned
 
         // 눌릴 수 없는 줄은 흐리게 둔다. 눌리는 줄과 생김새로 구분되어야 한다.
         let base = NSMutableAttributedString(attributedString: text)
@@ -52,6 +59,18 @@ final class SessionRowView: NSView {
     // MARK: 그리기
 
     override func draw(_ dirtyRect: NSRect) {
+        // 고정한 줄은 바탕을 옅게 깐다.
+        //
+        // 글자색이 아니라 바탕인 이유: 글자색은 이미 «머리는 진하게 · 지표는 흐리게»
+        // 라는 위계를 쓰고 있어서, 세 번째 색을 넣으면 그 위계가 흐려진다.
+        // 바탕은 강조 말고는 비어 있던 층이라 아무것도 밀어내지 않는다.
+        //
+        // 강조(마우스 올림)가 이 바탕을 덮는다. 가리키고 있는 줄이 고정인지 잠시
+        // 안 보이지만, 그건 지금 손이 가 있는 줄이라 잃어도 손해가 없다.
+        if isPinned && !isHighlighted {
+            NSColor.controlAccentColor.withAlphaComponent(0.16).setFill()
+            NSBezierPath(roundedRect: bounds.insetBy(dx: 5, dy: 0), xRadius: 4, yRadius: 4).fill()
+        }
         if isHighlighted {
             NSColor.selectedContentBackgroundColor.setFill()
             // 네이티브 메뉴처럼 좌우를 살짝 들여 둥근 사각형으로 칠한다.
@@ -90,4 +109,16 @@ final class SessionRowView: NSView {
         enclosingMenuItem?.menu?.cancelTracking()
         onClick()
     }
+
+    /// 우클릭 — 고정을 켜고 끈다.
+    ///
+    /// 왼쪽과 달리 메뉴를 닫지 않는다. 줄이 위로 올라가는 것을 그 자리에서 봐야
+    /// 무엇이 일어났는지 알 수 있고, 여러 줄을 잇달아 꽂을 수도 있다.
+    override func rightMouseUp(with event: NSEvent) {
+        onRightClick?()
+    }
+
+    /// 메뉴 트래킹 중에는 `rightMouseUp` 이 뷰까지 오지 않는 경우가 있어
+    /// 누르는 쪽도 받아 둔다. 실제 동작은 위에서 한 번만 한다.
+    override func rightMouseDown(with event: NSEvent) {}
 }

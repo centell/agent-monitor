@@ -92,6 +92,7 @@ if args.contains("--json") {
             "needsAttention": s.state.needsAttention,
             "canJump": SessionJump.canJump(s),
             "estimated": s.isEstimated,
+            "pinned": s.isPinned,
             "accountRoot": s.accountRoot.path,
         ]
         row["kind"] = s.kind
