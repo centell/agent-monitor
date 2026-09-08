@@ -88,6 +88,7 @@ enum S {
     static var windowTitle: String   { p("AgentMonitor 설정", "AgentMonitor Settings") }
     static var tabDisplay: String    { p("표시", "Display") }
     static var tabMemory: String     { p("메모리", "Memory") }
+    static var tabStats: String      { p("통계", "Statistics") }
 
     static var language: String      { p("언어", "Language") }
     static var rowLayout: String     { p("줄 배치", "Row layout") }
@@ -266,16 +267,42 @@ enum S {
         isKorean ? "평균 \(mean) · 최대 \(peak) · 스왑 평균 \(swap)"
                  : "\(mean) avg · \(peak) peak · swap \(swap) avg"
     }
+    // MARK: 기록 상태
+
+    static var statsLiveness: String { p("기록 상태", "Recording") }
+    static var statsRecent: String   { p("최근 7일", "Last 7 days") }
+    static func statsToday(_ minutes: Int) -> String {
+        p("오늘 \(minutes)분 쌓임", "\(minutes) min today")
+    }
+    /// 마지막으로 적힌 때. 「방금」이 보이면 장치가 살아 있다는 뜻이다.
+    static func statsLastRecord(_ secondsAgo: Double?) -> String {
+        guard let secondsAgo else { return p("아직 없음", "nothing yet") }
+        if secondsAgo < 120 { return p("마지막 기록 방금", "last record just now") }
+        return p("마지막 기록 \(Int(secondsAgo / 60))분 전",
+                 "last record \(Int(secondsAgo / 60))m ago")
+    }
+    static var statsRecordingOff: String {
+        p("기록이 꺼져 있습니다 — «표시» 탭에서 켜실 수 있습니다",
+          "Recording is off — turn it on in the Display tab")
+    }
+    static var statsOpenFolder: String { p("기록 폴더 열기", "Open the folder") }
+    static var statsRetention: String {
+        p("하루 한 파일로 30일간 둡니다. 개수·시간·메모리만 남고 대화 내용은 남지 않습니다.",
+          "One file a day, kept 30 days. Counts, durations and memory only — no conversation.")
+    }
+
     // MARK: 시간대·요일
 
     static var statsByHour: String    { p("시간대별", "By hour") }
     static var statsByWeekday: String { p("요일별", "By weekday") }
     static var statsColHour: String    { p("시간", "Hour") }
     static var statsColWeekday: String { p("요일", "Day") }
-    static var statsColPresent: String { p("앞에 계신", "at desk") }
-    static var statsColSessions: String { p("세션", "sessions") }
-    static var statsColRunning: String  { p("돌던 수", "running") }
-    static var statsColQueueMany: String { p("줄 둘 이상", "queue 2+") }
+    // 표 머리글은 칸 폭 안에서 접히지 않아야 한다. 접히면 `sessi/ons` 처럼 쪼개져
+    // 무슨 칸인지 못 읽는다. 그래서 뜻이 남는 선에서 가장 짧은 말을 쓴다.
+    static var statsColPresent: String { p("계신 시간", "at desk") }
+    static var statsColSessions: String { p("세션", "sess") }
+    static var statsColRunning: String  { p("돌던 수", "run") }
+    static var statsColQueueMany: String { p("줄 2+", "queue 2+") }
 
     static func hourLabel(_ hour: Int) -> String {
         isKorean ? String(format: "%02d시", hour) : String(format: "%02d:00", hour)

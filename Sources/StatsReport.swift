@@ -143,6 +143,33 @@ struct StatsReport {
         )
     }
 
+    /// 「지금 쌓이고 있나」에 답하는 값.
+    ///
+    /// 통계 자체와 물음이 다르다. 이쪽은 습관이 아니라 **장치가 살아 있는지**를 보는 것이라,
+    /// 오늘 얼마나 쌓였는지와 마지막으로 적힌 때만 있으면 된다.
+    struct Liveness {
+        let minutesToday: Double
+        let lastRecord: Date?
+    }
+
+    static func liveness(directory: URL = StatsRecorder.defaultDirectory,
+                         now: Date = Date()) -> Liveness {
+        let stamp = StatsRecorder.dayStamp(now)
+        guard let rows = readRows(directory.appendingPathComponent("load-\(stamp).csv")) else {
+            return Liveness(minutesToday: 0, lastRecord: nil)
+        }
+        let parser = ISO8601DateFormatter()
+        var minutes = 0.0
+        var last: Date?
+        for row in rows where row.count >= 16 {
+            guard let samples = Double(row[1]), samples > 0,
+                  let present = Double(row[2]), present > 0 else { continue }
+            minutes += present / samples
+            if let minute = parser.date(from: row[0]) { last = minute }
+        }
+        return Liveness(minutesToday: minutes, lastRecord: last)
+    }
+
     /// 기록 파일이 하나라도 있는가.
     ///
     /// 「아무것도 없음」과 「쌓이고는 있는데 앞에 계셨던 시간이 아직 없음」은 다른 말이다.

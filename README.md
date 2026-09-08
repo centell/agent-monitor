@@ -90,7 +90,7 @@ permission is what moves the window; without it the jump does nothing.
 
 **Menu bar** — the count. Click for the list. `⌘,` opens settings.
 
-**Settings** has two tabs:
+**Settings** has three tabs:
 
 - **Display** — language, line layout, which columns to show, whether hovering a row says why it
   is waiting, which of the three metrics to show
@@ -99,6 +99,9 @@ permission is what moves the window; without it the jump does nothing.
 - **Memory** — system used/swap/compressed, the agent total, and the largest consumers outside
   every session tree. Per-session memory is summed across the whole process tree, not the `claude`
   process alone, which is usually several times larger.
+- **Statistics** — whether recording is alive (how much piled up today, when the last row landed),
+  then the same numbers `--stats` prints: the last 7 days, by hour and by weekday, with a bar on
+  the share of time two or more sessions were waiting.
 
 **Command line** — the same data without the GUI:
 

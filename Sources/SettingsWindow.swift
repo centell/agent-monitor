@@ -134,6 +134,8 @@ struct SettingsWindowView: View {
                 .tabItem { Label(S.tabDisplay, systemImage: "list.bullet") }
             MemoryView(sessionsProvider: sessionsProvider)
                 .tabItem { Label(S.tabMemory, systemImage: "memorychip") }
+            StatsView()
+                .tabItem { Label(S.tabStats, systemImage: "chart.bar") }
         }
         .padding(.top, 8)
         // 높이를 못 박지 않으면 SwiftUI 내용이 접혀 창이 179pt 로 나온다.
