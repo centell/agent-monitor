@@ -51,6 +51,10 @@ final class MetricsSampler {
         var freshCPU: [Int32: Double] = [:]
 
         for pid in pids {
+            // pid 0 은 «프로세스 없음» 을 뜻한다 (앱 안의 스레드처럼 제 프로세스가 없는 세션).
+            // 거르지 않으면 launchd 의 부모가 0 이라 **맥의 모든 프로세스**가 자손으로 잡혀
+            // 그 세션이 machine 전체 메모리를 쓰는 것처럼 보인다.
+            guard pid > 0 else { continue }
             let tree = Self.descendants(of: pid, in: children)
             var memory: UInt64 = 0
             var cpuSeconds: Double = 0

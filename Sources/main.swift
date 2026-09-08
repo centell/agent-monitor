@@ -11,8 +11,9 @@ if args.contains("-h") || args.contains("--help") {
 let claudeSource = ClaudeCodeSource()
 let claudeAppSource = ClaudeAppSource()
 let codexSource = CodexSource()
+let codexAppSource = CodexAppSource()
 // 레지스트리를 직접 읽는 출처를 앞에 둔다 — 겹치면 앞선 쪽이 남는다.
-let source = CompositeSource([claudeSource, claudeAppSource, codexSource])
+let source = CompositeSource([claudeSource, claudeAppSource, codexSource, codexAppSource])
 
 /// 한 번 실행하고 끝나는 모드용. CPU 사용률은 두 표본의 차이로만 구할 수 있으므로
 /// 잠깐 사이를 두고 두 번 잰다.

@@ -44,6 +44,13 @@ final class Settings: ObservableObject {
     @Published var showSummary: Bool                { didSet { persist() } }
     @Published var refreshInterval: Double          { didSet { persist() } }
 
+    /// codex 앱 스레드를 최근 몇 분까지 보일지. `0` 이면 아예 보이지 않는다.
+    ///
+    /// 앱 스레드는 «아직 열려 있는가» 를 잴 방법이 없다. 그래서 시간으로 자른다 —
+    /// 창을 넓히면 놓치는 건 줄지만 끝난 지 오래인 스레드까지 «기다림» 으로 쌓인다.
+    /// 어디서 자를지는 사람마다 다르므로 손잡이로 내놓는다.
+    @Published var codexAppWindow: Double           { didSet { persist() } }
+
     /// 저장소를 도메인 이름으로 못 박는다.
     ///
     /// `UserDefaults.standard` 는 번들 식별자를 따라가는데, 앱은 번들 안에서 돌고
@@ -60,6 +67,7 @@ final class Settings: ObservableObject {
         metrics = MetricDisplay(rawValue: store.string(forKey: Key.metrics) ?? "") ?? .barAndValue
         showSummary = store.object(forKey: Key.summary) as? Bool ?? true
         refreshInterval = store.object(forKey: Key.interval) as? Double ?? 2
+        codexAppWindow = store.object(forKey: Key.codexAppWindow) as? Double ?? 30
         loading = false
     }
 
@@ -73,6 +81,7 @@ final class Settings: ObservableObject {
         metrics = .barAndValue
         showSummary = true
         refreshInterval = 2
+        codexAppWindow = 30
         loading = false
         persist()
     }
@@ -86,6 +95,7 @@ final class Settings: ObservableObject {
         store.set(metrics.rawValue, forKey: Key.metrics)
         store.set(showSummary, forKey: Key.summary)
         store.set(refreshInterval, forKey: Key.interval)
+        store.set(codexAppWindow, forKey: Key.codexAppWindow)
         NotificationCenter.default.post(name: Settings.didChange, object: nil)
     }
 
@@ -104,5 +114,6 @@ final class Settings: ObservableObject {
         static let metrics = "metricDisplay"
         static let summary = "showSummary"
         static let interval = "refreshInterval"
+        static let codexAppWindow = "codexAppWindow"
     }
 }

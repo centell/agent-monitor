@@ -22,7 +22,8 @@ struct CompositeSource: SessionSource {
         // 한 프로세스를 두 출처가 집을 수 있다 — 예컨대 같은 폴더에서 도는 세션을
         // 작업 폴더로 찾는 출처끼리. 그때는 **먼저 온 출처**를 남긴다. 앞쪽일수록
         // 근거가 단단한 출처(레지스트리를 직접 읽는 쪽)를 두었기 때문이다.
+        // pid 0 은 «프로세스 없음» 이라 서로 겹친 것이 아니다. 그것끼리는 세지 않는다.
         var seen = Set<Int32>()
-        return sources.flatMap { $0.scan() }.filter { seen.insert($0.pid).inserted }
+        return sources.flatMap { $0.scan() }.filter { $0.pid <= 0 || seen.insert($0.pid).inserted }
     }
 }

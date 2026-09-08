@@ -96,6 +96,10 @@ enum S {
     static var showSummary: String   { p("아래에 시스템 요약 보이기", "Show system summary below") }
     static var refresh: String       { p("갱신 주기", "Refresh") }
     static func seconds(_ n: Int) -> String { p("\(n)초", "\(n)s") }
+    static var codexAppWindow: String { p("codex 앱 스레드", "codex app threads") }
+    static var windowOff: String     { p("안 보임", "Hidden") }
+    static func minutes(_ n: Int) -> String { p("\(n)분", "\(n)m") }
+    static func hours(_ n: Int) -> String   { p("\(n)시간", "\(n)h") }
     static var preview: String       { p("미리보기", "Preview") }
     static var previewNote: String {
         p("실제 세션을 메뉴와 같은 코드로 그린 것입니다. 폭이 곧 메뉴 폭입니다.",
@@ -194,12 +198,16 @@ enum S {
 
           메뉴바에는 «기다리는 중/전체» 숫자만 띄운다. 세션이 몇 개든 잘라내지 않는다.
 
-          줄 앞의 출처로 어디서 온 세션인지 구분한다 — claude(터미널) · claude-app · codex.
+          줄 앞의 출처로 어디서 온 세션인지 구분한다 —
+          claude(터미널) · claude-app · codex(터미널) · codex-app.
 
-          터미널 Claude Code 의 상태만 원문 그대로다 (<계정루트>/sessions/<pid>.json).
-          Claude 앱과 codex 는 상태를 적지 않아 기록 끝에서 추정하고 «추정» 이라 표시한다.
-          앱 세션은 터미널이 없어 눌러도 이동하지 못한다 (줄이 흐리게 보인다).
-          codex 는 터미널 세션만 다룬다 (codex exec 와 데스크탑 앱 스레드는 제외).
+          상태를 그대로 읽는 곳: 터미널 Claude Code(<계정루트>/sessions/<pid>.json) 와
+          codex 앱(~/.codex 의 state_5·thread_history_1 DB 를 읽기 전용으로).
+          Claude 앱과 터미널 codex 는 상태를 적지 않아 기록 끝에서 추정하고 «추정» 이라 적는다.
+
+          codex 앱 스레드는 «아직 열려 있는가» 를 잴 수 없어 시간으로 자른다.
+          도는 중인 것은 언제나 보이고, 끝난 것은 설정한 창 안의 것만 보인다 (기본 30분).
+          앱 세션은 프로세스가 없어 메모리·CPU 가 비고, 누르면 그 앱으로 간다.
           """,
           """
           agent-monitor — shows which of your local agent sessions is waiting for you
@@ -213,12 +221,17 @@ enum S {
 
           The menu bar shows only a "waiting/total" count. It never truncates the list.
 
-          Each row is prefixed with where it came from — claude (terminal), claude-app, codex.
+          Each row is prefixed with where it came from —
+          claude (terminal), claude-app, codex (terminal), codex-app.
 
-          Only terminal Claude Code status is verbatim (<account-root>/sessions/<pid>.json).
-          The Claude app and codex write no status, so it is estimated from the transcript
-          and marked "(est.)". App sessions have no terminal, so clicking cannot focus them.
-          Only terminal codex sessions are shown (codex exec and desktop threads are not).
+          Status is verbatim for terminal Claude Code (<account-root>/sessions/<pid>.json)
+          and for codex app threads (read-only from ~/.codex state_5 / thread_history_1).
+          The Claude app and terminal codex write no status, so it is estimated from the
+          transcript and marked "(est.)".
+
+          A codex app thread cannot be checked for "still open", so it is cut by time:
+          running threads always show, finished ones only within the window (default 30m).
+          App sessions have no process, so memory/CPU is blank; clicking focuses the app.
           """)
     }
 }

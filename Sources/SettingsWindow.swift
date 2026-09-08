@@ -44,9 +44,17 @@ struct LayoutSettingsView: View {
                     Text(S.seconds(5)).tag(5.0)
                 }
                 .pickerStyle(.segmented)
+
+                Picker(S.codexAppWindow, selection: $settings.codexAppWindow) {
+                    Text(S.windowOff).tag(0.0)
+                    Text(S.minutes(10)).tag(10.0)
+                    Text(S.minutes(30)).tag(30.0)
+                    Text(S.hours(12)).tag(720.0)
+                }
+                .pickerStyle(.segmented)
             }
             .formStyle(.grouped)
-            .frame(height: 372)
+            .frame(height: 420)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(S.preview)
