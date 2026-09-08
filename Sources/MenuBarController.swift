@@ -180,21 +180,21 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                               range: dim)
         }
 
-        // 누르면 그 세션이 도는 터미널 창으로 간다.
-        let canJump = TerminalJump.canJump(pid: session.pid)
+        // 누르면 그 세션이 사는 곳으로 간다 — 터미널 창이거나, 앱이거나.
+        let canJump = SessionJump.canJump(session)
         let item = NSMenuItem()
         item.view = SessionRowView(text: text, enabled: canJump) { [weak self] in
             self?.jump(to: session)
         }
         var tip = session.cwd
-        if canJump { tip += "\n" + S.jumpHint }
+        if canJump { tip += "\n" + SessionJump.hint(for: session) }
         if let m = session.metrics { tip += "\n" + S.descendants(m.descendantCount) }
         item.toolTip = tip
         return item
     }
 
     private func jump(to session: Session) {
-        TerminalJump.report(TerminalJump.jump(pid: session.pid), sessionName: session.name)
+        SessionJump.report(SessionJump.jump(to: session), sessionName: session.name)
     }
 
     private func color(for state: SessionState) -> NSColor {

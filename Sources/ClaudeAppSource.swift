@@ -70,6 +70,7 @@ struct ClaudeAppSource: SessionSource {
                 statusUpdatedAt: facts.timestamp ?? record.lastActivityAt,
                 accountRoot: root
             )
+            session.deepLink = Self.deepLink(for: record.localID)
             session.currentTool = facts.tool
             session.lastActivity = facts.timestamp ?? record.lastActivityAt
             // 앱은 상태를 적지 않는다. 우리가 기록에서 읽어 낸 것이므로 «추정» 이라 적는다.
@@ -82,6 +83,7 @@ struct ClaudeAppSource: SessionSource {
     // MARK: 등록부
 
     private struct Record {
+        let localID: String         // 앱이 부르는 이름 (local_…). 딥링크가 이것을 받는다.
         let cliSessionID: String
         let cwd: String
         let title: String
@@ -100,6 +102,7 @@ struct ClaudeAppSource: SessionSource {
                   url.lastPathComponent.hasPrefix("local_"),
                   let data = try? Data(contentsOf: url),
                   let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                  let localID = obj["sessionId"] as? String,
                   let cliID = obj["cliSessionId"] as? String,
                   let cwd = obj["cwd"] as? String
             else { continue }
@@ -109,13 +112,32 @@ struct ClaudeAppSource: SessionSource {
 
             let title = (obj["title"] as? String).flatMap { $0.isEmpty ? nil : $0 }
                 ?? URL(fileURLWithPath: cwd).lastPathComponent
-            out.append(Record(cliSessionID: cliID,
+            out.append(Record(localID: localID,
+                              cliSessionID: cliID,
                               cwd: cwd,
                               title: title,
                               createdAt: epochMillis(obj["createdAt"]),
                               lastActivityAt: epochMillis(obj["lastActivityAt"])))
         }
         return out
+    }
+
+    /// 앱이 등록한 `claude://` 스킴으로 이 세션을 연다.
+    ///
+    /// 주소 형태는 앱 번들 안에 박혀 있는 것을 그대로 따랐다
+    /// (`claude://code/continue?session=last&source=desktop_action`).
+    /// `session` 에 세션 id 를 넣으면 그 세션으로 가고, 앱이 못 알아들어도
+    /// **스킴을 처리하며 앱이 앞으로 나오므로** 헛걸음은 아니다.
+    private static func deepLink(for localID: String) -> URL? {
+        var components = URLComponents()
+        components.scheme = "claude"
+        components.host = "code"
+        components.path = "/continue"
+        components.queryItems = [
+            URLQueryItem(name: "session", value: localID),
+            URLQueryItem(name: "source", value: "agent_monitor"),
+        ]
+        return components.url
     }
 
     private func epochMillis(_ any: Any?) -> Date? {

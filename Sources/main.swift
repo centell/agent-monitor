@@ -88,11 +88,13 @@ if args.contains("--json") {
             "status": s.state.raw,
             "label": s.state.label,
             "needsAttention": s.state.needsAttention,
+            "canJump": SessionJump.canJump(s),
             "estimated": s.isEstimated,
             "accountRoot": s.accountRoot.path,
         ]
         row["kind"] = s.kind
         row["currentTool"] = s.currentTool
+        row["deepLink"] = s.deepLink?.absoluteString
         row["startedAt"] = s.startedAt.map { iso.string(from: $0) }
         row["statusUpdatedAt"] = s.statusUpdatedAt.map { iso.string(from: $0) }
         row["lastActivity"] = s.lastActivity.map { iso.string(from: $0) }

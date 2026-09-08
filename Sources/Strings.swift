@@ -56,6 +56,9 @@ enum S {
     static var jumpHint: String {
         p("눌러서 이 세션의 터미널로 이동", "Click to focus this session's terminal")
     }
+    static var jumpHintApp: String {
+        p("눌러서 이 세션을 띄운 앱으로 이동", "Click to focus the app running this session")
+    }
     static func descendants(_ count: Int) -> String {
         p("자손 프로세스 \(count)개 포함", "includes \(count) descendant processes")
     }
@@ -146,6 +149,9 @@ enum S {
     }
     static var okButton: String      { p("확인", "OK") }
     static var errScript: String     { p("스크립트를 만들지 못함", "could not build the script") }
+    static func errNoHandler(_ scheme: String) -> String {
+        p("\(scheme):// 를 열 수 있는 앱이 없음", "no app can open \(scheme)://")
+    }
     static func errUnknown(_ code: Int) -> String {
         p("알 수 없는 오류(\(code))", "unknown error (\(code))")
     }

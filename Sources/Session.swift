@@ -109,6 +109,9 @@ struct Session {
     /// 프로세스 트리의 메모리·CPU. 재지 못했으면 없다.
     var metrics: SessionMetrics?
 
+    /// 터미널이 없는 세션을 여는 다른 문. 앱 세션처럼 tty 가 없을 때 쓴다.
+    var deepLink: URL?
+
     var shortID: String { String(id.prefix(8)) }
 
     /// 목록에 적을 이름. 어느 CLI 의 세션인지 이름만 봐도 알 수 있게 출처를 앞에 붙인다.
