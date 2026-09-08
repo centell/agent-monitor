@@ -22,9 +22,6 @@ struct CodexSource: SessionSource {
     private let home = URL(fileURLWithPath: NSHomeDirectory())
     private let fm = FileManager.default
 
-    /// rollout 은 수 MB 까지 커진다. 끝에서 이만큼만 되감아 읽는다.
-    private let tailBytes = 64 * 1024
-
     /// 이보다 오래 손대지 않은 rollout 은 후보로 보지 않는다.
     /// 살아있는 세션이라면 turn 마다 파일에 쓰므로 이 안에 들어온다.
     private let lookback: TimeInterval = 24 * 60 * 60
@@ -52,16 +49,19 @@ struct CodexSource: SessionSource {
         guard !metas.isEmpty else { return [] }
 
         let names = threadNames()
-        let live = liveProcesses()
+        let processes = LiveProcessTable()
         var used = Set<Int32>()
         var out: [Session] = []
 
         // 최근 세션부터 짝지어 간다. 한 프로세스가 두 세션에 붙는 일을 막는다.
         for meta in metas.sorted(by: { $0.startedAt > $1.startedAt }) {
-            guard let pid = matchProcess(to: meta, among: live, excluding: used) else { continue }
+            guard let pid = processes.session(inDirectory: meta.cwd,
+                                              excluding: used,
+                                              startedNear: meta.startedAt,
+                                              within: matchWindow) else { continue }
             used.insert(pid)
 
-            let facts = readTail(meta.url).map(parseTail) ?? TailFacts()
+            let facts = Transcript.tail(of: meta.url).map(parseTail) ?? TailFacts()
             var session = Session(
                 id: meta.sessionID,
                 pid: pid,
@@ -145,7 +145,7 @@ struct CodexSource: SessionSource {
         // 터미널에서 띄운 것만 본다.
         guard payload["originator"] as? String == "codex-tui" else { return nil }
 
-        let started = (payload["timestamp"] as? String).flatMap(parseISO)
+        let started = (payload["timestamp"] as? String).flatMap(Transcript.parseISO)
             ?? (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate
             ?? Date.distantPast
         return Meta(url: url, sessionID: id, cwd: cwd, startedAt: started)
@@ -166,81 +166,6 @@ struct CodexSource: SessionSource {
             out[id] = name
         }
         return out
-    }
-
-    // MARK: 프로세스 짝짓기
-
-    private struct LiveProcess {
-        let pid: Int32
-        let ppid: Int32
-        let cwd: String
-        let startedAt: Date
-    }
-
-    /// 같은 사용자로 도는 프로세스의 pid·작업 폴더·시작 시각.
-    ///
-    /// 남의 계정 프로세스는 cwd 를 읽을 수 없어 저절로 빠진다.
-    private func liveProcesses() -> [LiveProcess] {
-        MetricsSampler.allProcesses().compactMap { entry in
-            guard let cwd = workingDirectory(pid: entry.pid),
-                  let started = processStartTime(pid: entry.pid) else { return nil }
-            return LiveProcess(pid: entry.pid, ppid: entry.ppid, cwd: cwd, startedAt: started)
-        }
-    }
-
-    /// rollout 에 맞는 프로세스를 고른다.
-    ///
-    /// **실행 파일 이름으로 거르지 않는다.** 설치 방식마다 이름이 달라져서,
-    /// 이름으로 거르면 남의 환경에서 멀쩡한 세션이 통째로 사라진다
-    /// (`ClaudeCodeSource.isAlive` 가 같은 이유로 이름을 안 쓴다).
-    ///
-    /// 대신 **작업 폴더가 같고 세션 시작 무렵에 뜬 것**을 찾는다.
-    ///
-    /// 그런데 그 폴더에서 도는 것은 codex 하나가 아니다. codex 가 띄운 도우미들
-    /// (MCP 플러그인 · 언어 서버 등)도 같은 폴더를 물려받고, 그것들은 codex 보다
-    /// **늦게** 뜬다. 실제로 재보니 후보 다섯 중 가장 늦은 것은 codex 가 아니라
-    /// 플러그인 노드 프로세스였다. 그래서 시작 순서로 고르면 안 되고,
-    /// **부모가 후보 안에 없는 것** — 즉 그 무리의 조상 — 을 고른다. 그것이 세션이다.
-    ///
-    /// 한계: 같은 폴더에서 codex 를 둘 띄우면 어느 쪽이 어느 rollout 인지 구분할 수 없다.
-    /// 최근 세션부터 짝지으며 쓴 pid 를 빼는 것으로 겹침만 막는다.
-    private func matchProcess(to meta: Meta,
-                              among live: [LiveProcess],
-                              excluding used: Set<Int32>) -> Int32? {
-        let candidates = live.filter { candidate in
-            !used.contains(candidate.pid)
-                && candidate.cwd == meta.cwd
-                && abs(candidate.startedAt.timeIntervalSince(meta.startedAt)) < matchWindow
-        }
-        guard !candidates.isEmpty else { return nil }
-
-        let pids = Set(candidates.map(\.pid))
-        let roots = candidates.filter { !pids.contains($0.ppid) }
-        // 조상을 못 가리면(모두 서로의 부모가 아님) 가장 먼저 뜬 것을 쓴다.
-        return (roots.isEmpty ? candidates : roots).min { $0.startedAt < $1.startedAt }?.pid
-    }
-
-    private func workingDirectory(pid: Int32) -> String? {
-        var info = proc_vnodepathinfo()
-        let size = Int32(MemoryLayout<proc_vnodepathinfo>.size)
-        let rc = withUnsafeMutablePointer(to: &info) {
-            proc_pidinfo(pid, PROC_PIDVNODEPATHINFO, 0, $0, size)
-        }
-        guard rc == size else { return nil }
-        return withUnsafePointer(to: &info.pvi_cdir.vip_path) {
-            $0.withMemoryRebound(to: CChar.self, capacity: Int(MAXPATHLEN)) { String(cString: $0) }
-        }
-    }
-
-    private func processStartTime(pid: Int32) -> Date? {
-        var info = proc_taskallinfo()
-        let size = Int32(MemoryLayout<proc_taskallinfo>.size)
-        let rc = withUnsafeMutablePointer(to: &info) {
-            proc_pidinfo(pid, PROC_PIDTASKALLINFO, 0, $0, size)
-        }
-        guard rc == size else { return nil }
-        return Date(timeIntervalSince1970: Double(info.pbsd.pbi_start_tvsec)
-                                         + Double(info.pbsd.pbi_start_tvusec) / 1_000_000)
     }
 
     // MARK: 상태 추정
@@ -268,7 +193,7 @@ struct CodexSource: SessionSource {
             else { continue }
 
             if facts.timestamp == nil, let ts = obj["timestamp"] as? String {
-                facts.timestamp = parseISO(ts)
+                facts.timestamp = Transcript.parseISO(ts)
             }
 
             guard obj["type"] as? String == "event_msg",
@@ -304,28 +229,4 @@ struct CodexSource: SessionSource {
     private static let toolItems: Set<String> = [
         "CommandExecution", "FileChange", "ImageView", "WebSearch", "McpToolCall", "PatchApply",
     ]
-
-    // MARK: 읽기 도구
-
-    /// 파일 끝에서 `tailBytes` 만큼만 읽는다. 앞은 건드리지 않는다.
-    private func readTail(_ url: URL) -> String? {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? handle.close() }
-        guard let size = try? handle.seekToEnd() else { return nil }
-        let offset = size > UInt64(tailBytes) ? size - UInt64(tailBytes) : 0
-        try? handle.seek(toOffset: offset)
-        guard let data = try? handle.readToEnd() else { return nil }
-        var text = String(decoding: data, as: UTF8.self)
-        // 처음 한 줄은 잘려 있을 수 있으므로 버린다.
-        if offset > 0, let nl = text.firstIndex(of: "\n") {
-            text = String(text[text.index(after: nl)...])
-        }
-        return text
-    }
-
-    private func parseISO(_ text: String) -> Date? {
-        let withFraction = ISO8601DateFormatter()
-        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return withFraction.date(from: text) ?? ISO8601DateFormatter().date(from: text)
-    }
 }

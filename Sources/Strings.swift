@@ -188,8 +188,11 @@ enum S {
 
           메뉴바에는 «기다리는 중/전체» 숫자만 띄운다. 세션이 몇 개든 잘라내지 않는다.
 
-          Claude Code 의 상태는 <계정루트>/sessions/<pid>.json 에 적힌 것을 그대로 읽는다.
-          codex 는 상태를 적지 않으므로 rollout 끝의 turn 경계로 추정하고 «추정» 이라 표시한다.
+          줄 앞의 출처로 어디서 온 세션인지 구분한다 — claude(터미널) · claude-app · codex.
+
+          터미널 Claude Code 의 상태만 원문 그대로다 (<계정루트>/sessions/<pid>.json).
+          Claude 앱과 codex 는 상태를 적지 않아 기록 끝에서 추정하고 «추정» 이라 표시한다.
+          앱 세션은 터미널이 없어 눌러도 이동하지 못한다 (줄이 흐리게 보인다).
           codex 는 터미널 세션만 다룬다 (codex exec 와 데스크탑 앱 스레드는 제외).
           """,
           """
@@ -204,8 +207,11 @@ enum S {
 
           The menu bar shows only a "waiting/total" count. It never truncates the list.
 
-          Claude Code status is read verbatim from <account-root>/sessions/<pid>.json.
-          codex writes no status, so it is estimated from the last turn boundary and marked "(est.)".
+          Each row is prefixed with where it came from — claude (terminal), claude-app, codex.
+
+          Only terminal Claude Code status is verbatim (<account-root>/sessions/<pid>.json).
+          The Claude app and codex write no status, so it is estimated from the transcript
+          and marked "(est.)". App sessions have no terminal, so clicking cannot focus them.
           Only terminal codex sessions are shown (codex exec and desktop threads are not).
           """)
     }

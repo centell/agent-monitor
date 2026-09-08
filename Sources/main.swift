@@ -9,8 +9,10 @@ if args.contains("-h") || args.contains("--help") {
 }
 
 let claudeSource = ClaudeCodeSource()
+let claudeAppSource = ClaudeAppSource()
 let codexSource = CodexSource()
-let source = CompositeSource([claudeSource, codexSource])
+// 레지스트리를 직접 읽는 출처를 앞에 둔다 — 겹치면 앞선 쪽이 남는다.
+let source = CompositeSource([claudeSource, claudeAppSource, codexSource])
 
 /// 한 번 실행하고 끝나는 모드용. CPU 사용률은 두 표본의 차이로만 구할 수 있으므로
 /// 잠깐 사이를 두고 두 번 잰다.
@@ -31,6 +33,9 @@ if args.contains("--roots") {
     // codex 는 계정을 나누지 않는다. 홈이 하나뿐이므로 있을 때만 더한다.
     if FileManager.default.fileExists(atPath: codexSource.root.appendingPathComponent("sessions").path) {
         roots.append(codexSource.root)
+    }
+    if FileManager.default.fileExists(atPath: claudeAppSource.root.path) {
+        roots.append(claudeAppSource.root)
     }
     print(S.roots(roots.count))
     for root in roots { print("  \(root.path)") }
