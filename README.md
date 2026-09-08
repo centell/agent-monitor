@@ -36,6 +36,13 @@ Memory 15.6/25.8GB · Swap 12.3GB · Agents 3.7GB
 Status comes from the file Claude Code writes for itself, not from guessing at file timings — so a
 pending approval and a long shell command are told apart instead of both looking like silence.
 
+A row that needs you also says **why**. A session waiting on approval carries the call it is
+waiting on (`Bash: pnpm build`); an idle one carries the last thing it said to you
+(`Shall I commit?`). A busy row says nothing — there is nothing for you to answer yet. That
+line is read out of the transcript the app was already reading, so it costs no extra work; when
+it is not there, nothing is printed rather than a guess. Turn it off in Display if you would
+rather not have commands on screen.
+
 Click a row and the terminal window running that session comes to the front.
 
 Right-click a row to **pin** it. A pinned session rises above the others while it waits for you,
@@ -80,7 +87,8 @@ permission is what moves the window; without it the jump does nothing.
 
 **Settings** has two tabs:
 
-- **Display** — language, line layout, which columns to show, which of the three metrics to show
+- **Display** — language, line layout, which columns to show (the why-it-is-waiting line among
+  them), which of the three metrics to show
   (RAM bar, RAM GB, CPU % — each on its own switch), refresh interval. A live preview renders real
   sessions through the same code the menu uses, so what you see is what you get.
 - **Memory** — system used/swap/compressed, the agent total, and the largest consumers outside
