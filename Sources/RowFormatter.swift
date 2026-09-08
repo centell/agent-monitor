@@ -46,7 +46,7 @@ struct RowFormatter {
 
     /// 표식 · 이름 · 상태 · 도구 · 경과 시간.
     private func header(for session: Session) -> String {
-        var out = "\(session.state.symbol)  \(session.displayName.paddedDisplay(to: nameWidth))"
+        var out = "\(session.state.symbol)  \(displayName(for: session).paddedDisplay(to: nameWidth))"
         if settings.showStateLabel {
             out += "  \(session.state.label.fitted(to: 10))"
         }
@@ -77,9 +77,33 @@ struct RowFormatter {
         return out
     }
 
+    // MARK: 출처 붙이기
+
+    /// 목록에 적을 이름. 어느 세션인지 이름만 봐도 알 수 있게 출처를 앞에 붙인다.
+    ///
+    /// 출처가 하나뿐일 때도 붙인다 — 있다 없다 하면 열 폭이 흔들린다.
+    /// 어떤 모양으로 붙일지는 설정을 따른다 (`SourceStyle`).
+    func displayName(for session: Session) -> String {
+        switch settings.sourceStyle {
+        case .short:
+            return "\(session.sourceTag)/\(session.name)"
+        case .symmetric:
+            // 넷이 다 자기가 뭔지 말한다. 「표시 없는 것이 터미널」이라는 암묵을 없앤다.
+            let tag = session.runsInApp ? "\(session.source)-app" : "\(session.source)-cli"
+            return "\(tag)/\(session.name)"
+        case .symbol:
+            // 이름은 짧게 두고 한 칸짜리 표식으로 가른다.
+            // 폭이 고른 글자만 쓴다 — 상태 표식(◆○●◐)과 같은 이유다.
+            let mark = session.runsInApp ? "□" : ">"
+            return "\(mark) \(session.sourceTag)/\(session.name)"
+        }
+    }
+
     // MARK: 도우미
 
-    static func nameWidth(for sessions: [Session]) -> Int {
-        max(12, sessions.map(\.displayName.displayWidth).max() ?? 12)
+    /// 이름 칸의 폭. 실제로 그려질 이름으로 재야 하므로 설정을 함께 받는다.
+    static func nameWidth(for sessions: [Session], settings: Settings = .shared) -> Int {
+        let formatter = RowFormatter(settings: settings, nameWidth: 0)
+        return max(12, sessions.map { formatter.displayName(for: $0).displayWidth }.max() ?? 12)
     }
 }

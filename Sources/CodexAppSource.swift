@@ -60,7 +60,8 @@ struct CodexAppSource: SessionSource {
                 // 지표를 재는 쪽도 터미널로 가는 쪽도 이 값으로는 아무것도 하지 않는다.
                 pid: 0,
                 name: thread.name,
-                source: "codex-app",
+                source: "codex",
+                runsInApp: true,
                 cwd: thread.cwd,
                 state: thread.state,
                 kind: "thread",

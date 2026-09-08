@@ -89,7 +89,8 @@ struct Session {
     let id: String                  // sessionId (UUID)
     let pid: Int32
     let name: String                // 레지스트리가 붙인 이름 (예: tools-91)
-    let source: String              // 어느 CLI 에서 왔는가 (claude · codex)
+    let source: String              // 어느 CLI 인가 (claude · codex)
+    let runsInApp: Bool             // 터미널이 아니라 데스크탑 앱 안에서 도는가
     let cwd: String
     let state: SessionState
     let kind: String?               // interactive 등
@@ -114,9 +115,9 @@ struct Session {
 
     var shortID: String { String(id.prefix(8)) }
 
-    /// 목록에 적을 이름. 어느 CLI 의 세션인지 이름만 봐도 알 수 있게 출처를 앞에 붙인다.
-    /// 출처가 하나뿐일 때도 붙인다 — 있다 없다 하면 열 폭이 흔들린다.
-    var displayName: String { "\(source)/\(name)" }
+    /// `--json` 에 낼 출처 이름. 화면 설정과 무관하게 늘 같은 형태로 낸다 —
+    /// 기계가 읽는 값이 사람의 설정에 따라 흔들리면 안 된다.
+    var sourceTag: String { runsInApp ? "\(source)-app" : source }
 
     /// 마지막 활동 이후 흐른 시간. transcript 가 없으면 상태 갱신 시각으로 대신한다.
     func age(now: Date = Date()) -> TimeInterval? {

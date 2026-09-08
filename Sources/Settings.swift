@@ -28,6 +28,28 @@ enum MetricDisplay: String, CaseIterable, Identifiable {
     var showsCPU: Bool { self == .all }
 }
 
+/// 출처를 줄에 어떻게 드러낼 것인가.
+///
+/// 터미널 세션과 앱 세션을 가르는 방법은 하나가 아니고, 무엇이 나은지는 폭을 얼마나
+/// 아끼고 싶은지에 달렸다. 만든 사람이 대신 고를 일이 아니라 손잡이로 내놓는다.
+enum SourceStyle: String, CaseIterable, Identifiable {
+    /// `claude` · `claude-app` — 앱만 표시한다. 가장 좁다.
+    case short
+    /// `claude-cli` · `claude-app` — 양쪽 다 밝힌다. 넷이 대칭이 된다.
+    case symmetric
+    /// `> claude` · `□ claude-app` — 한 칸짜리 표식으로 가른다.
+    case symbol
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .short:     return S.styleShort
+        case .symmetric: return S.styleSymmetric
+        case .symbol:    return S.styleSymbol
+        }
+    }
+}
+
 /// 화면 배치 설정. `UserDefaults` 에 남아 다음 실행에도 유지된다.
 final class Settings: ObservableObject {
 
@@ -51,6 +73,9 @@ final class Settings: ObservableObject {
     /// 어디서 자를지는 사람마다 다르므로 손잡이로 내놓는다.
     @Published var codexAppWindow: Double           { didSet { persist() } }
 
+    /// 줄에 출처를 어떻게 적을지.
+    @Published var sourceStyle: SourceStyle         { didSet { persist() } }
+
     /// 저장소를 도메인 이름으로 못 박는다.
     ///
     /// `UserDefaults.standard` 는 번들 식별자를 따라가는데, 앱은 번들 안에서 돌고
@@ -68,6 +93,7 @@ final class Settings: ObservableObject {
         showSummary = store.object(forKey: Key.summary) as? Bool ?? true
         refreshInterval = store.object(forKey: Key.interval) as? Double ?? 2
         codexAppWindow = store.object(forKey: Key.codexAppWindow) as? Double ?? 30
+        sourceStyle = SourceStyle(rawValue: store.string(forKey: Key.sourceStyle) ?? "") ?? .short
         loading = false
     }
 
@@ -82,6 +108,7 @@ final class Settings: ObservableObject {
         showSummary = true
         refreshInterval = 2
         codexAppWindow = 30
+        sourceStyle = .short
         loading = false
         persist()
     }
@@ -96,6 +123,7 @@ final class Settings: ObservableObject {
         store.set(showSummary, forKey: Key.summary)
         store.set(refreshInterval, forKey: Key.interval)
         store.set(codexAppWindow, forKey: Key.codexAppWindow)
+        store.set(sourceStyle.rawValue, forKey: Key.sourceStyle)
         NotificationCenter.default.post(name: Settings.didChange, object: nil)
     }
 
@@ -115,5 +143,6 @@ final class Settings: ObservableObject {
         static let summary = "showSummary"
         static let interval = "refreshInterval"
         static let codexAppWindow = "codexAppWindow"
+        static let sourceStyle = "sourceStyle"
     }
 }

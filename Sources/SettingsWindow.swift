@@ -45,6 +45,11 @@ struct LayoutSettingsView: View {
                 }
                 .pickerStyle(.segmented)
 
+                Picker(S.sourceStyle, selection: $settings.sourceStyle) {
+                    ForEach(SourceStyle.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
+
                 Picker(S.codexAppWindow, selection: $settings.codexAppWindow) {
                     Text(S.windowOff).tag(0.0)
                     Text(S.minutes(10)).tag(10.0)
@@ -54,7 +59,7 @@ struct LayoutSettingsView: View {
                 .pickerStyle(.segmented)
             }
             .formStyle(.grouped)
-            .frame(height: 420)
+            .frame(height: 462)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(S.preview)

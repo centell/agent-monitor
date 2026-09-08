@@ -80,6 +80,7 @@ struct ClaudeCodeSource: SessionSource {
             pid: Int32(pid),
             name: obj["name"] as? String ?? URL(fileURLWithPath: cwd).lastPathComponent,
             source: "claude",
+            runsInApp: false,
             cwd: cwd,
             state: SessionState(raw: status),
             kind: obj["kind"] as? String,

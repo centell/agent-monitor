@@ -96,6 +96,10 @@ enum S {
     static var showSummary: String   { p("아래에 시스템 요약 보이기", "Show system summary below") }
     static var refresh: String       { p("갱신 주기", "Refresh") }
     static func seconds(_ n: Int) -> String { p("\(n)초", "\(n)s") }
+    static var sourceStyle: String   { p("출처 표시", "Source label") }
+    static var styleShort: String    { p("앱만", "App only") }
+    static var styleSymmetric: String { p("양쪽 다", "Both") }
+    static var styleSymbol: String   { p("표식", "Mark") }
     static var codexAppWindow: String { p("codex 앱 스레드", "codex app threads") }
     static var windowOff: String     { p("안 보임", "Hidden") }
     static func minutes(_ n: Int) -> String { p("\(n)분", "\(n)m") }
