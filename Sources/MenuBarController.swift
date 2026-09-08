@@ -175,14 +175,6 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         text.addAttribute(.foregroundColor,
                           value: color(for: session.state),
                           range: NSRange(location: 0, length: 1))
-        // 이유는 흐리게 두지 않는다 — 그걸 읽으려고 목록을 여는 것이므로.
-        // 대신 굵기를 뺀다. 세 번째 색을 들이지 않고도 이름보다 뒤에 서게 된다.
-        if let why = row.reasonRange {
-            text.addAttribute(.font,
-                              value: NSFont.monospacedSystemFont(
-                                  ofSize: row.secondLineStart != nil ? 11 : 12, weight: .regular),
-                              range: why)
-        }
         // 지표는 흐리게 — 평소엔 눈에 안 걸리고 찾을 때만 보이면 된다.
         if let dim = row.dimRange {
             text.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: dim)
@@ -202,7 +194,13 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             onClick: { [weak self] in self?.jump(to: session) },
             onRightClick: { [weak self] in self?.togglePin(for: session) }
         )
-        var tip = session.cwd
+        // 왜 기다리는지를 맨 위에 둔다. 마우스를 올리는 이유가 대개 그것이라 경로보다 앞이고,
+        // 줄에서 뺀 값이므로 여기서는 폭에 맞춰 자르지 않는다 — 물음은 끝까지 읽혀야 한다.
+        var tip = ""
+        if settings.showReason, let why = session.reason, !why.isEmpty {
+            tip += Self.folded(why) + "\n\n"
+        }
+        tip += session.cwd
         if canJump { tip += "\n" + SessionJump.hint(for: session) }
         tip += "\n" + (session.isPinned ? S.unpinHint : S.pinHint)
         if let m = session.metrics { tip += "\n" + S.descendants(m.descendantCount) }
@@ -267,6 +265,28 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if s < 3600 { return "\(Int(s / 60))m" }
         if s < 86400 { return "\(Int(s / 3600))h" }
         return "\(Int(s / 86400))d"
+    }
+
+    /// 툴팁에 넣을 한 문단을 낱말 경계에서 접는다.
+    ///
+    /// 자르지는 않는다 — 줄에서 뺀 것이 잘려서였으므로 여기서까지 자르면 옮긴 뜻이 없다.
+    /// 다만 한 줄로 두면 툴팁이 화면 끝까지 늘어나므로 접기만 한다.
+    /// 낱말 하나가 한 줄보다 길면(긴 명령·경로) 쪼개지 않고 그대로 둔다. 가운데서
+    /// 쪼갠 경로는 읽을 수 없고, 읽을 수 없으면 접은 뜻도 없다.
+    static func folded(_ text: String, limit: Int = 46) -> String {
+        var lines: [String] = []
+        var current = ""
+        for word in text.split(separator: " ") {
+            let candidate = current.isEmpty ? String(word) : current + " " + word
+            if candidate.displayWidth <= limit {
+                current = candidate
+            } else {
+                if !current.isEmpty { lines.append(current) }
+                current = String(word)
+            }
+        }
+        if !current.isEmpty { lines.append(current) }
+        return lines.joined(separator: "\n")
     }
 }
 
