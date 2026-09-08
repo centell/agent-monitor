@@ -31,6 +31,7 @@ struct LayoutSettingsView: View {
 
                 Toggle(S.showStateLabel, isOn: $settings.showStateLabel)
                 Toggle(S.showTool, isOn: $settings.showTool)
+                Toggle(S.showReason, isOn: $settings.showReason)
 
                 // 셋을 한 줄에 나란히 둔다. 줄 수가 늘지 않아 창 높이 상수를 안 건드리고,
                 // 셋이 한 짝이라는 것도 보인다.
@@ -65,7 +66,9 @@ struct LayoutSettingsView: View {
                 .pickerStyle(.segmented)
             }
             .formStyle(.grouped)
-            .frame(height: 462)
+            // 손잡이 수에 맞춘 높이. 모자라면 Form 안에서 마지막 줄이 잘리므로
+            // 손잡이를 더할 때는 이 값도 한 줄만큼 올린다.
+            .frame(height: 500)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(S.preview)

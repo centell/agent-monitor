@@ -132,6 +132,8 @@ struct ClaudeCodeSource: SessionSource {
         let facts = parseTail(tail)
         session.currentTool = facts.tool
         session.lastActivity = facts.timestamp
+        session.pendingCall = facts.pendingCall
+        session.lastSay = facts.lastSay
     }
 
     /// cwd 를 디렉터리 이름으로 바꾼다. 영숫자가 아닌 글자는 전부 `-` 가 된다.
@@ -177,12 +179,25 @@ struct ClaudeCodeSource: SessionSource {
     private struct TailFacts {
         var tool: String?
         var timestamp: Date?
+        /// 결과가 아직 안 돌아온 도구 호출. 승인 프롬프트가 떠 있으면 그 호출이 여기 남는다.
+        var pendingCall: String?
+        /// 이번 턴에 사람에게 건넨 마지막 말.
+        var lastSay: String?
     }
 
     /// 끝에서부터 거슬러 올라가며 마지막 대화 이벤트를 찾는다.
     /// 서브에이전트(sidechain)는 세지 않는다 — 그건 이 세션의 활동이 아니다.
+    ///
+    /// «왜 기다리는가» 를 뽑는 데는 경계가 둘 필요하다.
+    /// **대기 중인 호출은 마지막 assistant 메시지에서만** 집는다. 더 거슬러 올라가면
+    /// 결과가 64KB 창 밖으로 밀려난 옛 호출까지 «아직 안 끝난 것» 으로 잘못 잡는다.
+    /// **마지막 말은 이번 턴 안에서만** 집는다. 사람이 말을 건 줄을 만나면 그 앞은
+    /// 지난 턴이므로 거기서 멈춘다 — 지난 턴의 말을 지금 물음으로 내밀면 안 된다.
     private func parseTail(_ text: String) -> TailFacts {
         var facts = TailFacts()
+        var resolved = Set<String>()        // 결과가 돌아온 도구 호출 id
+        var latestMessageID: String?        // 마지막 assistant 메시지의 id
+        var reachedPreviousTurn = false     // 사람이 말을 건 줄을 지났는가
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
 
@@ -198,16 +213,45 @@ struct ClaudeCodeSource: SessionSource {
             if facts.timestamp == nil, let ts = obj["timestamp"] as? String {
                 facts.timestamp = iso.date(from: ts) ?? ISO8601DateFormatter().date(from: ts)
             }
-            if facts.tool == nil,
-               let message = obj["message"] as? [String: Any],
-               let content = message["content"] as? [[String: Any]] {
-                for block in content.reversed()
-                where block["type"] as? String == "tool_use" {
-                    facts.tool = block["name"] as? String
-                    break
+
+            let message = obj["message"] as? [String: Any]
+            let content = message?["content"] as? [[String: Any]]
+
+            if type == "user" {
+                // 도구 결과가 돌아온 호출을 적어 둔다. 남은 것이 대기 중인 호출이다.
+                for block in content ?? [] where block["type"] as? String == "tool_result" {
+                    if let id = block["tool_use_id"] as? String { resolved.insert(id) }
+                }
+                // 사람이 직접 건넨 말이면 여기서 이번 턴이 시작된 것이다.
+                if message?["content"] is String
+                    || content?.contains(where: { $0["type"] as? String == "text" }) == true {
+                    reachedPreviousTurn = true
+                }
+                continue
+            }
+
+            // 한 메시지가 여러 줄로 나뉘어 적히므로(생각·말·도구 호출) id 로 묶어 본다.
+            let messageID = message?["id"] as? String ?? ""
+            if latestMessageID == nil { latestMessageID = messageID }
+            let isLatestMessage = messageID == latestMessageID
+
+            if let content {
+                for block in content.reversed() where block["type"] as? String == "tool_use" {
+                    if facts.tool == nil { facts.tool = block["name"] as? String }
+                    if isLatestMessage, facts.pendingCall == nil,
+                       let id = block["id"] as? String, !resolved.contains(id),
+                       let name = block["name"] as? String {
+                        facts.pendingCall = Transcript.callSummary(
+                            name: name, input: block["input"] as? [String: Any])
+                    }
+                }
+                if facts.lastSay == nil, !reachedPreviousTurn {
+                    facts.lastSay = Transcript.closingLine(inContent: content)
                 }
             }
-            if facts.timestamp != nil && facts.tool != nil { break }
+
+            if facts.timestamp != nil && facts.tool != nil
+                && (facts.lastSay != nil || reachedPreviousTurn) { break }
         }
         return facts
     }

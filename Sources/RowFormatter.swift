@@ -11,34 +11,57 @@ struct RowFormatter {
 
     struct Row {
         let text: String
-        /// 흐리게 그릴 구간(지표·둘째 줄). UTF-16 기준이며 없을 수 있다.
+        /// 흐리게 그릴 구간(지표). UTF-16 기준이며 없을 수 있다.
         let dimRange: NSRange?
         /// 둘째 줄이 시작하는 위치. 두 줄 배치일 때만 있다.
         let secondLineStart: Int?
+        /// 이유를 적은 구간. 머리보다 가볍고 지표보다 또렷하게 그린다.
+        let reasonRange: NSRange?
     }
+
+    /// 이유 칸의 폭.
+    ///
+    /// 켜져 있으면 이유가 없는 줄도 이만큼 비워 둔다. 폭이 줄마다 달라지면
+    /// 뒤따르는 지표 열이 어긋나 목록이 들쭉날쭉해진다.
+    static let reasonWidth = 40
 
     func row(for session: Session) -> Row {
         let head = header(for: session)
+        let hasReason = settings.showReason && !(session.reason ?? "").isEmpty
+        let slot = settings.showReason ? (session.reason ?? "").fitted(to: Self.reasonWidth) : ""
         let tail = metrics(for: session)
+        func length(_ text: String) -> Int { (text as NSString).length }
 
         switch settings.layout {
         case .single:
-            let text = head + tail
-            let dim = tail.isEmpty ? nil
-                : NSRange(location: (head as NSString).length, length: (tail as NSString).length)
-            return Row(text: text, dimRange: dim, secondLineStart: nil)
+            let prefix = slot.isEmpty ? head : head + "  " + slot
+            let text = prefix + tail
+            return Row(text: text,
+                       dimRange: tail.isEmpty ? nil
+                           : NSRange(location: length(prefix), length: length(tail)),
+                       secondLineStart: nil,
+                       reasonRange: slot.isEmpty ? nil
+                           : NSRange(location: length(head) + 2, length: length(slot)))
 
         case .double:
-            // 두 줄일 때는 지표를 아래로 내리고 앞을 들여쓴다.
-            let second = "   " + tail.trimmingCharacters(in: .whitespaces)
-            guard !tail.isEmpty else {
-                return Row(text: head, dimRange: nil, secondLineStart: nil)
+            // 두 줄일 때는 이유와 지표를 아래로 내리고 앞을 들여쓴다.
+            let numbers = tail.trimmingCharacters(in: .whitespaces)
+            // 적을 것이 없으면 빈 줄을 만들지 않는다. 이유도 지표도 없는 줄에까지
+            // 둘째 줄을 붙이면 목록이 두 배로 길어지고 얻는 것이 없다.
+            guard hasReason || !numbers.isEmpty else {
+                return Row(text: head, dimRange: nil, secondLineStart: nil, reasonRange: nil)
             }
-            let text = head + "\n" + second
-            let start = (head as NSString).length + 1
-            return Row(text: text,
-                       dimRange: NSRange(location: start, length: (second as NSString).length),
-                       secondLineStart: start)
+            let indent = "   "
+            var second = indent + slot
+            if !numbers.isEmpty { second += slot.isEmpty ? numbers : "  " + numbers }
+            let start = length(head) + 1
+            return Row(text: head + "\n" + second,
+                       dimRange: numbers.isEmpty ? nil
+                           : NSRange(location: start + length(second) - length(numbers),
+                                     length: length(numbers)),
+                       secondLineStart: start,
+                       reasonRange: slot.isEmpty ? nil
+                           : NSRange(location: start + length(indent), length: length(slot)))
         }
     }
 

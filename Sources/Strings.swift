@@ -95,6 +95,8 @@ enum S {
     static var layoutDouble: String  { p("두 줄", "Two lines") }
     static var showStateLabel: String { p("상태를 글자로 보이기", "Show status as text") }
     static var showTool: String      { p("도구 이름 보이기", "Show tool name") }
+    // 「이유」만 적으면 무엇의 이유인지 알 수 없다. 이 칸이 답하는 물음을 그대로 적는다.
+    static var showReason: String    { p("왜 기다리는지 보이기", "Show why it is waiting") }
     static var metrics: String       { p("지표", "Metrics") }
     // 줄에 실제로 찍히는 말(RAM·CPU)을 그대로 쓴다. 「숫자」·「전부」로 적으면
     // 켜 보기 전에는 무엇이 나올지 알 수 없다.
@@ -215,6 +217,10 @@ enum S {
           순서로만 드러난다). 도는 중일 때는 자리를 옮기지 않는다.
           핀은 그 세션과 함께 산다. 세션을 껐다 켜면 다시 꽂아야 한다.
 
+          손이 필요한 줄에는 왜 기다리는지도 적는다. 승인 대기는 기다리고 있는 호출을,
+          입력 대기는 마지막으로 건넨 말을 단다. 기록에서 못 찾으면 추측하지 않고 비운다.
+          «표시» 설정에서 끌 수 있다.
+
           줄 앞의 출처로 어디서 온 세션인지 구분한다 —
           claude(터미널) · claude-app · codex(터미널) · codex-app.
 
@@ -242,6 +248,10 @@ enum S {
           it waits for you and gets a tinted background in the menu (--list has no color,
           so there it shows only in the order). While it is working, it keeps its place.
           A pin lives with its session — restart the session and you pin it again.
+
+          A row that needs you also says why: an approval carries the call it is waiting on,
+          an idle row the last thing it said to you. If the transcript does not show it, the
+          line stays blank rather than guessing. Turn it off under Display.
 
           Each row is prefixed with where it came from —
           claude (terminal), claude-app, codex (terminal), codex-app.

@@ -123,6 +123,84 @@ enum Transcript {
         withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return withFraction.date(from: text) ?? ISO8601DateFormatter().date(from: text)
     }
+
+    // MARK: 왜 기다리는가
+
+    /// 도구 호출을 한 줄로 줄인다 — `Bash: pnpm build`.
+    ///
+    /// 이름만으로는 부족하다. `Bash` 는 빌드일 수도 있고 지우는 것일 수도 있어서,
+    /// 결국 창으로 넘어가 봐야 안다. 그 왕복을 없애는 것이 이 값의 목적이므로
+    /// 도구마다 «무엇을 하려는지» 가 담긴 칸을 하나씩 집는다.
+    ///
+    /// 모르는 도구는 이름만 적는다. 아무 칸이나 집어 엉뚱한 것을 보이느니
+    /// 덜 말하는 편이 낫다 — 틀린 한 줄은 없느니만 못하다.
+    static func callSummary(name: String, input: [String: Any]?) -> String {
+        guard let argument = argument(ofTool: name, input: input) else { return name }
+        return "\(name): \(argument)"
+    }
+
+    private static func argument(ofTool name: String, input: [String: Any]?) -> String? {
+        guard let input else { return nil }
+        func value(_ key: String) -> String? {
+            guard let raw = input[key] as? String else { return nil }
+            let text = plain(oneLine(raw))
+            return text.isEmpty ? nil : text
+        }
+        switch name {
+        case "Bash", "BashOutput", "KillShell":
+            return value("command") ?? value("description")
+        case "Read", "Write", "Edit", "MultiEdit", "NotebookEdit":
+            return value("file_path").map { ($0 as NSString).lastPathComponent }
+        case "Glob", "Grep":
+            return value("pattern")
+        case "WebFetch":
+            return value("url")
+        case "WebSearch":
+            return value("query")
+        case "Task", "Agent":
+            return value("description")
+        case "Skill":
+            return value("skill")
+        default:
+            return nil
+        }
+    }
+
+    /// 마지막 텍스트 블록에서 사람에게 건넨 **마지막 줄**을 집는다.
+    ///
+    /// 첫 줄이 아니라 마지막 줄인 이유: 첫 줄은 머리말이거나 제목일 때가 많고
+    /// (「## 작업 완료」), 정작 사람이 답해야 할 것은 끝에 온다 (「커밋할까요?」).
+    static func closingLine(inContent blocks: [[String: Any]]) -> String? {
+        for block in blocks.reversed() where block["type"] as? String == "text" {
+            guard let raw = block["text"] as? String else { continue }
+            let lines = raw.split(whereSeparator: \.isNewline)
+                .map { plain(oneLine(String($0))) }
+                .filter { !$0.isEmpty }
+            if let last = lines.last { return last }
+        }
+        return nil
+    }
+
+    /// 여러 줄을 한 줄로 눌러 담는다.
+    ///
+    /// 줄바꿈이 하나라도 남으면 목록의 줄 수가 세션마다 달라져 배치가 무너진다.
+    static func oneLine(_ text: String) -> String {
+        text.split(whereSeparator: { $0.isNewline || $0 == "\t" || $0 == " " })
+            .joined(separator: " ")
+    }
+
+    /// 마크다운 장식을 걷어낸다.
+    ///
+    /// 목록은 고정폭 글자만 그리므로 `**` 는 굵게 보이지 않고 칸만 잡아먹는다.
+    private static func plain(_ line: String) -> String {
+        var out = line.replacingOccurrences(of: "**", with: "")
+                      .replacingOccurrences(of: "`", with: "")
+        // 줄머리 장식(제목·목록표)을 떼어낸다. 한 겹씩 벗기므로 `- **x**` 도 벗겨진다.
+        while let first = out.first, "#-*>•".contains(first) {
+            out = String(out.dropFirst()).trimmingCharacters(in: .whitespaces)
+        }
+        return out.trimmingCharacters(in: .whitespaces)
+    }
 }
 
 // MARK: - codex 스레드 이름

@@ -97,6 +97,8 @@ if args.contains("--json") {
         ]
         row["kind"] = s.kind
         row["currentTool"] = s.currentTool
+        // 표시 설정과 무관하게 낸다. 기계가 읽는 값이 사람의 손잡이에 따라 흔들리면 안 된다.
+        row["reason"] = s.reason
         row["deepLink"] = s.deepLink?.absoluteString
         row["startedAt"] = s.startedAt.map { iso.string(from: $0) }
         row["statusUpdatedAt"] = s.statusUpdatedAt.map { iso.string(from: $0) }

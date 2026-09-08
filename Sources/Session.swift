@@ -102,6 +102,12 @@ struct Session {
     var currentTool: String?
     var lastActivity: Date?
 
+    /// 승인을 기다리는 도구 호출 (`Bash: pnpm build`). 기록에서 찾지 못하면 없다.
+    var pendingCall: String?
+
+    /// 이번 턴에 사람에게 건넨 마지막 말 (`커밋할까요?`).
+    var lastSay: String?
+
     /// 레지스트리를 읽지 못해 추측으로 내려갔는가.
     ///
     /// 조용히 틀리지 않기 위한 표식이다. 이 값이 참이면 화면에도 추정치라고 적어야 한다.
@@ -114,6 +120,22 @@ struct Session {
     var deepLink: URL?
 
     var shortID: String { String(id.prefix(8)) }
+
+    /// 왜 나를 기다리는가. 없으면 없다 — 지어내지 않는다.
+    ///
+    /// 손이 필요한 두 상태에만 붙인다. 도는 중인 세션에도 붙이면 지금 할 일이 없는
+    /// 줄이 목록에서 가장 시끄러워진다 — 이 앱이 하려던 일과 정반대가 된다.
+    ///
+    /// 승인 대기인데 호출을 못 찾았으면 마지막으로 한 말로 대신한다. 기록 창 밖으로
+    /// 밀려났거나 우리가 모르는 물음일 때인데, 그때도 «무엇을 묻는 중인가» 에는
+    /// 마지막 말이 가장 가깝다.
+    var reason: String? {
+        switch state {
+        case .waiting: return pendingCall ?? lastSay
+        case .idle:    return lastSay
+        default:       return nil
+        }
+    }
 
     /// 주인이 상단에 고정해 둔 것인가.
     ///

@@ -73,6 +73,7 @@ struct ClaudeAppSource: SessionSource {
             )
             session.deepLink = Self.deepLink(for: record.localID)
             session.currentTool = facts.tool
+            session.lastSay = facts.lastSay
             session.lastActivity = facts.timestamp ?? record.lastActivityAt
             // 앱은 상태를 적지 않는다. 우리가 기록에서 읽어 낸 것이므로 «추정» 이라 적는다.
             session.isEstimated = true
@@ -154,6 +155,8 @@ struct ClaudeAppSource: SessionSource {
         var state: SessionState = .unknown("no turn end")
         var tool: String?
         var timestamp: Date?
+        /// 마지막으로 사람에게 건넨 말. 앱 세션은 승인 대기를 내지 않으므로 이것만 쓴다.
+        var lastSay: String?
     }
 
     private func readState(for record: Record) -> Facts {
@@ -190,6 +193,8 @@ struct ClaudeAppSource: SessionSource {
     private func parseTail(_ text: String) -> Facts {
         var facts = Facts()
         var stateFound = false
+        // 사람이 말을 건 줄을 지났는가. 그 앞은 지난 턴이므로 «마지막 말» 을 거기서 집지 않는다.
+        var crossedUserTurn = false
 
         for line in text.split(separator: "\n").reversed() {
             guard let data = line.data(using: .utf8),
@@ -224,6 +229,15 @@ struct ClaudeAppSource: SessionSource {
                     facts.state = .busy
                     stateFound = true
                 }
+            }
+
+            if type == "user",
+               message?["content"] is String
+                   || content?.contains(where: { $0["type"] as? String == "text" }) == true {
+                crossedUserTurn = true
+            }
+            if facts.lastSay == nil, !crossedUserTurn, type == "assistant", let content {
+                facts.lastSay = Transcript.closingLine(inContent: content)
             }
 
             if facts.tool == nil, let content {

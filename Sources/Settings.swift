@@ -45,6 +45,12 @@ final class Settings: ObservableObject {
     @Published var layout: RowLayout                { didSet { persist() } }
     @Published var showStateLabel: Bool             { didSet { persist() } }
     @Published var showTool: Bool                   { didSet { persist() } }
+    /// 왜 기다리는지를 줄에 적을 것인가.
+    ///
+    /// 끌 수 있어야 한다. 이 칸에는 기록에 적힌 명령이 그대로 나오므로, 화면을 공유하거나
+    /// 어깨너머로 보이는 자리에서는 인자에 섞인 것까지 함께 보인다. 무엇을 보일지는
+    /// 그 자리에 있는 사람만 안다.
+    @Published var showReason: Bool                 { didSet { persist() } }
     /// 지표 셋을 각각 켜고 끈다.
     ///
     /// 예전에는 사다리였다 — 끄기 → 막대 → 막대+숫자 → 전부. 그러면 「막대는 빼고
@@ -93,6 +99,7 @@ final class Settings: ObservableObject {
         layout = RowLayout(rawValue: store.string(forKey: Key.layout) ?? "") ?? .single
         showStateLabel = store.object(forKey: Key.stateLabel) as? Bool ?? true
         showTool = store.object(forKey: Key.tool) as? Bool ?? true
+        showReason = store.object(forKey: Key.reason) as? Bool ?? true
         // 사다리였던 옛 설정에서 옮겨온다. 맞춰 두신 값이 말없이 초기값으로 돌아가면 안 된다.
         let legacy = store.string(forKey: Key.legacyMetrics)
         showMemoryBar = store.object(forKey: Key.memoryBar) as? Bool
@@ -129,6 +136,7 @@ final class Settings: ObservableObject {
         layout = .single
         showStateLabel = true
         showTool = true
+        showReason = true
         showMemoryBar = true
         showMemoryValue = true
         showCPU = false
@@ -148,6 +156,7 @@ final class Settings: ObservableObject {
         store.set(layout.rawValue, forKey: Key.layout)
         store.set(showStateLabel, forKey: Key.stateLabel)
         store.set(showTool, forKey: Key.tool)
+        store.set(showReason, forKey: Key.reason)
         store.set(showMemoryBar, forKey: Key.memoryBar)
         store.set(showMemoryValue, forKey: Key.memoryValue)
         store.set(showCPU, forKey: Key.cpu)
@@ -171,6 +180,7 @@ final class Settings: ObservableObject {
         static let layout = "rowLayout"
         static let stateLabel = "showStateLabel"
         static let tool = "showTool"
+        static let reason = "showReason"
         /// 사다리였던 옛 설정. 새 스위치가 아직 없을 때 여기서 옮겨온다.
         static let legacyMetrics = "metricDisplay"
         static let memoryBar = "showMemoryBar"

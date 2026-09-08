@@ -175,6 +175,14 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         text.addAttribute(.foregroundColor,
                           value: color(for: session.state),
                           range: NSRange(location: 0, length: 1))
+        // 이유는 흐리게 두지 않는다 — 그걸 읽으려고 목록을 여는 것이므로.
+        // 대신 굵기를 뺀다. 세 번째 색을 들이지 않고도 이름보다 뒤에 서게 된다.
+        if let why = row.reasonRange {
+            text.addAttribute(.font,
+                              value: NSFont.monospacedSystemFont(
+                                  ofSize: row.secondLineStart != nil ? 11 : 12, weight: .regular),
+                              range: why)
+        }
         // 지표는 흐리게 — 평소엔 눈에 안 걸리고 찾을 때만 보이면 된다.
         if let dim = row.dimRange {
             text.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: dim)
