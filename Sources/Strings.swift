@@ -187,7 +187,10 @@ enum S {
             agent-monitor --roots    훑는 계정 루트를 보여준다
 
           메뉴바에는 «기다리는 중/전체» 숫자만 띄운다. 세션이 몇 개든 잘라내지 않는다.
-          상태는 Claude Code 가 <계정루트>/sessions/<pid>.json 에 직접 적은 것을 그대로 읽는다.
+
+          Claude Code 의 상태는 <계정루트>/sessions/<pid>.json 에 적힌 것을 그대로 읽는다.
+          codex 는 상태를 적지 않으므로 rollout 끝의 turn 경계로 추정하고 «추정» 이라 표시한다.
+          codex 는 터미널 세션만 다룬다 (codex exec 와 데스크탑 앱 스레드는 제외).
           """,
           """
           agent-monitor — shows which of your local agent sessions is waiting for you
@@ -200,7 +203,10 @@ enum S {
             agent-monitor --roots    show which account roots are scanned
 
           The menu bar shows only a "waiting/total" count. It never truncates the list.
-          Status is read verbatim from <account-root>/sessions/<pid>.json, which Claude Code writes.
+
+          Claude Code status is read verbatim from <account-root>/sessions/<pid>.json.
+          codex writes no status, so it is estimated from the last turn boundary and marked "(est.)".
+          Only terminal codex sessions are shown (codex exec and desktop threads are not).
           """)
     }
 }
