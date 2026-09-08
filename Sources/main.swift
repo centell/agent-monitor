@@ -51,24 +51,55 @@ if args.contains("--stats") {
         print(StatsReport.hasRecords(days: days) ? S.statsAwayOnly : S.statsNoData)
         exit(0)
     }
-    print(S.statsHeader(days: days, dataDays: report.dataDays, hours: report.presentHours) + "\n")
+    print(S.statsHeader(days: days, dataDays: report.dataDays, hours: report.overall.presentHours) + "\n")
     // 라벨 칸을 채운 뒤에도 두 칸을 더 둔다. 딱 맞는 라벨(`Actually running`)이
     // 값과 맞붙어 한 낱말처럼 읽히는 것을 막는다.
     func line(_ label: String, _ value: String) {
         print("  " + label.paddedDisplay(to: 16) + "  " + value)
     }
-    line(S.statsSessions, S.statsMeanMax(report.meanSessions, report.maxSessions))
-    line(S.statsRunning, S.statsMean(report.meanRunning))
-    line(S.statsQueue, S.statsQueueSplit(none: report.queueNone,
-                                         one: report.queueOne,
-                                         many: report.queueMany))
+    let all = report.overall
+    line(S.statsSessions, S.statsMeanMax(all.meanSessions, all.maxSessions))
+    line(S.statsRunning, S.statsMean(all.meanRunning))
+    line(S.statsQueue, S.statsQueueSplit(none: all.queueNone,
+                                         one: all.queueOne,
+                                         many: all.queueMany))
     line(S.statsWaits, S.statsWaitSplit(median: report.waitMedian,
                                         longest: report.waitLongest,
                                         total: report.waitTotal,
                                         count: report.waitCount))
-    line(S.statsMemory, S.statsMemorySplit(mean: MetricFormat.size(report.agentMeanBytes),
-                                           peak: MetricFormat.size(report.agentPeakBytes),
-                                           swap: MetricFormat.size(report.swapMeanBytes)))
+    line(S.statsMemory, S.statsMemorySplit(mean: MetricFormat.size(all.meanAgentBytes),
+                                           peak: MetricFormat.size(all.agentPeak),
+                                           swap: MetricFormat.size(all.meanSwapBytes)))
+
+    /// 표본이 이보다 적은 칸은 빼고 몇 칸을 뺐는지 밝힌다.
+    /// 2분짜리 칸의 「100%」는 습관이 아니라 우연이다.
+    let thinFloor = 5.0
+    func sliceRow(_ when: String, _ present: String, _ sessions: String,
+                  _ running: String, _ queue: String) {
+        print("  " + when.paddedDisplay(to: 8) + present.rightAligned(to: 10)
+              + sessions.rightAligned(to: 9) + running.rightAligned(to: 9)
+              + queue.rightAligned(to: 12))
+    }
+    func table(_ title: String, _ column: String, _ slices: [StatsReport.Slice],
+               label: (Int) -> String) {
+        let shown = slices.filter { $0.bin.presentMinutes >= thinFloor }
+        guard !shown.isEmpty else { return }
+        print("\n" + title)
+        sliceRow(column, S.statsColPresent, S.statsColSessions,
+                 S.statsColRunning, S.statsColQueueMany)
+        for slice in shown {
+            sliceRow(label(slice.key),
+                     String(format: "%.1fh", slice.bin.presentHours),
+                     String(format: "%.1f", slice.bin.meanSessions),
+                     String(format: "%.1f", slice.bin.meanRunning),
+                     "\(Int((slice.bin.queueMany * 100).rounded()))%")
+        }
+        let thin = slices.count - shown.count
+        if thin > 0 { print(S.statsThinNote(thin, minutes: Int(thinFloor))) }
+    }
+    table(S.statsByHour, S.statsColHour, report.byHour, label: S.hourLabel)
+    table(S.statsByWeekday, S.statsColWeekday, report.byWeekday, label: S.weekdayLabel)
+
     print("\n" + S.statsFootnote)
     exit(0)
 }

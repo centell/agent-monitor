@@ -266,6 +266,33 @@ enum S {
         isKorean ? "평균 \(mean) · 최대 \(peak) · 스왑 평균 \(swap)"
                  : "\(mean) avg · \(peak) peak · swap \(swap) avg"
     }
+    // MARK: 시간대·요일
+
+    static var statsByHour: String    { p("시간대별", "By hour") }
+    static var statsByWeekday: String { p("요일별", "By weekday") }
+    static var statsColHour: String    { p("시간", "Hour") }
+    static var statsColWeekday: String { p("요일", "Day") }
+    static var statsColPresent: String { p("앞에 계신", "at desk") }
+    static var statsColSessions: String { p("세션", "sessions") }
+    static var statsColRunning: String  { p("돌던 수", "running") }
+    static var statsColQueueMany: String { p("줄 둘 이상", "queue 2+") }
+
+    static func hourLabel(_ hour: Int) -> String {
+        isKorean ? String(format: "%02d시", hour) : String(format: "%02d:00", hour)
+    }
+    /// `Calendar` 의 요일 번호(1=일)를 이름으로.
+    static func weekdayLabel(_ weekday: Int) -> String {
+        let korean = ["일", "월", "화", "수", "목", "금", "토"]
+        let english = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        let index = max(0, min(6, weekday - 1))
+        return isKorean ? korean[index] : english[index]
+    }
+    /// 뺀 칸이 있으면 몇 칸을 왜 뺐는지 밝힌다. 조용히 빼면 없는 시간대로 읽힌다.
+    static func statsThinNote(_ count: Int, minutes: Int) -> String {
+        isKorean ? "  (\(minutes)분에 못 미치는 칸 \(count)개는 뺐습니다 — 비율이 튑니다)"
+                 : "  (\(count) buckets under \(minutes) minutes omitted — the ratios swing)"
+    }
+
     static var statsFootnote: String {
         p("""
           모두 «앞에 계셨던 시간» 기준입니다 — 자리를 비운 동안 쌓인 대기는 빼고 셉니다.

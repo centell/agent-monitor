@@ -10,19 +10,69 @@ import Foundation
 /// 「늘 밀려 있음」밖에 안 나온다.
 struct StatsReport {
 
+    /// 한 무리의 표본을 담는 그릇. 전체·시간대별·요일별이 같은 셈을 쓴다.
+    ///
+    /// 무게는 **앞에 계셨던 표본 수**다. 1분 줄마다 표본 수가 다를 수 있어(앱을 켠 첫 분,
+    /// 자리를 뜬 분) 줄 수로 세면 짧은 분이 긴 분과 같은 무게를 갖는다.
+    struct Bin {
+        var weight = 0.0
+        var presentMinutes = 0.0
+        var sessions = 0.0
+        var running = 0.0
+        var maxSessions = 0
+        var q0 = 0.0, q1 = 0.0, q2 = 0.0
+        var agent = 0.0
+        var agentPeak: UInt64 = 0
+        var swap = 0.0
+
+        var presentHours: Double { presentMinutes / 60 }
+        var meanSessions: Double { weight > 0 ? sessions / weight : 0 }
+        var meanRunning: Double { weight > 0 ? running / weight : 0 }
+        var queueNone: Double { ratio(q0) }
+        var queueOne: Double { ratio(q1) }
+        var queueMany: Double { ratio(q2) }
+        var meanAgentBytes: UInt64 { weight > 0 ? UInt64(agent / weight) : 0 }
+        var meanSwapBytes: UInt64 { weight > 0 ? UInt64(swap / weight) : 0 }
+
+        private func ratio(_ part: Double) -> Double {
+            let all = q0 + q1 + q2
+            return all > 0 ? part / all : 0
+        }
+
+        mutating func add(_ row: [String], present: Double, samples: Double) {
+            weight += present
+            presentMinutes += present / samples
+            sessions += (Double(row[3]) ?? 0) * present
+            running += ((Double(row[6]) ?? 0) + (Double(row[7]) ?? 0)) * present
+            maxSessions = max(maxSessions, Int(row[8]) ?? 0)
+            q0 += Double(row[9]) ?? 0
+            q1 += Double(row[10]) ?? 0
+            q2 += Double(row[11]) ?? 0
+            agent += (Double(row[12]) ?? 0) * present
+            agentPeak = max(agentPeak, UInt64(row[13]) ?? 0)
+            swap += (Double(row[15]) ?? 0) * present
+        }
+    }
+
+    /// 시간대나 요일 한 칸.
+    struct Slice {
+        /// 0~23 시각, 또는 `Calendar` 의 요일(1=일).
+        let key: Int
+        let bin: Bin
+    }
+
     /// 기록이 실제로 있는 날 수. 「7일치를 봤다」와 「7일 중 이틀만 있다」는 다른 말이다.
     let dataDays: Int
-    let presentHours: Double
+    let overall: Bin
 
-    let meanSessions: Double
-    let maxSessions: Int
-    /// 그중 실제로 돌던 것 (`busy` + `shell`).
-    let meanRunning: Double
-
-    /// 나를 기다리던 세션 수의 분포. 손이 빈 시간 · 하나가 기다린 시간 · 줄이 선 시간.
-    let queueNone: Double
-    let queueOne: Double
-    let queueMany: Double
+    /// 시간대별·요일별. 표본이 있는 칸만 담기며 시각·요일 순으로 정렬되어 있다.
+    ///
+    /// 이 두 갈래가 필요한 이유는 「앞에 있음」이 「일하는 중」과 같지 않아서다. 슬랙을 하거나
+    /// 회의 중 노트북만 켜 두어도 입력은 있으므로 앞에 있는 것으로 잡힌다. 그 시간의 긴 대기는
+    /// 세션을 많이 띄운 탓이 아닌데 전체 평균에는 섞여 든다.
+    /// 시간대로 갈라 보면 **작동은 낮은데 줄만 긴 칸**으로 그런 시간이 드러난다.
+    let byHour: [Slice]
+    let byWeekday: [Slice]
 
     let waitCount: Int
     let waitMedian: Double
@@ -31,51 +81,45 @@ struct StatsReport {
     /// 자리를 비운 동안 쌓인 것까지 더한 값. 병목은 아니지만 흐른 시간이긴 하다.
     let waitTotalIncludingAway: Double
 
-    let agentMeanBytes: UInt64
-    let agentPeakBytes: UInt64
-    let swapMeanBytes: UInt64
-
     // MARK: 짓기
 
     static func build(directory: URL = StatsRecorder.defaultDirectory,
                       days: Int = 7,
                       now: Date = Date()) -> StatsReport? {
         let stamps = (0..<days).map { StatsRecorder.dayStamp(now.addingTimeInterval(-Double($0) * 86400)) }
+        let parser = ISO8601DateFormatter()
+        var calendar = Calendar.current
+        calendar.timeZone = .current
 
-        var presentMinutes = 0.0
-        var weight = 0.0                       // 표본 수로 잰 무게
-        var totalSum = 0.0, runningSum = 0.0
-        var maxSessions = 0
-        var q0 = 0.0, q1 = 0.0, q2 = 0.0
-        var agentSum = 0.0, agentPeak: UInt64 = 0, swapSum = 0.0
+        var overall = Bin()
+        var hours: [Int: Bin] = [:]
+        var weekdays: [Int: Bin] = [:]
         var dataDays = 0
 
         for stamp in stamps {
-            let url = directory.appendingPathComponent("load-\(stamp).csv")
-            guard let rows = readRows(url) else { continue }
+            guard let rows = readRows(directory.appendingPathComponent("load-\(stamp).csv")) else { continue }
             dataDays += 1
             for row in rows where row.count >= 16 {
                 guard let samples = Double(row[1]), samples > 0,
                       let present = Double(row[2]), present > 0 else { continue }
-                presentMinutes += present / samples
-                weight += present
-                totalSum += (Double(row[3]) ?? 0) * present
-                runningSum += ((Double(row[6]) ?? 0) + (Double(row[7]) ?? 0)) * present
-                maxSessions = max(maxSessions, Int(row[8]) ?? 0)
-                q0 += Double(row[9]) ?? 0
-                q1 += Double(row[10]) ?? 0
-                q2 += Double(row[11]) ?? 0
-                agentSum += (Double(row[12]) ?? 0) * present
-                agentPeak = max(agentPeak, UInt64(row[13]) ?? 0)
-                swapSum += (Double(row[15]) ?? 0) * present
+                overall.add(row, present: present, samples: samples)
+                // 기록은 UTC 로 적히므로 **현지 시각으로 바꿔** 나눈다. 시간대별로 보는 뜻이
+                // 「몇 시에 그랬나」인데, UTC 로 묶으면 사람이 사는 시각과 어긋난다.
+                guard let minute = parser.date(from: row[0]) else { continue }
+                let parts = calendar.dateComponents([.hour, .weekday], from: minute)
+                if let hour = parts.hour {
+                    hours[hour, default: Bin()].add(row, present: present, samples: samples)
+                }
+                if let weekday = parts.weekday {
+                    weekdays[weekday, default: Bin()].add(row, present: present, samples: samples)
+                }
             }
         }
 
         var present: [Double] = []
         var rawTotal = 0.0
         for stamp in stamps {
-            let url = directory.appendingPathComponent("waits-\(stamp).csv")
-            guard let rows = readRows(url) else { continue }
+            guard let rows = readRows(directory.appendingPathComponent("waits-\(stamp).csv")) else { continue }
             for row in rows where row.count >= 8 {
                 rawTotal += Double(row[2]) ?? 0
                 // 자리를 비운 동안의 대기는 세지 않는다 — 아무도 기다리게 하지 않았다.
@@ -83,27 +127,19 @@ struct StatsReport {
             }
         }
 
-        guard weight > 0 || !present.isEmpty else { return nil }
-        let queueTotal = max(q0 + q1 + q2, 1)
+        guard overall.weight > 0 || !present.isEmpty else { return nil }
         let sorted = present.sorted()
 
         return StatsReport(
             dataDays: dataDays,
-            presentHours: presentMinutes / 60,
-            meanSessions: weight > 0 ? totalSum / weight : 0,
-            maxSessions: maxSessions,
-            meanRunning: weight > 0 ? runningSum / weight : 0,
-            queueNone: q0 / queueTotal,
-            queueOne: q1 / queueTotal,
-            queueMany: q2 / queueTotal,
+            overall: overall,
+            byHour: hours.keys.sorted().map { Slice(key: $0, bin: hours[$0]!) },
+            byWeekday: weekdays.keys.sorted().map { Slice(key: $0, bin: weekdays[$0]!) },
             waitCount: sorted.count,
             waitMedian: sorted.isEmpty ? 0 : sorted[sorted.count / 2],
             waitLongest: sorted.last ?? 0,
             waitTotal: sorted.reduce(0, +),
-            waitTotalIncludingAway: rawTotal,
-            agentMeanBytes: weight > 0 ? UInt64(agentSum / weight) : 0,
-            agentPeakBytes: agentPeak,
-            swapMeanBytes: weight > 0 ? UInt64(swapSum / weight) : 0
+            waitTotalIncludingAway: rawTotal
         )
     }
 

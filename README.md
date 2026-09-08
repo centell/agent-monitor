@@ -132,6 +132,22 @@ Last 7 days — 4 days recorded · 21.6 hours at the keyboard
 Read it as a queue: **two or more** waiting is time you were behind, **none** waiting is time you
 had spare. The numbers above say the queue is standing three times as often as the hands are free.
 
+The same numbers are broken down by hour and by weekday, which is where a different question shows
+up. Being at the keyboard is not the same as working on the sessions — a call, a chat window, an
+evening of something else all count as present, and the queue grows through them. An hour where
+**little is running but the queue is long** is that: not too many sessions, just attention
+elsewhere.
+
+```
+시간대별
+  시간     앞에 계신     세션  돌던 수  줄 둘 이상
+  10시          1.1h      5.0      1.9         58%
+  22시          0.3h      6.0      0.4         96%
+```
+
+Buckets holding less than five minutes are left out, and the line below the table says how many —
+a two-minute bucket reading 100% is chance, not habit.
+
 Everything is counted only while you are at the keyboard, found from the time of your last input.
 Without that split, a night's sleep makes five idle sessions look like a five-deep queue, and every
 day would read the same. Recording keeps counts, durations and memory — never conversation content
