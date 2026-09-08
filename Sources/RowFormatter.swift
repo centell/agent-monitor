@@ -68,7 +68,7 @@ struct RowFormatter {
         if settings.metrics.showsValue {
             out += "RAM " + MetricFormat.gigabytes(m.memoryBytes).rightAligned(to: 5)
         }
-        // 문턱을 두지 않는다. 「전부 (CPU 포함)」을 고른 것이 곧 «보여 달라»는 뜻이며,
+        // 문턱을 두지 않는다. 「막대 + RAM + CPU」를 고른 것이 곧 «보여 달라»는 뜻이며,
         // 골라 놓았는데 아무것도 안 나오면 설정이 고장 난 것처럼 보인다.
         // 조용히 두고 싶으면 지표 단계를 낮추면 된다 — 그게 손잡이의 일이다.
         if settings.metrics.showsCPU, let cpu = m.cpuPercent {
