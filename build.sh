@@ -52,6 +52,24 @@ rm -rf "$DEST"
 mkdir -p "$DEST/Contents/MacOS"
 cp build/agent-monitor "$DEST/Contents/MacOS/${APP_NAME}"
 
+# 아이콘. Resources/AppIcon.png 하나에서 필요한 크기를 전부 만들어 .icns 로 묶는다.
+# 아이콘이 없어도 빌드는 계속된다 — 앱이 도는 데 아이콘이 필요하진 않으니까.
+if [[ -f Resources/AppIcon.png ]]; then
+    ICONSET="build/${APP_NAME}.iconset"
+    rm -rf "$ICONSET"
+    mkdir -p "$ICONSET" "$DEST/Contents/Resources"
+    for sz in 16 32 128 256 512; do
+        sips -s format png -z "$sz" "$sz" Resources/AppIcon.png \
+            --out "$ICONSET/icon_${sz}x${sz}.png" >/dev/null
+        sips -s format png -z "$((sz * 2))" "$((sz * 2))" Resources/AppIcon.png \
+            --out "$ICONSET/icon_${sz}x${sz}@2x.png" >/dev/null
+    done
+    iconutil -c icns "$ICONSET" -o "$DEST/Contents/Resources/${APP_NAME}.icns"
+    rm -rf "$ICONSET"
+else
+    echo "  · Resources/AppIcon.png 이 없어 아이콘 없이 만듭니다"
+fi
+
 # LSUIElement 로 Dock 아이콘 없이 메뉴바에만 산다.
 cat > "$DEST/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -60,6 +78,7 @@ cat > "$DEST/Contents/Info.plist" <<PLIST
 <dict>
     <key>CFBundleExecutable</key><string>${APP_NAME}</string>
     <key>CFBundleIdentifier</key><string>me.centell.agent-monitor</string>
+    <key>CFBundleIconFile</key><string>${APP_NAME}</string>
     <key>CFBundleName</key><string>${APP_NAME}</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>${VERSION}</string>
