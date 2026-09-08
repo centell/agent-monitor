@@ -107,9 +107,39 @@ agent-monitor --list      # human-readable table
 agent-monitor --json      # machine-readable
 agent-monitor --memory    # what is using RAM on this machine
 agent-monitor --roots     # which account roots are scanned
+agent-monitor --stats     # how you have actually been using it (7 days; --stats 30 for a month)
 ```
 
 The interface is available in English and Korean, following the system language by default.
+
+## How many sessions can you actually feed?
+
+Running more sessions only helps while you can keep up with them. A session produces nothing while
+it waits for you, and you are one person — so once a queue has formed, another session mostly adds
+RAM. The app already measures the queue every couple of seconds, so it records it.
+
+```
+$ agent-monitor --stats
+Last 7 days — 4 days recorded · 21.6 hours at the keyboard
+
+  Sessions          4.2 avg · 7 peak
+  Actually running  1.6 avg
+  Queue length      none 12% · one 47% · two+ 41%
+  Waiting time      median 3m 12s · longest 41m · total 3h 42m  (44×)
+  Agent RAM         3.1GB avg · 5.4GB peak · swap 12.3GB avg
+```
+
+Read it as a queue: **two or more** waiting is time you were behind, **none** waiting is time you
+had spare. The numbers above say the queue is standing three times as often as the hands are free.
+
+Everything is counted only while you are at the keyboard, found from the time of your last input.
+Without that split, a night's sleep makes five idle sessions look like a five-deep queue, and every
+day would read the same. Recording keeps counts, durations and memory — never conversation content
+— and can be switched off in Display. Files live in
+`~/Library/Application Support/AgentMonitor/stats/` as CSV, one file per day, kept for 30 days.
+
+There is deliberately no "you should run N sessions" line yet. The threshold that would justify one
+has to come from recorded days, not from a guess made before any day was recorded.
 
 ## Limitations
 
