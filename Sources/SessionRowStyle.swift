@@ -26,7 +26,8 @@ enum SessionRowStyle {
     /// `size` 는 상시 창이 제 글자 크기를 넘기기 위한 것이다. 메뉴는 넘기지 않고
     /// 기본값 12pt 로 그린다 — 손잡이를 돌려도 메뉴는 그대로여야 한다.
     static func attributed(for session: Session, formatter: RowFormatter,
-                           size: CGFloat = 12) -> NSAttributedString {
+                           size: CGFloat = 12,
+                           skin: PanelSkin = .simple) -> NSAttributedString {
         let row = formatter.row(for: session)
 
         let paragraph = NSMutableParagraphStyle()
@@ -50,7 +51,64 @@ enum SessionRowStyle {
                                   ofSize: row.secondLineStart != nil ? size - 1 : size, weight: .regular),
                               range: dim)
         }
+        guard skin != .simple else { return text }
+        dress(text, skin: skin, session: session, row: row,
+              nameRange: nameRange(of: session, formatter: formatter, in: text), size: size)
         return text
+    }
+
+    /// 이름이 줄의 어디에 있는가.
+    ///
+    /// 칸이 고정폭이라 자리를 셈으로 구할 수 있다 — 표식 한 칸 + 공백 둘 뒤부터 이름이고,
+    /// 길이는 채워 넣은 이름의 길이다. 한글은 한 글자가 두 칸이라 **표시 폭이 아니라
+    /// UTF-16 길이**로 잡아야 범위가 맞는다.
+    private static func nameRange(of session: Session, formatter: RowFormatter,
+                                  in text: NSAttributedString) -> NSRange {
+        let padded = formatter.displayName(for: session).paddedDisplay(to: formatter.nameWidth)
+        let start = 3
+        let length = min((padded as NSString).length, max(0, text.length - start))
+        return NSRange(location: start, length: length)
+    }
+
+    /// 스킨이 옷을 입힌다. **글자는 하나도 안 바꾼다** — 굵기·크기·색만 얹는다.
+    ///
+    /// 크기를 섞어도 세로 열이 안 깨지는 것은, 줄마다 **같은 글자 자리에서** 갈리기
+    /// 때문이다. 이름 칸은 어느 줄이든 같은 길이로 채워져 있다.
+    private static func dress(_ text: NSMutableAttributedString, skin: PanelSkin,
+                              session: Session, row: RowFormatter.Row,
+                              nameRange: NSRange, size: CGFloat) {
+        let whole = NSRange(location: 0, length: text.length)
+        let mark = NSRange(location: 0, length: min(1, text.length))
+        let needs = session.state.needsAttention
+        let accent = color(for: session.state)
+
+        func put(_ r: NSRange, _ s: CGFloat, _ w: NSFont.Weight, _ c: NSColor) {
+            guard r.length > 0, r.location + r.length <= text.length else { return }
+            text.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: s, weight: w), range: r)
+            text.addAttribute(.foregroundColor, value: c, range: r)
+        }
+
+        switch skin {
+        case .simple:
+            return
+
+        case .bold:
+            // 위계를 세 단으로 벌린다 — 이름 · 상태와 시간 · 지표.
+            put(whole, size - 1, .regular, .secondaryLabelColor)
+            put(nameRange, size, .bold, .labelColor)
+            put(mark, size, .bold, accent)
+            if let dim = row.dimRange { put(dim, size - 2, .regular, .tertiaryLabelColor) }
+
+        case .quiet:
+            // 손이 필요한 줄만 남기고 나머지는 배경으로 내린다.
+            put(whole, size, .regular, needs ? .secondaryLabelColor : .tertiaryLabelColor)
+            put(nameRange, size, needs ? .semibold : .regular,
+                needs ? .labelColor : .tertiaryLabelColor)
+            put(mark, size, .regular, needs ? accent : .quaternaryLabelColor)
+            if let dim = row.dimRange {
+                put(dim, size - 1, .regular, needs ? .tertiaryLabelColor : .quaternaryLabelColor)
+            }
+        }
     }
 
     /// 마우스를 올렸을 때 나오는 글.

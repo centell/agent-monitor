@@ -48,6 +48,30 @@ enum PanelBackdropStyle: String, CaseIterable, Identifiable {
     var label: String { self == .blur ? S.backdropBlur : S.backdropSolid }
 }
 
+/// 상시 창 줄의 **옷**.
+///
+/// 무엇을 보이는가(`RowFormatter`)는 그대로 두고 어떻게 보이는가만 바꾼다. 칸이 고정폭이라
+/// 줄마다 같은 글자 자리에서 갈리므로, 크기를 섞어도 세로 열은 그대로 맞는다.
+///
+/// 메뉴에는 걸리지 않는다 — 메뉴는 늘 `simple` 로 그린다.
+enum PanelSkin: String, CaseIterable, Identifiable {
+    /// 지금까지의 모습. 전부 같은 무게라 고르게 읽힌다.
+    case simple
+    /// 이름이 먼저 읽히고 상태·지표는 뒤로 물러난다.
+    case bold
+    /// **기다리는 줄만 살고 도는 줄은 물러난다.** 이 앱의 주장을 그대로 그림으로 옮긴 것.
+    case quiet
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .simple: return S.skinSimple
+        case .bold:   return S.skinBold
+        case .quiet:  return S.skinQuiet
+        }
+    }
+}
+
 /// 화면 배치 설정. `UserDefaults` 에 남아 다음 실행에도 유지된다.
 final class Settings: ObservableObject {
 
@@ -130,6 +154,8 @@ final class Settings: ObservableObject {
     /// 좌우에서는 줄이 이미 물고 있는 20pt 위에 더해진다 — 그래서 0 이어도 좌우는
     /// 답답하지 않고, 세로만 0 이던 것이 이 손잡이로 풀린다.
     @Published var panelPadding: Double               { didSet { persist() } }
+    /// 줄의 옷. 메뉴에는 걸리지 않는다.
+    @Published var panelSkin: PanelSkin                { didSet { persist() } }
 
     /// 상단에 고정한 세션들 (sessionId).
     ///
@@ -186,6 +212,7 @@ final class Settings: ObservableObject {
         panelFontSize = store.object(forKey: Key.panelFontSize) as? Double ?? 12
         panelDensity = store.object(forKey: Key.panelDensity) as? Double ?? 3
         panelPadding = store.object(forKey: Key.panelPadding) as? Double ?? 6
+        panelSkin = PanelSkin(rawValue: store.string(forKey: Key.panelSkin) ?? "") ?? .simple
         hoverOpensMenu = store.object(forKey: Key.hoverOpensMenu) as? Bool ?? false
         hoverDelay = store.object(forKey: Key.hoverDelay) as? Double ?? 0.4
         loading = false
@@ -243,6 +270,7 @@ final class Settings: ObservableObject {
         panelFontSize = 12
         panelDensity = 3
         panelPadding = 6
+        panelSkin = .simple
         hoverOpensMenu = false
         hoverDelay = 0.4
         // 핀과 «상시 창이 떠 있는가»는 되돌리지 않는다. 이 단추는 «표시 손잡이»를 처음으로
@@ -276,6 +304,7 @@ final class Settings: ObservableObject {
         store.set(panelFontSize, forKey: Key.panelFontSize)
         store.set(panelDensity, forKey: Key.panelDensity)
         store.set(panelPadding, forKey: Key.panelPadding)
+        store.set(panelSkin.rawValue, forKey: Key.panelSkin)
         store.set(hoverOpensMenu, forKey: Key.hoverOpensMenu)
         store.set(hoverDelay, forKey: Key.hoverDelay)
         NotificationCenter.default.post(name: Settings.didChange, object: nil)
@@ -314,6 +343,7 @@ final class Settings: ObservableObject {
         static let panelFontSize = "panelFontSize"
         static let panelDensity = "panelDensity"
         static let panelPadding = "panelPadding"
+        static let panelSkin = "panelSkin"
         static let hoverOpensMenu = "hoverOpensMenu"
         static let hoverDelay = "hoverDelay"
     }

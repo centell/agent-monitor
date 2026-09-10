@@ -65,6 +65,17 @@ struct PanelSettingsView: View {
                     }
                     .pickerStyle(.segmented)
 
+                    VStack(alignment: .leading, spacing: 2) {
+                        Picker(S.panelSkinLabel, selection: $settings.panelSkin) {
+                            ForEach(PanelSkin.allCases) { Text($0.label).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+                        // 「고요」가 무엇을 버리는지 그 자리에 적는다. 골라 보고 알면 늦다.
+                        if settings.panelSkin == .quiet {
+                            Text(S.skinNote).font(.caption).foregroundStyle(.tertiary)
+                        }
+                    }
+
                     Picker(S.panelPaddingLabel, selection: $settings.panelPadding) {
                         Text(S.paddingNone).tag(0.0)
                         Text(S.densityNormal).tag(6.0)
@@ -81,7 +92,7 @@ struct PanelSettingsView: View {
                 }
                 .formStyle(.grouped)
                 // 손잡이를 더할 때는 이 값도 한 줄만큼 올린다. 모자라면 마지막 줄이 잘린다.
-                .frame(height: 452)
+                .frame(height: 508)
 
                 // 미리보기를 따로 그리지 않는다. **창 자체가 미리보기**다 —
                 // 띄워 두고 만지면 바뀌는 것이 그 자리에서 보인다. 흉내 낸 그림을 옆에

@@ -129,22 +129,14 @@ final class FloatingPanelController: NSObject {
                 previousNeededAttention = needs
 
                 let row = makeRow(session, formatter: formatter)
-                if let notice, notice.sessionID == session.id {
-                    // 줄을 **대신한다**. 아래에 한 줄 더 붙이면 그 3초 동안 창이 커졌다
-                    // 작아지고, 그러면 다른 줄들이 손 밑에서 움직인다.
-                    //
-                    // 폭도 대신할 줄에 맞춘다. 실측에서 이 글이 행보다 25pt 넓어 창이
-                    // 3초 동안 벌어졌다 돌아왔다 — 세로로 안 흔들리게 해 놓고 가로로
-                    // 흔들면 고친 것이 아니다. 글은 잘라서 맞춘다.
-                    // 바닥값을 두지 않는다. 행은 표식·이름(최소 12칸)·경과 시간만 켜도
-                    // 21칸이라 좁아질 수 없고, 바닥값을 두면 그 값이 행보다 커지는 순간
-                    // 막으려던 바로 그 벌어짐이 생긴다.
-                    let firstLine = formatter.row(for: session).text
-                        .split(separator: "\n").first.map(String.init) ?? ""
-                    let note = PanelNoteView(text: ("⚠  " + notice.text).fitted(to: firstLine.displayWidth),
-                                             size: settings.panelFontSize, emphasised: true)
-                    note.setFrameSize(NSSize(width: row.frame.width, height: row.frame.height))
-                    pieces.append(note)
+                // 멈추는 중이 먼저다. 그 사이에 실패 안내가 뜰 일은 없고(뜨면 그때
+                // 멈추는 중이 아니다), 둘이 겹치면 사람이 무엇을 봐야 할지 모른다.
+                if stopping.contains(session.id) {
+                    pieces.append(replacing(row, for: session, formatter: formatter,
+                                            text: S.stoppingLine, emphasised: false))
+                } else if let notice, notice.sessionID == session.id {
+                    pieces.append(replacing(row, for: session, formatter: formatter,
+                                            text: "⚠  " + notice.text, emphasised: true))
                 } else {
                     pieces.append(row)
                 }
@@ -172,6 +164,26 @@ final class FloatingPanelController: NSObject {
         return body
     }
 
+    /// 줄을 **대신하는** 한 줄.
+    ///
+    /// 아래에 한 줄 더 붙이지 않는다. 그러면 그 동안 창이 커졌다 작아지고, 다른 줄들이
+    /// 손 밑에서 움직인다.
+    ///
+    /// 폭도 대신할 줄에 맞춘다. 실측에서 이 글이 행보다 25pt 넓어 창이 3초 동안
+    /// 벌어졌다 돌아왔다 — 세로로 안 흔들리게 해 놓고 가로로 흔들면 고친 것이 아니다.
+    /// 글은 잘라서 맞춘다. 바닥값을 두지 않는다. 행은 표식·이름(최소 12칸)·경과 시간만
+    /// 켜도 21칸이라 좁아질 수 없고, 바닥값을 두면 그 값이 행보다 커지는 순간 막으려던
+    /// 바로 그 벌어짐이 생긴다.
+    private func replacing(_ row: NSView, for session: Session, formatter: RowFormatter,
+                           text: String, emphasised: Bool) -> PanelNoteView {
+        let firstLine = formatter.row(for: session).text
+            .split(separator: "\n").first.map(String.init) ?? ""
+        let note = PanelNoteView(text: text.fitted(to: firstLine.displayWidth),
+                                 size: settings.panelFontSize, emphasised: emphasised)
+        note.setFrameSize(NSSize(width: row.frame.width, height: row.frame.height))
+        return note
+    }
+
     private func makeHeader() -> PanelHeaderView {
         PanelHeaderView(waiting: sessions.attentionCount,
                         total: sessions.count,
@@ -184,7 +196,8 @@ final class FloatingPanelController: NSObject {
     private func makeRow(_ session: Session, formatter: RowFormatter) -> SessionRowView {
         let view = SessionRowView(
             text: SessionRowStyle.attributed(for: session, formatter: formatter,
-                                             size: settings.panelFontSize),
+                                             size: settings.panelFontSize,
+                                             skin: settings.panelSkin),
             enabled: SessionJump.canJump(session),
             pinned: session.isPinned,
             insetY: settings.panelDensity,

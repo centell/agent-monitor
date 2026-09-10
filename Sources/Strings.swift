@@ -111,6 +111,14 @@ enum S {
     static var panelDensityLabel: String { p("줄 밀도", "Row density") }
     /// 「줄 밀도」와 헷갈리지 않게 «창» 을 앞에 붙인다. 하나는 줄 사이, 하나는 창 가장자리다.
     static var panelPaddingLabel: String { p("창 여백", "Window padding") }
+    static var panelSkinLabel: String { p("줄 스킨", "Row skin") }
+    static var skinSimple: String    { p("심플", "Simple") }
+    static var skinBold: String      { p("또렷", "Bold") }
+    static var skinQuiet: String     { p("고요", "Quiet") }
+    static var skinNote: String {
+        p("「고요」는 기다리는 줄만 살리고 도는 줄은 배경으로 내립니다. 곁눈으로 볼 때 좋고, 목록을 두루 읽을 때는 답답할 수 있습니다.",
+          "“Quiet” keeps the waiting rows and sinks the rest. Good at a glance, cramped when you want to read the whole list.")
+    }
     static var paddingNone: String   { p("없음", "None") }
     /// 진하기를 0 가까이 내렸을 때의 대가를 그 자리에 적는다. 배경화면 위에서는 멀쩡한데
     /// 다른 창 위에 겹치면 뒤 글자와 섞여 읽기 어려워지는 것을 실제로 보았다.
