@@ -99,6 +99,11 @@ it is currently on top.
 | Waiting only | Keeps just the rows that need you, and the window narrows to match |
 | Close | Same as **Hide panel** in the menu bar |
 
+**Its look is yours to choose,** in Settings → Display: a backdrop from blur through solid, or
+none at all — text on the desktop with no plate behind it — plus text size and row density. None
+is clean over a wallpaper and tangles with the text behind it over another window, which the
+setting says next to the choice rather than after you make it.
+
 While the pointer is over the panel the list holds still. Waiting rows sort to the top, so an
 unfrozen list would move the row you were reaching for out from under you.
 
@@ -143,7 +148,7 @@ settings.
 
 - **Display** — language, line layout, which columns to show, whether hovering a row says why it
   is waiting, which of the three metrics to show (RAM bar, RAM GB, CPU % — each on its own
-  switch), the **panel** (show, always on top, waiting only), refresh interval. A live preview
+  switch), the **panel** (show, always on top, waiting only) and **how it looks** (backdrop, text size, density), refresh interval. A live preview
   renders real sessions through the same code the menu uses, so what you see is what you get.
 - **Memory** — system used/swap/compressed, the agent total, and the largest consumers outside
   every session tree. Per-session memory is summed across the whole process tree, not the `claude`
