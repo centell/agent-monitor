@@ -47,6 +47,17 @@ enum S {
     static var quitItem: String     { p("종료", "Quit") }
     static var estimated: String    { p("  (추정)", "  (est.)") }
 
+    // MARK: 이어진 세션
+
+    static func continuedFrom(_ pid: Int) -> String {
+        p("이어진 세션입니다 — 터미널 창은 pid \(pid) 가 쥐고 있습니다",
+          "A continued session — its terminal window belongs to pid \(pid)")
+    }
+    static var backgroundNoWindow: String {
+        p("백그라운드 세션이라 갈 터미널 창이 없습니다",
+          "A background session has no terminal window to go to")
+    }
+
     // MARK: 상시 창
 
     static var panelShowItem: String { p("상시 창 열기", "Show panel") }

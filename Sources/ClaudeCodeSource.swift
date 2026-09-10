@@ -61,7 +61,36 @@ struct ClaudeCodeSource: SessionSource {
                 out.append(session)
             }
         }
-        return out
+        return merged(out)
+    }
+
+    // MARK: 이어진 세션 합치기
+
+    /// 이어진 세션 둘을 한 줄로 합친다.
+    ///
+    /// 세션이 이어지면 **대화만 새 프로세스로 옮겨 가고 터미널 창은 앞선 프로세스가 그대로
+    /// 쥐고 있다.** 합치지 않으면 한 세션이 두 줄로 나오고, 그 둘이 정확히 반대로 고장난다 —
+    /// 창을 가진 줄은 상태가 넘겨준 순간에 멈춰 있고(실측 3시간 반), 일하고 있는 줄은
+    /// 갈 창이 없다(그쪽 tty 는 daemon 이 만든 pty 다).
+    ///
+    /// 고리는 앞선 세션의 기록 끝에 적힌 `continued-in` 이다. 프로세스 계보로 짐작하지
+    /// 않는다 — 누가 누구로 이어졌는지는 기록에 그렇게 **적혀 있다**.
+    private func merged(_ sessions: [Session]) -> [Session] {
+        guard sessions.contains(where: { $0.continuedIn != nil }) else { return sessions }
+
+        var slotOfID: [String: Int] = [:]
+        for (slot, session) in sessions.enumerated() { slotOfID[session.id] = slot }
+
+        var out = sessions
+        var retired = Set<Int>()
+        for (slot, session) in sessions.enumerated() {
+            // 넘겨준 상대가 목록에 없으면(이미 끝났으면) 합치지 않는다. 이 줄이 아직
+            // 살아있는 마지막 조각이므로 지우면 세션이 통째로 사라진다.
+            guard let next = session.continuedIn, let heir = slotOfID[next] else { continue }
+            out[heir].continuedFromPid = session.pid
+            retired.insert(slot)
+        }
+        return out.enumerated().filter { !retired.contains($0.offset) }.map(\.element)
     }
 
     // MARK: 레지스트리
@@ -134,6 +163,7 @@ struct ClaudeCodeSource: SessionSource {
         session.lastActivity = facts.timestamp
         session.pendingCall = facts.pendingCall
         session.lastSay = facts.lastSay
+        session.continuedIn = facts.continuedIn
     }
 
     /// cwd 를 디렉터리 이름으로 바꾼다. 영숫자가 아닌 글자는 전부 `-` 가 된다.
@@ -183,6 +213,8 @@ struct ClaudeCodeSource: SessionSource {
         var pendingCall: String?
         /// 이번 턴에 사람에게 건넨 마지막 말.
         var lastSay: String?
+        /// 이 세션이 넘어간 다음 세션의 id. 이어진 적이 없으면 없다.
+        var continuedIn: String?
     }
 
     /// 끝에서부터 거슬러 올라가며 마지막 대화 이벤트를 찾는다.
@@ -207,6 +239,14 @@ struct ClaudeCodeSource: SessionSource {
             else { continue }
 
             let type = obj["type"] as? String
+
+            // 세션이 다른 세션으로 넘어갔다는 표시. 파일 맨 끝에 붙으므로 거슬러 올라가는
+            // 이 순회에서 가장 먼저 만난다. 추측이 아니라 **기록에 그렇게 적혀 있는 사실**이다.
+            if type == "continued-in" {
+                if facts.continuedIn == nil { facts.continuedIn = obj["continuedInSessionId"] as? String }
+                continue
+            }
+
             guard type == "assistant" || type == "user" else { continue }
             if obj["isSidechain"] as? Bool == true { continue }
 

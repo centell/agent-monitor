@@ -60,6 +60,11 @@ enum SessionRowStyle {
             tip += folded(why) + "\n\n"
         }
         tip += session.cwd
+        // 합쳐진 줄이라는 것을 밝힌다. 밝히지 않으면 목록의 pid 와 창의 주인이 다른
+        // 이유를 알 길이 없다.
+        if let from = session.continuedFromPid { tip += "\n" + S.continuedFrom(Int(from)) }
+        // 갈 수 없는 줄에는 왜 못 가는지 적는다.
+        else if session.isBackground { tip += "\n" + S.backgroundNoWindow }
         if SessionJump.canJump(session) { tip += "\n" + SessionJump.hint(for: session) }
         tip += "\n" + (session.isPinned ? S.unpinHint : S.pinHint)
         if let m = session.metrics { tip += "\n" + S.descendants(m.descendantCount) }

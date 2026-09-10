@@ -94,11 +94,11 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// 세션마다 프로세스 트리의 메모리·CPU 를 붙인다.
     private func measured(_ scanned: [Session]) -> [Session] {
-        let metrics = sampler.sample(pids: scanned.map(\.pid))
+        let metrics = sampler.sample(pids: scanned.map(\.hostPid))
         systemMemory = MetricsSampler.systemMemory()
         return scanned.map { session in
             var copy = session
-            copy.metrics = metrics[session.pid]
+            copy.metrics = metrics[session.hostPid]
             return copy
         }
     }

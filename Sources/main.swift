@@ -21,11 +21,11 @@ func measuredSessions(sampleCPU: Bool) -> ([Session], SystemMemory?) {
     let sampler = MetricsSampler()
     var scanned = source.scan()
     if sampleCPU {
-        _ = sampler.sample(pids: scanned.map(\.pid))
+        _ = sampler.sample(pids: scanned.map(\.hostPid))
         Thread.sleep(forTimeInterval: 0.5)
     }
-    let metrics = sampler.sample(pids: scanned.map(\.pid))
-    for index in scanned.indices { scanned[index].metrics = metrics[scanned[index].pid] }
+    let metrics = sampler.sample(pids: scanned.map(\.hostPid))
+    for index in scanned.indices { scanned[index].metrics = metrics[scanned[index].hostPid] }
     return (scanned.sortedForDisplay(), MetricsSampler.systemMemory())
 }
 
@@ -157,6 +157,10 @@ if args.contains("--json") {
             "accountRoot": s.accountRoot.path,
         ]
         row["kind"] = s.kind
+        // 세션이 이어졌으면 창과 트리를 쥔 프로세스가 따로 있다. 이 둘이 어긋난 것이
+        // 「눌러도 안 가는 줄」의 원인이었으므로 기계가 읽는 값에도 낸다.
+        row["hostPid"] = Int(s.hostPid)
+        row["continuedFromPid"] = s.continuedFromPid.map { Int($0) }
         row["currentTool"] = s.currentTool
         // 표시 설정과 무관하게 낸다. 기계가 읽는 값이 사람의 손잡이에 따라 흔들리면 안 된다.
         row["reason"] = s.reason

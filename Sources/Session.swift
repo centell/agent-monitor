@@ -93,7 +93,7 @@ struct Session {
     let runsInApp: Bool             // 터미널이 아니라 데스크탑 앱 안에서 도는가
     let cwd: String
     let state: SessionState
-    let kind: String?               // interactive 등
+    let kind: String?               // interactive · bg 등
     let startedAt: Date?
     let statusUpdatedAt: Date?
     let accountRoot: URL            // 이 세션이 등록된 계정 루트
@@ -113,6 +113,15 @@ struct Session {
     /// 조용히 틀리지 않기 위한 표식이다. 이 값이 참이면 화면에도 추정치라고 적어야 한다.
     var isEstimated: Bool = false
 
+    /// 이 세션이 넘어간 다음 세션의 id. 기록 끝의 `continued-in` 에서 온다.
+    var continuedIn: String?
+
+    /// 이 세션에 대화를 넘겨준 앞선 프로세스.
+    ///
+    /// 세션이 이어져도 **터미널 창과 프로세스 트리는 앞선 쪽이 계속 쥐고 있다.**
+    /// 그래서 창을 찾을 때도, 트리를 잴 때도 이 값이 있으면 이쪽을 봐야 한다.
+    var continuedFromPid: Int32?
+
     /// 프로세스 트리의 메모리·CPU. 재지 못했으면 없다.
     var metrics: SessionMetrics?
 
@@ -120,6 +129,18 @@ struct Session {
     var deepLink: URL?
 
     var shortID: String { String(id.prefix(8)) }
+
+    /// 사람이 앉아 있는 세션이 아니라 daemon 이 띄운 백그라운드 세션인가.
+    ///
+    /// 추측하지 않는다 — Claude Code 가 레지스트리에 `kind` 로 직접 적어 준다.
+    var isBackground: Bool { kind == "bg" }
+
+    /// 이 세션의 **창과 프로세스 트리**를 쥐고 있는 프로세스.
+    ///
+    /// 보통은 자기 자신이다. 세션이 이어졌으면 앞선 프로세스가 그것을 계속 쥐고 있으므로
+    /// 그쪽이다. 창 찾기와 트리 재기가 **같은 값**을 써야 한다 — 따로 놀면 한 세션의
+    /// 메모리가 두 번 세어지거나, 눌러도 갈 곳이 없는 줄이 생긴다.
+    var hostPid: Int32 { continuedFromPid ?? pid }
 
     /// 왜 나를 기다리는가. 없으면 없다 — 지어내지 않는다.
     ///
