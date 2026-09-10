@@ -54,6 +54,47 @@ Right-click a row to **pin** it. A pinned session rises above the others while i
 and carries a tinted background. While it is working it keeps its place — there is nothing for
 you to do there yet. A pin lives with its session; restart the session and you pin it again.
 
+## Keeping it open
+
+If you have the screen space, park the list in a corner instead: menu bar → **Show panel**.
+
+It does not replace the menu bar. The `2/5` stays where it is, and on a small screen you simply
+leave the panel closed. The only thing that changes is that **the click is gone**.
+
+The rows are the menu's rows, drawn by the same code, so whatever you set in Display comes with
+them.
+
+```
+ 2/5                                                            ▲
+ ◆  payments-api     Approval   Bash    2m      █▎   RAM  0.6G
+ ○  docs-site        Idle       —      20m      ▊    RAM  0.4G
+ ────────────────────────────────────────────────────────────────
+ ●  web-client       Working    Read    4s      █▌   RAM  0.8G
+ ◐  data-pipeline    Shell      Bash   31s      █▍   RAM  0.7G
+ ────────────────────────────────────────────────────────────────
+ Memory 15.6/25.8GB · Swap 12.3GB · Agents 3.7GB
+```
+
+**Clicking it never takes the front.** Apart from a row sending you to its terminal, the editor you
+were in stays where it was. This app has no Dock icon, so a window that comes to the front has no
+way back.
+
+**Drag it anywhere on its body** to move it, and the spot is remembered. It sizes itself to its
+contents but **keeps the corner you parked it in** — park it bottom-right and it grows upward as
+sessions appear. Only when it would outgrow the screen does it scroll inside itself.
+
+**Right-click the header** (`2/5`) for the handles. The `▲`/`△` at the top right tells you whether
+it is currently on top.
+
+| Handle | What it does |
+|---|---|
+| Always on top | Off, it sinks behind other windows like a normal one. The way back is in the menu bar |
+| Waiting only | Keeps just the rows that need you, and the window narrows to match |
+| Close | Same as **Hide panel** in the menu bar |
+
+While the pointer is over the panel the list holds still. Waiting rows sort to the top, so an
+unfrozen list would move the row you were reaching for out from under you.
+
 ## Install
 
 ### Download a build
@@ -88,14 +129,15 @@ permission is what moves the window; without it the jump does nothing.
 
 ## Using it
 
-**Menu bar** — the count. Click for the list. `⌘,` opens settings.
+**Menu bar** — the count. Click for the list, or **Show panel** to park it in a corner. `⌘,` opens
+settings.
 
 **Settings** has three tabs:
 
 - **Display** — language, line layout, which columns to show, whether hovering a row says why it
-  is waiting, which of the three metrics to show
-  (RAM bar, RAM GB, CPU % — each on its own switch), refresh interval. A live preview renders real
-  sessions through the same code the menu uses, so what you see is what you get.
+  is waiting, which of the three metrics to show (RAM bar, RAM GB, CPU % — each on its own
+  switch), the **panel** (show, always on top, waiting only), refresh interval. A live preview
+  renders real sessions through the same code the menu uses, so what you see is what you get.
 - **Memory** — system used/swap/compressed, the agent total, and the largest consumers outside
   every session tree. Per-session memory is summed across the whole process tree, not the `claude`
   process alone, which is usually several times larger.
