@@ -56,7 +56,7 @@ struct ClaudeCodeSource: SessionSource {
                                                           options: [.skipsHiddenFiles]) else { continue }
             for file in files where file.pathExtension == "json" {
                 guard var session = parseRegistry(file, root: root) else { continue }
-                guard isAlive(pid: session.pid, startedAt: session.startedAt) else { continue }
+                guard isAlive(session) else { continue }
                 enrich(&session, root: root)
                 out.append(session)
             }
@@ -115,13 +115,35 @@ struct ClaudeCodeSource: SessionSource {
             kind: obj["kind"] as? String,
             startedAt: epochMillis(obj["startedAt"]),
             statusUpdatedAt: epochMillis(obj["statusUpdatedAt"]) ?? epochMillis(obj["updatedAt"]),
-            accountRoot: root
+            accountRoot: root,
+            procStart: ctime(obj["procStart"])
         )
     }
 
     private func epochMillis(_ any: Any?) -> Date? {
         guard let ms = any as? Double, ms > 0 else { return nil }
         return Date(timeIntervalSince1970: ms / 1000)
+    }
+
+    /// `"Thu Sep 10 07:32:00 2026"` 같은 `ctime` 꼴을 읽는다. **UTC 로 적힌다** (실측:
+    /// 커널이 알려 준 16:32 KST 를 레지스트리는 07:32 로 적었다).
+    ///
+    /// 달·요일 이름이 영어라 로캘을 `en_US_POSIX` 로 못 박는다. 그러지 않으면 맥의 언어를
+    /// 한국어로 둔 사람에게서 `Sep` 이 안 읽혀 조용히 nil 이 되고, 그러면 이 값을 못 쓴다.
+    private static let ctimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "EEE MMM d HH:mm:ss yyyy"
+        return f
+    }()
+
+    private func ctime(_ any: Any?) -> Date? {
+        guard let text = any as? String else { return nil }
+        // 진짜 `ctime` 은 한 자리 날짜를 공백 둘로 채운다 (`"Thu Sep  1 …"`). 붙여 둔 형식은
+        // 공백 하나라 그대로 두면 그런 날에만 조용히 안 읽힌다 — 한 달에 아흐레씩.
+        let flat = text.split(separator: " ", omittingEmptySubsequences: true).joined(separator: " ")
+        return Self.ctimeFormatter.date(from: flat)
     }
 
     // MARK: 생존 확인
@@ -133,13 +155,28 @@ struct ClaudeCodeSource: SessionSource {
     /// 설치 방식마다 달라서(이 맥에서는 `proc_name` 이 `claude` 가 아니라 `2.1.263` 을 돌려준다)
     /// 남의 환경에서 멀쩡한 세션을 전부 걸러내게 된다.
     ///
-    /// 그래서 커널이 아는 프로세스 시작 시각을 레지스트리의 `startedAt` 과 맞춰 본다.
+    /// 그래서 커널이 아는 프로세스 시작 시각을 레지스트리가 적어 둔 시각과 맞춰 본다.
     /// PID 가 재사용됐다면 새 프로세스는 한참 뒤에 시작했을 것이므로 어긋난다.
-    private func isAlive(pid: Int32, startedAt: Date?) -> Bool {
-        guard pid > 0, kill(pid, 0) == 0 else { return false }
-        // 시작 시각을 못 읽으면 살아있다고 본다. 확인 못 한다고 멀쩡한 세션을 버리지 않는다.
-        guard let expected = startedAt, let actual = processStartTime(pid: pid) else { return true }
-        return abs(actual.timeIntervalSince(expected)) < 60
+    ///
+    /// **어느 시각과 맞출지가 함정이었다.** 예전에는 `startedAt` 하나만 봤는데, 그건
+    /// «세션이 시작된 시각» 이지 «프로세스가 뜬 시각» 이 아니다. `claude` 는 백그라운드용
+    /// 프로세스를 미리 데워 두었다가(`bg-spare`) 나중에 집어 쓰므로, 스페어가 놀고 있던
+    /// 시간만큼 둘이 벌어진다 — 실측 48분 52초. 그동안 그런 세션은 **목록에서 조용히
+    /// 사라지고 있었다.** 떠 있는데 안 보이는 것은 꺼졌는데 남아 있는 것보다 나쁘다.
+    /// 아침에 본 백그라운드 세션이 멀쩡히 보였던 것은 그 스페어가 마침 그 순간 새로 뜬
+    /// 것이었기 때문이다 — 운이 좋으면 보이는 상태였다.
+    ///
+    /// **둘 중 하나만 맞아도 살아있다고 본다.** 레지스트리가 `procStart` 를 적는 형식이
+    /// 판마다 다를 수 있는데, 여기서 잘못 판단한 대가는 한쪽으로 크게 기운다 — 잘못
+    /// 살렸으면 낡은 줄이 하나 남을 뿐이고, 잘못 죽이면 돌고 있는 세션이 통째로 사라진다.
+    /// 이 파일이 이미 «확인 못 한다고 멀쩡한 세션을 버리지 않는다» 로 서 있으므로 그 결을 따른다.
+    private func isAlive(_ session: Session) -> Bool {
+        guard session.pid > 0, kill(session.pid, 0) == 0 else { return false }
+        // 시작 시각을 못 읽으면 살아있다고 본다.
+        guard let actual = processStartTime(pid: session.pid) else { return true }
+        let claimed = [session.procStart, session.startedAt].compactMap { $0 }
+        guard !claimed.isEmpty else { return true }
+        return claimed.contains { abs(actual.timeIntervalSince($0)) < 60 }
     }
 
     private func processStartTime(pid: Int32) -> Date? {

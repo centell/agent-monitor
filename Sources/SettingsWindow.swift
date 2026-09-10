@@ -61,6 +61,27 @@ struct LayoutSettingsView: View {
                 }
                 .pickerStyle(.segmented)
 
+                VStack(alignment: .leading, spacing: 2) {
+                    LabeledContent(S.hoverOpen) {
+                        HStack(spacing: 12) {
+                            Toggle(S.hoverOpenToggle, isOn: $settings.hoverOpensMenu)
+                            Picker("", selection: $settings.hoverDelay) {
+                                Text(S.hoverInstant).tag(0.0)
+                                Text(S.hoverFast).tag(0.25)
+                                Text(S.hoverNormal).tag(0.4)
+                                Text(S.hoverSlow).tag(0.7)
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                            // 꺼져 있으면 머무는 시간을 고를 일이 없다.
+                            .disabled(!settings.hoverOpensMenu)
+                        }
+                    }
+                    if settings.hoverOpensMenu {
+                        Text(S.hoverNote).font(.caption).foregroundStyle(.tertiary)
+                    }
+                }
+
                 Picker(S.sourceStyle, selection: $settings.sourceStyle) {
                     ForEach(SourceStyle.allCases) { Text($0.label).tag($0) }
                 }
@@ -77,7 +98,7 @@ struct LayoutSettingsView: View {
             .formStyle(.grouped)
             // 손잡이 수에 맞춘 높이. 모자라면 Form 안에서 마지막 줄이 잘리므로
             // 손잡이를 더할 때는 이 값도 한 줄만큼 올린다.
-            .frame(height: 552)
+            .frame(height: 610)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(S.preview)

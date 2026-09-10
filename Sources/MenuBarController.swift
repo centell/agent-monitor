@@ -48,6 +48,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         refresh()
         restartTimer()
+        restartHoverWatch()
         // 지난번에 띄워 두셨으면 그대로 다시 띄운다. 상시 창은 껐다 켤 때마다 다시
         // 찾아 켜야 하면 «상시» 가 아니다.
         FloatingPanelController.shared.sync()
@@ -57,9 +58,65 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             forName: Settings.didChange, object: nil, queue: .main
         ) { [weak self] _ in
             self?.restartTimer()
+            self?.restartHoverWatch()
             FloatingPanelController.shared.sync()
             self?.refresh()
         }
+    }
+
+    // MARK: 올리면 열기
+
+    /// 커서가 메뉴바 숫자 위에 머무는지 지켜보는 눈.
+    ///
+    /// **트래킹 영역을 쓰지 않는다.** 상태바 버튼은 시스템이 쥔 창에 살아서 `NSTrackingArea`
+    /// 를 붙여도 들어옴이 배달되지 않는다 (실측). 대신 커서 위치를 그때그때 묻는다 —
+    /// 상시 창이 얼어야 할지 판단할 때 이미 쓰는 것과 같은 수다.
+    private var hoverWatch: Timer?
+    private var hoverSince: Date?
+    /// 열 준비가 되었는가. **메뉴를 닫은 뒤 커서가 버튼을 떠날 때까지 다시 열지 않는다.**
+    /// 없으면 닫는 순간 커서가 아직 버튼 위라 곧바로 다시 열려 빠져나갈 수 없다.
+    private var hoverArmed = true
+
+    private func restartHoverWatch() {
+        hoverWatch?.invalidate()
+        hoverWatch = nil
+        hoverSince = nil
+        hoverArmed = true
+        guard settings.hoverOpensMenu else { return }
+        // 꺼져 있으면 타이머 자체를 안 만든다. 안 쓰는 손잡이가 초당 스무 번 돌 이유가 없다.
+        //
+        // 주기가 곧 「즉시」의 바닥이다 — 0초를 골라도 확인은 이 간격으로만 오므로
+        // 그만큼은 늦는다. 50ms 는 손이 못 느끼는 폭이면서 초당 스무 번이라 값이 싸다.
+        let t = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in self?.hoverTick() }
+        RunLoop.main.add(t, forMode: .common)
+        hoverWatch = t
+    }
+
+    /// 메뉴바 숫자가 화면에서 차지하는 칸.
+    private var statusButtonRect: NSRect? {
+        guard let b = statusItem.button, let w = b.window else { return nil }
+        return w.convertToScreen(b.convert(b.bounds, to: nil))
+    }
+
+    private func hoverTick() {
+        guard !menuIsOpen, let rect = statusButtonRect else { return }
+        let inside = rect.contains(NSEvent.mouseLocation)
+        guard inside else {
+            // 떠났으니 다시 열 준비를 한다.
+            hoverSince = nil
+            hoverArmed = true
+            return
+        }
+        guard hoverArmed else { return }
+        // 들어온 시각을 적고 **그 자리에서 바로** 재 본다. 적고 다음 차례에 재면
+        // 「즉시」(0초)를 골라도 한 번의 주기만큼 늘 늦는다.
+        if hoverSince == nil { hoverSince = Date() }
+        guard let since = hoverSince,
+              Date().timeIntervalSince(since) >= settings.hoverDelay else { return }
+        hoverArmed = false
+        // 눌린 것과 **똑같은 길**로 연다. 따로 띄우면 붙어 있는 메뉴와 두 갈래가 되고,
+        // 언젠가 한쪽만 고쳐진다.
+        statusItem.button?.performClick(nil)
     }
 
     /// 설정된 주기로 타이머를 다시 건다.
@@ -140,7 +197,13 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         rebuildMenu()
     }
 
-    func menuDidClose(_ menu: NSMenu) { menuIsOpen = false }
+    func menuDidClose(_ menu: NSMenu) {
+        menuIsOpen = false
+        // 닫는 순간 커서는 대개 아직 버튼 위다. 떠날 때까지 잠가 두지 않으면
+        // 곧바로 다시 열려서 빠져나갈 수가 없다.
+        hoverSince = nil
+        hoverArmed = false
+    }
 
     private func rebuildMenu() {
         guard let menu = statusItem.menu else { return }

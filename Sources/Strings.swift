@@ -243,6 +243,17 @@ enum S {
     }
     static var refresh: String       { p("갱신 주기", "Refresh") }
     static func seconds(_ n: Int) -> String { p("\(n)초", "\(n)s") }
+    static var hoverOpen: String     { p("올리면 열기", "Open on hover") }
+    static var hoverOpenToggle: String { p("켬", "On") }
+    static var hoverNote: String {
+        p("메뉴바 숫자에 마우스를 올리면 목록이 열립니다. 「즉시」는 지나가기만 해도 열리므로, 메뉴바를 자주 지나다니시면 머무는 시간을 두시는 편이 낫습니다.",
+          "Point at the menu bar count and the list opens. “Instant” opens as you pass by, so a dwell is kinder if you cross the menu bar often.")
+    }
+    static var hoverInstant: String  { p("즉시", "Instant") }
+    static var hoverFast: String     { p("빠르게", "Fast") }
+    static var hoverNormal: String   { p("보통", "Normal") }
+    static var hoverSlow: String     { p("느긋", "Slow") }
+
     static var sourceStyle: String   { p("출처 표시", "Source label") }
     static var styleShort: String    { p("앱만", "App only") }
     static var styleSymmetric: String { p("양쪽 다", "Both") }

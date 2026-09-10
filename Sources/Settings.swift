@@ -93,6 +93,14 @@ final class Settings: ObservableObject {
     /// 줄에 출처를 어떻게 적을지.
     @Published var sourceStyle: SourceStyle         { didSet { persist() } }
 
+    /// 메뉴바 숫자에 마우스를 올리기만 해도 목록을 열 것인가.
+    ///
+    /// **기본은 끔이다.** 메뉴바는 다른 앱 메뉴를 쓰러 지나가는 복도라, 켜져 있는 것이
+    /// 기본이면 「왜 자꾸 튀어나오지」가 첫인상이 된다. 원하는 사람만 켜게 둔다.
+    @Published var hoverOpensMenu: Bool             { didSet { persist() } }
+    /// 얼마나 머물러야 여는가(초). 지나가는 것과 들여다보려는 것을 이 값이 가른다.
+    @Published var hoverDelay: Double               { didSet { persist() } }
+
     /// 상시 띄우기 창이 떠 있는가.
     ///
     /// 켜는 길이 셋이다 — 메뉴바 항목·창의 우클릭 메뉴·설정창 스위치. 셋이 각자 상태를
@@ -178,6 +186,8 @@ final class Settings: ObservableObject {
         panelFontSize = store.object(forKey: Key.panelFontSize) as? Double ?? 12
         panelDensity = store.object(forKey: Key.panelDensity) as? Double ?? 3
         panelPadding = store.object(forKey: Key.panelPadding) as? Double ?? 6
+        hoverOpensMenu = store.object(forKey: Key.hoverOpensMenu) as? Bool ?? false
+        hoverDelay = store.object(forKey: Key.hoverDelay) as? Double ?? 0.4
         loading = false
     }
 
@@ -233,6 +243,8 @@ final class Settings: ObservableObject {
         panelFontSize = 12
         panelDensity = 3
         panelPadding = 6
+        hoverOpensMenu = false
+        hoverDelay = 0.4
         // 핀과 «상시 창이 떠 있는가»는 되돌리지 않는다. 이 단추는 «표시 손잡이»를 처음으로
         // 돌리는 문이지, 주인이 직접 꽂아 두거나 직접 띄워 둔 것을 치우는 문이 아니다.
         // 창 안의 손잡이(항상 위로·기다리는 것만)는 표시 손잡이라 되돌린다.
@@ -264,6 +276,8 @@ final class Settings: ObservableObject {
         store.set(panelFontSize, forKey: Key.panelFontSize)
         store.set(panelDensity, forKey: Key.panelDensity)
         store.set(panelPadding, forKey: Key.panelPadding)
+        store.set(hoverOpensMenu, forKey: Key.hoverOpensMenu)
+        store.set(hoverDelay, forKey: Key.hoverDelay)
         NotificationCenter.default.post(name: Settings.didChange, object: nil)
     }
 
@@ -300,5 +314,7 @@ final class Settings: ObservableObject {
         static let panelFontSize = "panelFontSize"
         static let panelDensity = "panelDensity"
         static let panelPadding = "panelPadding"
+        static let hoverOpensMenu = "hoverOpensMenu"
+        static let hoverDelay = "hoverDelay"
     }
 }

@@ -98,6 +98,14 @@ struct Session {
     let statusUpdatedAt: Date?
     let accountRoot: URL            // 이 세션이 등록된 계정 루트
 
+    /// 레지스트리가 적어 둔 **프로세스가 뜬 시각**. `startedAt` 과 다른 값이다.
+    ///
+    /// `startedAt` 은 «세션이 시작된 시각» 이고 이것은 «그 프로세스가 뜬 시각» 이다.
+    /// 백그라운드 세션에서는 둘이 크게 벌어진다 — `claude` 가 프로세스를 미리 데워 두고
+    /// (`bg-spare`) 나중에 집어 쓰기 때문에, 스페어가 놀고 있던 시간만큼 차이가 난다
+    /// (실측 48분). PID 가 재사용됐는지 가리려면 봐야 하는 것은 이쪽이다.
+    var procStart: Date?
+
     /// transcript 로 보강한 것. 없을 수 있다.
     var currentTool: String?
     var lastActivity: Date?
