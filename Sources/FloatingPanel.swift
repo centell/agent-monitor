@@ -19,10 +19,9 @@ final class FloatingPanel: NSPanel {
         didSet { level = isAlwaysOnTop ? .floating : .normal }
     }
 
-    /// 바탕을 어떻게 깔 것인가.
-    var backdrop: PanelBackdrop = .blur {
-        didSet { applyBackdrop() }
-    }
+    /// 바탕의 결과 진하기. 진하기 0 이면 바탕이 없다.
+    var backdropStyle: PanelBackdropStyle = .blur { didSet { applyBackdrop() } }
+    var backdropAlpha: Double = 1 { didSet { applyBackdrop() } }
 
     /// 바탕과 내용을 **형제로** 둔다.
     ///
@@ -31,7 +30,10 @@ final class FloatingPanel: NSPanel {
     /// 「바탕을 없애면 글자가 안 보인다」는 엉뚱한 결론을 낼 뻔했다.
     /// 형제로 두면 바탕만 걷어낼 수 있다.
     private let backing = NSView()
+    /// 흐림 결. 진하기는 `alphaValue` 로 준다 — 몸통이 형제라 글자는 함께 흐려지지 않는다.
     private let effect = NSVisualEffectView()
+    /// 단색 결. 흐림과 **둘 중 하나만** 보인다.
+    private let plate = NSView()
 
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0, width: 300, height: 160),
@@ -57,27 +59,36 @@ final class FloatingPanel: NSPanel {
         backing.layer?.masksToBounds = true
         contentView = backing
 
+        effect.material = .hudWindow
         effect.blendingMode = .behindWindow
         effect.state = .active
         effect.autoresizingMask = [.width, .height]
         effect.frame = backing.bounds
         backing.addSubview(effect)
+
+        plate.wantsLayer = true
+        plate.autoresizingMask = [.width, .height]
+        plate.frame = backing.bounds
+        backing.addSubview(plate)
         applyBackdrop()
     }
 
     /// 바탕만 갈아 끼운다. 내용은 형제라 건드리지 않는다.
     ///
-    /// 「없음」은 그림자도 함께 끈다. 바탕이 없는데 그림자만 남으면 **아무것도 없는 자리에
-    /// 네모난 그늘**이 뜬다.
+    /// 진하기가 0 에 가까우면 **그림자도 끈다.** 바탕이 없는데 그림자만 남으면 아무것도
+    /// 없는 자리에 네모난 그늘이 걸린다.
     private func applyBackdrop() {
-        switch backdrop {
-        case .blur:  effect.material = .hudWindow
-        case .soft:  effect.material = .popover
-        case .solid: effect.material = .windowBackground
-        case .clear: break
-        }
-        effect.isHidden = backdrop == .clear
-        hasShadow = backdrop != .clear
+        let alpha = min(max(backdropAlpha, 0), 1)
+        let bare = alpha < 0.02
+
+        effect.isHidden = bare || backdropStyle != .blur
+        effect.alphaValue = alpha
+
+        plate.isHidden = bare || backdropStyle != .solid
+        plate.layer?.backgroundColor = NSColor.windowBackgroundColor
+            .withAlphaComponent(alpha).cgColor
+
+        hasShadow = !bare
         invalidateShadow()
     }
 
@@ -109,7 +120,7 @@ final class FloatingPanel: NSPanel {
         // 믿을 뻔했다 — 실제로 깜빡임을 없앤 것은 아래 두 가지다.
         setFrame(NSRect(origin: anchoredOrigin(for: size), size: size), display: false)
 
-        backing.subviews.filter { $0 !== effect }.forEach { $0.removeFromSuperview() }
+        backing.subviews.filter { $0 !== effect && $0 !== plate }.forEach { $0.removeFromSuperview() }
         if wanted.height > ceiling {
             let scroll = NSScrollView(frame: NSRect(origin: .zero, size: size))
             scroll.drawsBackground = false

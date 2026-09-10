@@ -28,7 +28,8 @@ final class FloatingPanelController: NSObject {
         if settings.panelOpen {
             open()
             panel?.isAlwaysOnTop = settings.panelAlwaysOnTop
-            panel?.backdrop = settings.panelBackdrop
+            panel?.backdropStyle = settings.panelBackdropStyle
+            panel?.backdropAlpha = settings.panelBackdropAlpha
         } else {
             close()
         }
@@ -38,7 +39,8 @@ final class FloatingPanelController: NSObject {
         guard panel == nil else { return }
         let p = FloatingPanel()
         p.isAlwaysOnTop = settings.panelAlwaysOnTop
-        p.backdrop = settings.panelBackdrop
+        p.backdropStyle = settings.panelBackdropStyle
+        p.backdropAlpha = settings.panelBackdropAlpha
         p.setFrame(settings.panelFrame ?? FloatingPanel.defaultFrame(), display: false)
         panel = p
         NotificationCenter.default.addObserver(

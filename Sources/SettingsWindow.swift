@@ -45,49 +45,6 @@ struct LayoutSettingsView: View {
 
                 Toggle(S.showSummary, isOn: $settings.showSummary)
 
-                // 상시 창의 손잡이 셋. 창의 머리줄을 우클릭해도 같은 것이 나오지만,
-                // 창을 안 띄운 사람은 그 자리를 볼 일이 없다 — 켜는 문은 여기 있어야 한다.
-                LabeledContent(S.panelGroup) {
-                    HStack(spacing: 14) {
-                        Toggle(S.panelShowToggle, isOn: $settings.panelOpen)
-                        Toggle(S.panelAlwaysOnTop, isOn: $settings.panelAlwaysOnTop)
-                        Toggle(S.panelWaitingOnly, isOn: $settings.panelWaitingOnly)
-                    }
-                }
-
-                // 생김새 셋. 「무엇을 보일지」와 결이 달라 아래에 따로 모은다.
-                VStack(alignment: .leading, spacing: 2) {
-                    Picker(S.panelLook, selection: $settings.panelBackdrop) {
-                        ForEach(PanelBackdrop.allCases) { Text($0.label).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    // 고르기 전에 대가를 알 수 있어야 한다. 골라 보고 알게 되면 늦다.
-                    if settings.panelBackdrop == .clear {
-                        Text(S.backdropNote)
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-
-                LabeledContent(S.panelText) {
-                    HStack(spacing: 10) {
-                        Picker("", selection: $settings.panelFontSize) {
-                            Text(S.textSmall).tag(11.0)
-                            Text(S.textNormal).tag(12.0)
-                            Text(S.textLarge).tag(14.0)
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        Picker("", selection: $settings.panelDensity) {
-                            Text(S.densityTight).tag(1.0)
-                            Text(S.densityNormal).tag(3.0)
-                            Text(S.densityLoose).tag(6.0)
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                    }
-                }
-
                 VStack(alignment: .leading, spacing: 2) {
                     Toggle(S.recordStats, isOn: $settings.recordStats)
                     // 무엇을 남기는지 그 자리에 적는다. 기록을 켜 두는 손잡이 옆에
@@ -120,7 +77,7 @@ struct LayoutSettingsView: View {
             .formStyle(.grouped)
             // 손잡이 수에 맞춘 높이. 모자라면 Form 안에서 마지막 줄이 잘리므로
             // 손잡이를 더할 때는 이 값도 한 줄만큼 올린다.
-            .frame(height: 660)
+            .frame(height: 552)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(S.preview)
@@ -175,6 +132,8 @@ struct SettingsWindowView: View {
         TabView {
             LayoutSettingsView(sessionsProvider: sessionsProvider)
                 .tabItem { Label(S.tabDisplay, systemImage: "list.bullet") }
+            PanelSettingsView()
+                .tabItem { Label(S.tabPanel, systemImage: "macwindow.on.rectangle") }
             MemoryView(sessionsProvider: sessionsProvider)
                 .tabItem { Label(S.tabMemory, systemImage: "memorychip") }
             StatsView()
@@ -182,7 +141,7 @@ struct SettingsWindowView: View {
         }
         .padding(.top, 8)
         // 높이를 못 박지 않으면 SwiftUI 내용이 접혀 창이 179pt 로 나온다.
-        .frame(minWidth: 640, maxWidth: 640, minHeight: 690, alignment: .top)
+        .frame(minWidth: 640, maxWidth: 640, minHeight: 620, alignment: .top)
     }
 }
 

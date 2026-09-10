@@ -33,29 +33,19 @@ enum SourceStyle: String, CaseIterable, Identifiable {
     }
 }
 
-/// 상시 창의 바탕.
+/// 상시 창 바탕의 **결**. 진하기는 따로 잰다.
 ///
-/// 구석에 늘 떠 있는 물건이라 배경화면·창 배치와의 궁합이 사람마다 다르다. 만든 사람이
-/// 대신 고를 일이 아니라 손잡이로 내놓는다.
-enum PanelBackdrop: String, CaseIterable, Identifiable {
-    /// 지금까지의 값. 은은하게 비친다.
+/// 둘로 가른 이유가 있다. 처음에는 「흐릿·보통·또렷·없음」 네 이름이었는데, 그것들은
+/// 투명도 눈금이 아니라 **서로 다른 재질**이라 사이를 채울 수 없었다. 결과 진하기로
+/// 가르면 사이가 전부 열리고, 「없음」도 따로 둘 필요 없이 **진하기 0%** 가 된다.
+enum PanelBackdropStyle: String, CaseIterable, Identifiable {
+    /// 뒤가 비쳐 보이는 흐림.
     case blur
-    /// 뒤 색이 조금 더 올라온다.
-    case soft
-    /// 거의 불투명. 뒤가 복잡해도 글자가 가장 선명하다.
+    /// 비치지 않는 단색 판.
     case solid
-    /// 바탕을 아예 두지 않는다. 글자만 뜬다.
-    case clear
 
     var id: String { rawValue }
-    var label: String {
-        switch self {
-        case .blur:  return S.backdropBlur
-        case .soft:  return S.backdropSoft
-        case .solid: return S.backdropSolid
-        case .clear: return S.backdropClear
-        }
-    }
+    var label: String { self == .blur ? S.backdropBlur : S.backdropSolid }
 }
 
 /// 화면 배치 설정. `UserDefaults` 에 남아 다음 실행에도 유지된다.
@@ -118,7 +108,9 @@ final class Settings: ObservableObject {
     ///
     /// 「무엇을 보일지」(칸·지표)를 고르는 손잡이들과 결이 다르다. 그쪽은 정보의 문제이고
     /// 이쪽은 이 창이 화면 구석에서 어떻게 앉아 있을지의 문제다.
-    @Published var panelBackdrop: PanelBackdrop      { didSet { persist() } }
+    @Published var panelBackdropStyle: PanelBackdropStyle { didSet { persist() } }
+    /// 바탕의 진하기 (0…1). **0 이면 바탕이 없다** — 글자만 뜬다.
+    @Published var panelBackdropAlpha: Double        { didSet { persist() } }
     @Published var panelFontSize: Double             { didSet { persist() } }
     /// 줄 위아래 여백(pt). 촘촘 1 · 보통 3 · 넉넉 6.
     @Published var panelDensity: Double              { didSet { persist() } }
@@ -168,7 +160,13 @@ final class Settings: ObservableObject {
         panelOpen = store.object(forKey: Key.panelOpen) as? Bool ?? false
         panelAlwaysOnTop = store.object(forKey: Key.panelAlwaysOnTop) as? Bool ?? true
         panelWaitingOnly = store.object(forKey: Key.panelWaitingOnly) as? Bool ?? false
-        panelBackdrop = PanelBackdrop(rawValue: store.string(forKey: Key.panelBackdrop) ?? "") ?? .blur
+        // 네 이름이었던 옛 설정에서 옮겨온다. 맞춰 두신 값이 말없이 초기값으로 돌아가면 안 된다.
+        // `soft`(popover) 는 흐림과 단색 사이의 다른 **색조**라 퍼센트 눈금 위에 자리가 없어
+        // 흐림 100% 로 보낸다. 잃는 것을 여기 적어 둔다 — 조용히 바꾸는 것이 가장 나쁘다.
+        let legacyBackdrop = store.string(forKey: Key.panelBackdrop)
+        panelBackdropStyle = legacyBackdrop == "solid" ? .solid : .blur
+        panelBackdropAlpha = store.object(forKey: Key.panelBackdropAlpha) as? Double
+            ?? (legacyBackdrop == "clear" ? 0 : 1)
         panelFontSize = store.object(forKey: Key.panelFontSize) as? Double ?? 12
         panelDensity = store.object(forKey: Key.panelDensity) as? Double ?? 3
         loading = false
@@ -221,7 +219,8 @@ final class Settings: ObservableObject {
         sourceStyle = .short
         panelAlwaysOnTop = true
         panelWaitingOnly = false
-        panelBackdrop = .blur
+        panelBackdropStyle = .blur
+        panelBackdropAlpha = 1
         panelFontSize = 12
         panelDensity = 3
         // 핀과 «상시 창이 떠 있는가»는 되돌리지 않는다. 이 단추는 «표시 손잡이»를 처음으로
@@ -250,7 +249,8 @@ final class Settings: ObservableObject {
         store.set(panelOpen, forKey: Key.panelOpen)
         store.set(panelAlwaysOnTop, forKey: Key.panelAlwaysOnTop)
         store.set(panelWaitingOnly, forKey: Key.panelWaitingOnly)
-        store.set(panelBackdrop.rawValue, forKey: Key.panelBackdrop)
+        store.set(panelBackdropStyle.rawValue, forKey: Key.panelBackdrop)
+        store.set(panelBackdropAlpha, forKey: Key.panelBackdropAlpha)
         store.set(panelFontSize, forKey: Key.panelFontSize)
         store.set(panelDensity, forKey: Key.panelDensity)
         NotificationCenter.default.post(name: Settings.didChange, object: nil)
@@ -285,6 +285,7 @@ final class Settings: ObservableObject {
         static let panelWaitingOnly = "panelWaitingOnly"
         static let panelFrame = "panelFrame"
         static let panelBackdrop = "panelBackdrop"
+        static let panelBackdropAlpha = "panelBackdropAlpha"
         static let panelFontSize = "panelFontSize"
         static let panelDensity = "panelDensity"
     }

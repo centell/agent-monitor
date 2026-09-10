@@ -93,17 +93,35 @@ enum S {
     /// 「없습니다」로 적지 않는다 — 세션은 살아 있고 다들 일하는 중인데 «없다»고 하면
     /// 앱이 멎은 것처럼 읽힌다.
     static var panelAllRunning: String { p("다 돌고 있습니다", "All running") }
-    static var panelLook: String     { p("상시 창 바탕", "Panel backdrop") }
-    static var panelText: String     { p("상시 창 글자·밀도", "Panel text · density") }
-    static var backdropBlur: String  { p("흐릿", "Blur") }
-    static var backdropSoft: String  { p("보통", "Soft") }
-    static var backdropSolid: String { p("또렷", "Solid") }
-    static var backdropClear: String { p("없음", "None") }
-    /// 「없음」의 대가를 그 자리에 적는다. 배경화면 위에서는 멀쩡한데 다른 창 위에 겹치면
-    /// 뒤 글자와 섞여 읽기 어려워지는 것을 실제로 보았다.
+    static var tabPanel: String      { p("상시 창", "Panel") }
+    /// 이 탭의 경계를 맨 위에서 한 번 못 박는다.
+    static var panelTabNote: String {
+        p("여기 있는 손잡이는 상시 창에만 걸립니다. 메뉴는 달라지지 않습니다.",
+          "Everything here affects only the panel. The menu is unchanged.")
+    }
+    static var panelWaitingOnlyNote: String {
+        p("손이 필요한 줄만 남깁니다. 메뉴는 이 값과 무관하게 늘 전부 보여줍니다.",
+          "Keeps only the rows that need you. The menu always shows all of them.")
+    }
+    static var backdropStyle: String { p("바탕 결", "Backdrop") }
+    static var backdropAlpha: String { p("바탕 진하기", "Opacity") }
+    static var backdropBlur: String  { p("흐림", "Blur") }
+    static var backdropSolid: String { p("단색", "Solid") }
+    static var panelTextSize: String { p("글자 크기", "Text size") }
+    static var panelDensityLabel: String { p("줄 밀도", "Row density") }
+    /// 진하기를 0 가까이 내렸을 때의 대가를 그 자리에 적는다. 배경화면 위에서는 멀쩡한데
+    /// 다른 창 위에 겹치면 뒤 글자와 섞여 읽기 어려워지는 것을 실제로 보았다.
     static var backdropNote: String {
-        p("「없음」은 바탕 없이 글자만 띄웁니다. 다른 창 위에 겹치면 읽기 어려워집니다.",
-          "“None” shows the text with no backdrop. Over another window it becomes hard to read.")
+        p("바탕이 거의 없습니다. 배경화면 위에서는 깔끔하지만 다른 창 위에 겹치면 읽기 어려워집니다.",
+          "Almost no backdrop. Clean over a wallpaper, hard to read over another window.")
+    }
+    static var panelLivePreview: String {
+        p("창이 떠 있습니다 — 여기서 만지면 그 자리에서 바뀝니다.",
+          "The panel is open — changes here show up on it as you make them.")
+    }
+    static var panelOpenToSee: String {
+        p("「띄우기」를 켜면 바뀌는 것을 바로 보면서 맞추실 수 있습니다.",
+          "Turn on “Show” to see the changes as you make them.")
     }
     static var textSmall: String     { p("작게", "Small") }
     static var textNormal: String    { p("보통", "Normal") }
