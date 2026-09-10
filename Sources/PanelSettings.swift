@@ -65,6 +65,13 @@ struct PanelSettingsView: View {
                     }
                     .pickerStyle(.segmented)
 
+                    Picker(S.panelPaddingLabel, selection: $settings.panelPadding) {
+                        Text(S.paddingNone).tag(0.0)
+                        Text(S.densityNormal).tag(6.0)
+                        Text(S.densityLoose).tag(12.0)
+                    }
+                    .pickerStyle(.segmented)
+
                     Picker(S.panelDensityLabel, selection: $settings.panelDensity) {
                         Text(S.densityTight).tag(1.0)
                         Text(S.densityNormal).tag(3.0)
@@ -74,7 +81,7 @@ struct PanelSettingsView: View {
                 }
                 .formStyle(.grouped)
                 // 손잡이를 더할 때는 이 값도 한 줄만큼 올린다. 모자라면 마지막 줄이 잘린다.
-                .frame(height: 400)
+                .frame(height: 452)
 
                 // 미리보기를 따로 그리지 않는다. **창 자체가 미리보기**다 —
                 // 띄워 두고 만지면 바뀌는 것이 그 자리에서 보인다. 흉내 낸 그림을 옆에

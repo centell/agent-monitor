@@ -109,6 +109,9 @@ enum S {
     static var backdropSolid: String { p("단색", "Solid") }
     static var panelTextSize: String { p("글자 크기", "Text size") }
     static var panelDensityLabel: String { p("줄 밀도", "Row density") }
+    /// 「줄 밀도」와 헷갈리지 않게 «창» 을 앞에 붙인다. 하나는 줄 사이, 하나는 창 가장자리다.
+    static var panelPaddingLabel: String { p("창 여백", "Window padding") }
+    static var paddingNone: String   { p("없음", "None") }
     /// 진하기를 0 가까이 내렸을 때의 대가를 그 자리에 적는다. 배경화면 위에서는 멀쩡한데
     /// 다른 창 위에 겹치면 뒤 글자와 섞여 읽기 어려워지는 것을 실제로 보았다.
     static var backdropNote: String {

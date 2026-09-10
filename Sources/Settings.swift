@@ -114,6 +114,14 @@ final class Settings: ObservableObject {
     @Published var panelFontSize: Double             { didSet { persist() } }
     /// 줄 위아래 여백(pt). 촘촘 1 · 보통 3 · 넉넉 6.
     @Published var panelDensity: Double              { didSet { persist() } }
+    /// 창 가장자리와 목록 사이 여백(pt). 없음 0 · 보통 6 · 넉넉 12.
+    ///
+    /// 줄 밀도와 다른 값이다. 밀도는 **줄과 줄 사이**를 정하고 이건 **창과 목록 사이**를
+    /// 정한다. 둘을 한 손잡이로 묶으면 「촘촘한데 테두리는 넉넉하게」가 불가능해진다.
+    ///
+    /// 좌우에서는 줄이 이미 물고 있는 20pt 위에 더해진다 — 그래서 0 이어도 좌우는
+    /// 답답하지 않고, 세로만 0 이던 것이 이 손잡이로 풀린다.
+    @Published var panelPadding: Double               { didSet { persist() } }
 
     /// 상단에 고정한 세션들 (sessionId).
     ///
@@ -169,6 +177,7 @@ final class Settings: ObservableObject {
             ?? (legacyBackdrop == "clear" ? 0 : 1)
         panelFontSize = store.object(forKey: Key.panelFontSize) as? Double ?? 12
         panelDensity = store.object(forKey: Key.panelDensity) as? Double ?? 3
+        panelPadding = store.object(forKey: Key.panelPadding) as? Double ?? 6
         loading = false
     }
 
@@ -223,6 +232,7 @@ final class Settings: ObservableObject {
         panelBackdropAlpha = 1
         panelFontSize = 12
         panelDensity = 3
+        panelPadding = 6
         // 핀과 «상시 창이 떠 있는가»는 되돌리지 않는다. 이 단추는 «표시 손잡이»를 처음으로
         // 돌리는 문이지, 주인이 직접 꽂아 두거나 직접 띄워 둔 것을 치우는 문이 아니다.
         // 창 안의 손잡이(항상 위로·기다리는 것만)는 표시 손잡이라 되돌린다.
@@ -253,6 +263,7 @@ final class Settings: ObservableObject {
         store.set(panelBackdropAlpha, forKey: Key.panelBackdropAlpha)
         store.set(panelFontSize, forKey: Key.panelFontSize)
         store.set(panelDensity, forKey: Key.panelDensity)
+        store.set(panelPadding, forKey: Key.panelPadding)
         NotificationCenter.default.post(name: Settings.didChange, object: nil)
     }
 
@@ -288,5 +299,6 @@ final class Settings: ObservableObject {
         static let panelBackdropAlpha = "panelBackdropAlpha"
         static let panelFontSize = "panelFontSize"
         static let panelDensity = "panelDensity"
+        static let panelPadding = "panelPadding"
     }
 }

@@ -23,6 +23,9 @@ final class FloatingPanel: NSPanel {
     var backdropStyle: PanelBackdropStyle = .blur { didSet { applyBackdrop() } }
     var backdropAlpha: Double = 1 { didSet { applyBackdrop() } }
 
+    /// 창 가장자리와 목록 사이 여백. 다음 `setBody` 부터 적용된다.
+    var padding: CGFloat = 6
+
     /// 바탕과 내용을 **형제로** 둔다.
     ///
     /// 예전에는 내용을 흐림 뷰 **안에** 넣었다. 「바탕 없음」을 만들려고 흐림 뷰를 숨겼더니
@@ -98,7 +101,10 @@ final class FloatingPanel: NSPanel {
     /// 자라면 세션이 하나 늘 때마다 창이 화면 밖으로 내려간다. 어느 구석에 두셨는지는
     /// 창이 화면의 어느 사분면에 앉아 있는지로 읽는다 — 따로 여쭐 것이 없다.
     func setBody(_ body: NSView) {
-        let wanted = body.frame.size
+        // 목록을 창 안쪽으로 들여놓는다. 붙여 두면 머리줄이 창 모서리에 닿는다.
+        let inset = max(0, padding)
+        let wanted = NSSize(width: body.frame.width + inset * 2,
+                            height: body.frame.height + inset * 2)
         let visible = (screen ?? NSScreen.main)?.visibleFrame
         // 화면을 넘어서까지 자라지는 않는다. 넘으면 그때만 창 안에서 굴린다 —
         // 평소에 스크롤 막대가 없는 편이 구석에서 조용하다.
@@ -122,7 +128,9 @@ final class FloatingPanel: NSPanel {
 
         backing.subviews.filter { $0 !== effect && $0 !== plate }.forEach { $0.removeFromSuperview() }
         if wanted.height > ceiling {
-            let scroll = NSScrollView(frame: NSRect(origin: .zero, size: size))
+            let scroll = NSScrollView(frame: NSRect(x: inset, y: inset,
+                                                    width: size.width - inset * 2,
+                                                    height: size.height - inset * 2))
             scroll.drawsBackground = false
             scroll.hasVerticalScroller = true
             scroll.scrollerStyle = .overlay
@@ -132,7 +140,7 @@ final class FloatingPanel: NSPanel {
             // 몸통이 뒤집힌 좌표계라 원점이 맨 위다. 손이 필요한 줄부터 보여야 한다.
             scroll.contentView.scroll(to: .zero)
         } else {
-            body.setFrameOrigin(.zero)
+            body.setFrameOrigin(NSPoint(x: inset, y: inset))
             backing.addSubview(body)
         }
         // 몸통에 `autoresizingMask` 를 달지 않는다. 목록이 바뀔 때마다 통째로 다시 만드니
