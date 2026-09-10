@@ -173,6 +173,12 @@ enum S {
     static var stopItem: String      { p("이 세션 멈추기…", "Stop this session…") }
     /// 두 번째 단계. 「…」이 빠지고 말이 굳는 것으로 **이번엔 진짜 실행된다**를 알린다.
     static var stopConfirmItem: String { p("정말 멈추기", "Stop it") }
+    /// 누른 그 줄이 답하는 말.
+    ///
+    /// 「멈췄습니다」가 아니라 **「멈추는 중」**이다. `claude stop` 은 상대가 내려가기를
+    /// 기다리므로 누른 순간에는 아직 안 멈췄고, 안 멈춘 것을 멈췄다고 적으면 그건 거짓말이다.
+    /// 줄이 사라지는 것이 「멈췄다」이고, 이 말은 그때까지의 사이를 메운다.
+    static var stoppingLine: String  { p("멈추는 중…", "Stopping…") }
     static var stopKeepsChat: String {
         p("대화는 남습니다 — claude attach 로 다시 열 수 있습니다",
           "The conversation is kept — reopen it with claude attach")

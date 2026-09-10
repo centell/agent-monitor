@@ -25,10 +25,22 @@ enum SessionRowStyle {
     /// 배치가 달라도 규칙은 하나다. 각 세션이 어디서 시작하는지가 눈에 바로 들어온다.
     /// `size` 는 상시 창이 제 글자 크기를 넘기기 위한 것이다. 메뉴는 넘기지 않고
     /// 기본값 12pt 로 그린다 — 손잡이를 돌려도 메뉴는 그대로여야 한다.
+    /// 흐리게 깔지 말 것 — 눌릴 수 없는 줄을 통째로 흐리게 만드는 손길(`SessionRowView`)에게
+    /// 「이 구간만은 남겨 달라」고 붙이는 표식.
+    ///
+    /// 멈출 수 있는 줄은 **언제나** 눌릴 수 없는 줄이라(갈 터미널이 없으니까), 그냥 두면
+    /// 「멈추는 중」이 나머지와 똑같이 흐려져 지표 한 조각처럼 보인다. 지금 무슨 일이
+    /// 일어나는지를 알리는 말이 가장 안 보이는 말이 되면 안 된다.
+    static let keepBright = NSAttributedString.Key("agentmonitor.keepBright")
+
+    /// `stopping` 은 지표 자리에 「멈추는 중」을 앉힌다. 줄을 통째로 갈아치우지 않는 이유는
+    /// `RowFormatter.row(for:replacingMetrics:)` 에 적어 두었다.
     static func attributed(for session: Session, formatter: RowFormatter,
                            size: CGFloat = 12,
-                           skin: PanelSkin = .simple) -> NSAttributedString {
-        let row = formatter.row(for: session)
+                           skin: PanelSkin = .simple,
+                           stopping: Bool = false) -> NSAttributedString {
+        let row = formatter.row(for: session,
+                                replacingMetrics: stopping ? S.stoppingLine : nil)
 
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineSpacing = 2
@@ -51,9 +63,20 @@ enum SessionRowStyle {
                                   ofSize: row.secondLineStart != nil ? size - 1 : size, weight: .regular),
                               range: dim)
         }
-        guard skin != .simple else { return text }
-        dress(text, skin: skin, session: session, row: row,
-              nameRange: nameRange(of: session, formatter: formatter, in: text), size: size)
+        if skin != .simple {
+            dress(text, skin: skin, session: session, row: row,
+                  nameRange: nameRange(of: session, formatter: formatter, in: text), size: size)
+        }
+        // **맨 마지막에 얹는다.** 스킨은 지표를 배경으로 내리는 일을 하므로, 먼저 칠하면
+        // 그 위에 덮인다. 지금 무슨 일이 일어나는지는 어느 스킨에서도 가장 잘 보여야 한다.
+        if stopping, let dim = row.dimRange {
+            text.addAttribute(.foregroundColor, value: NSColor.labelColor, range: dim)
+            text.addAttribute(.font,
+                              value: NSFont.monospacedSystemFont(
+                                  ofSize: row.secondLineStart != nil ? size - 1 : size, weight: .semibold),
+                              range: dim)
+            text.addAttribute(keepBright, value: true, range: dim)
+        }
         return text
     }
 

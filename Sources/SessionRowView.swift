@@ -49,9 +49,16 @@ final class SessionRowView: NSView {
 
         // 눌릴 수 없는 줄은 흐리게 둔다. 눌리는 줄과 생김새로 구분되어야 한다.
         let base = NSMutableAttributedString(attributedString: text)
+        let whole = NSRange(location: 0, length: base.length)
         if !enabled {
-            base.addAttribute(.foregroundColor, value: NSColor.tertiaryLabelColor,
-                              range: NSRange(location: 0, length: base.length))
+            base.addAttribute(.foregroundColor, value: NSColor.tertiaryLabelColor, range: whole)
+            // 다만 **남겨 달라고 표시된 구간**은 되살린다 (`SessionRowStyle.keepBright`).
+            // 「멈추는 중」이 그런 구간이다 — 멈출 수 있는 줄은 언제나 눌릴 수 없는 줄이라,
+            // 그냥 두면 지금 벌어지는 일을 알리는 말이 줄에서 가장 안 보이는 말이 된다.
+            base.enumerateAttribute(SessionRowStyle.keepBright, in: whole) { value, range, _ in
+                guard value != nil else { return }
+                base.addAttribute(.foregroundColor, value: NSColor.labelColor, range: range)
+            }
         }
         normalText = base
 

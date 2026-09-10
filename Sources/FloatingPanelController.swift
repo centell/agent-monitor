@@ -73,6 +73,13 @@ final class FloatingPanelController: NSObject {
     func update(sessions: [Session], memory: SystemMemory?) {
         self.sessions = sessions
         self.memory = memory
+        // 「멈추는 중」은 그 줄이 **목록에서 실제로 빠질 때** 걷는다. 멈춘 직후에 걷으면
+        // 다음 훑기까지의 사이에 줄이 되살아났다가 사라져 깜빡인다.
+        // 얼어 있어도(`mouseIsInside`) 여기까지는 온다 — 걷는 일이 밀리면 손을 치웠을 때
+        // 낡은 말이 한 번 더 보인다.
+        if !stopping.isEmpty {
+            stopping.formIntersection(sessions.map(\.id))
+        }
         guard panel != nil, !mouseIsInside else { return }
         rebuild()
     }
@@ -129,12 +136,7 @@ final class FloatingPanelController: NSObject {
                 previousNeededAttention = needs
 
                 let row = makeRow(session, formatter: formatter)
-                // 멈추는 중이 먼저다. 그 사이에 실패 안내가 뜰 일은 없고(뜨면 그때
-                // 멈추는 중이 아니다), 둘이 겹치면 사람이 무엇을 봐야 할지 모른다.
-                if stopping.contains(session.id) {
-                    pieces.append(replacing(row, for: session, formatter: formatter,
-                                            text: S.stoppingLine, emphasised: false))
-                } else if let notice, notice.sessionID == session.id {
+                if let notice, notice.sessionID == session.id {
                     pieces.append(replacing(row, for: session, formatter: formatter,
                                             text: "⚠  " + notice.text, emphasised: true))
                 } else {
@@ -197,7 +199,8 @@ final class FloatingPanelController: NSObject {
         let view = SessionRowView(
             text: SessionRowStyle.attributed(for: session, formatter: formatter,
                                              size: settings.panelFontSize,
-                                             skin: settings.panelSkin),
+                                             skin: settings.panelSkin,
+                                             stopping: stopping.contains(session.id)),
             enabled: SessionJump.canJump(session),
             pinned: session.isPinned,
             insetY: settings.panelDensity,
@@ -260,21 +263,35 @@ final class FloatingPanelController: NSObject {
         forceRebuild()
     }
 
+    /// 멈추는 중인 줄. 그 줄이 목록에서 사라질 때까지 이름 대신 「멈추는 중」이 앉는다.
+    ///
+    /// **없으면 누른 사람이 눌린 줄을 모른다.** `claude stop` 은 상대가 내려가기를 기다리므로
+    /// 곧바로 안 끝나고, 그동안 줄은 멀쩡히 그대로 있다. 게다가 이 창은 **마우스가 위에
+    /// 있는 동안 다시 그리지 않는다** (`mouseIsInside`) — 방금 메뉴를 눌렀으면 손은 아직
+    /// 창 위다. 그래서 눌러도 아무 일이 없다가, 손을 치우는 순간 줄이 사라진다.
+    /// 실제로 「되고 있는 건가 모르겠더라, 어느새 꺼져 있었다」는 말을 들었다.
+    ///
+    /// 이 앱은 「눌렀는데 아무 일도 없었다」를 없애려고 이동 실패에도 이유를 적어 왔다
+    /// (`notice`). 성공하는 쪽에 그 구멍을 남겨 둘 이유가 없다.
+    private var stopping: Set<String> = []
+
     @objc private func reallyStop(_ item: NSMenuItem) {
         guard let session = item.representedObject as? Session else { return }
+        // 누른 그 순간 줄이 답한다. `forceRebuild` 여야 한다 — 마우스가 창 위에 있어
+        // 평소 갱신은 막혀 있고, 이건 주인이 방금 스스로 누른 것이다.
+        stopping.insert(session.id)
+        forceRebuild()
+
         SessionStop.stop(session) { [weak self] outcome in
             guard let self else { return }
             guard let message = outcome.message else {
-                // 멈췄으면 다음 훑기에서 그 줄이 사라진다. 그것이 답이라 따로 말하지 않는다.
+                // 멈췄다. **여기서 표시를 걷지 않는다.** 걷으면 다음 훑기까지의 사이에
+                // 줄이 되살아났다가 사라져 깜빡인다. 목록에서 실제로 빠질 때 걷는다
+                // (`update`). 그때까지는 「멈추는 중」이 맞는 말이기도 하다.
                 return
             }
-            self.notice = (session.id, message)
-            self.noticeTimer?.invalidate()
-            self.noticeTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { [weak self] _ in
-                self?.notice = nil
-                self?.forceRebuild()
-            }
-            self.forceRebuild()
+            self.stopping.remove(session.id)
+            self.show(message, on: session)
         }
     }
 
@@ -298,6 +315,12 @@ final class FloatingPanelController: NSObject {
             SessionJump.report(outcome, sessionName: session.name)
             return
         }
+        show(message, on: session)
+    }
+
+    /// 그 줄에 한 줄을 3초 띄운다. 이동 실패와 멈추기 실패가 같은 자리를 쓴다 —
+    /// 사람 눈이 가 있는 곳은 둘 다 방금 누른 줄이다.
+    private func show(_ message: String, on session: Session) {
         notice = (session.id, message)
         noticeTimer?.invalidate()
         noticeTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { [weak self] _ in

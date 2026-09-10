@@ -23,9 +23,15 @@ struct RowFormatter {
     /// 비어 있었고, 정작 이유가 있는 줄은 폭에 맞춰 잘려 물음의 뒷부분 — 무엇을
     /// 고르라는지 — 이 사라졌다. 늘 내는 비용은 폭이고 얻는 것은 반쪽이었다.
     /// 그래서 이유는 마우스를 올렸을 때 통째로 보여 준다 (`MenuBarController`).
-    func row(for session: Session) -> Row {
+    /// `replacingMetrics` 는 지표 자리에 **다른 말**을 앉힌다.
+    ///
+    /// 줄을 통째로 딴 글로 갈아치우는 길도 있었는데, 그러면 무엇에 대한 말인지가 사라진다 —
+    /// 「멈추는 중」만 남고 어느 세션이 멈추는 중인지는 안 보였다. 이름·상태·시간은 그대로
+    /// 두고 지표만 바꾸면, 말이 붙을 자리와 그 말이 가리키는 것이 한 줄에 함께 남는다.
+    func row(for session: Session, replacingMetrics: String? = nil) -> Row {
         let head = header(for: session)
-        let tail = metrics(for: session)
+        // 앞의 여백은 지표와 같게 둔다 — 바뀐 말이 지표가 서던 자리에 그대로 선다.
+        let tail = replacingMetrics.map { "     " + $0 } ?? metrics(for: session)
 
         switch settings.layout {
         case .single:
