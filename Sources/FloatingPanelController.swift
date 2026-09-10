@@ -120,7 +120,27 @@ final class FloatingPanelController: NSObject {
                     pieces.append(PanelSeparatorView())
                 }
                 previousNeededAttention = needs
-                pieces.append(makeRow(session, formatter: formatter))
+
+                let row = makeRow(session, formatter: formatter)
+                if let notice, notice.sessionID == session.id {
+                    // 줄을 **대신한다**. 아래에 한 줄 더 붙이면 그 3초 동안 창이 커졌다
+                    // 작아지고, 그러면 다른 줄들이 손 밑에서 움직인다.
+                    //
+                    // 폭도 대신할 줄에 맞춘다. 실측에서 이 글이 행보다 25pt 넓어 창이
+                    // 3초 동안 벌어졌다 돌아왔다 — 세로로 안 흔들리게 해 놓고 가로로
+                    // 흔들면 고친 것이 아니다. 글은 잘라서 맞춘다.
+                    // 바닥값을 두지 않는다. 행은 표식·이름(최소 12칸)·경과 시간만 켜도
+                    // 21칸이라 좁아질 수 없고, 바닥값을 두면 그 값이 행보다 커지는 순간
+                    // 막으려던 바로 그 벌어짐이 생긴다.
+                    let firstLine = formatter.row(for: session).text
+                        .split(separator: "\n").first.map(String.init) ?? ""
+                    let note = PanelNoteView(text: ("⚠  " + notice.text).fitted(to: firstLine.displayWidth),
+                                             emphasised: true)
+                    note.setFrameSize(NSSize(width: row.frame.width, height: row.frame.height))
+                    pieces.append(note)
+                } else {
+                    pieces.append(row)
+                }
             }
         }
 
@@ -157,7 +177,7 @@ final class FloatingPanelController: NSObject {
             text: SessionRowStyle.attributed(for: session, formatter: formatter),
             enabled: SessionJump.canJump(session),
             pinned: session.isPinned,
-            onClick: { SessionJump.report(SessionJump.jump(to: session), sessionName: session.name) },
+            onClick: { [weak self] in self?.jump(to: session) },
             onRightClick: { [weak self] in
                 Settings.shared.togglePin(session.id)
                 self?.forceRebuild()
@@ -165,6 +185,35 @@ final class FloatingPanelController: NSObject {
         )
         view.toolTip = SessionRowStyle.tooltip(for: session, settings: settings)
         return view
+    }
+
+    // MARK: 눌렀는데 갈 수 없었을 때
+
+    /// 지금 이유를 띄우고 있는 줄. 3초 뒤 스스로 걷힌다.
+    private var notice: (sessionID: String, text: String)?
+    private var noticeTimer: Timer?
+
+    /// 줄을 눌렀을 때. 못 가면 **누른 그 줄에** 이유를 잠깐 띄운다.
+    ///
+    /// 상자를 띄우지 않는다. 이 창은 「눌러도 앞을 안 뺏는다」로 서 있는데, 실패할 때만
+    /// 앞을 뺏으면 그 약속이 가장 필요한 순간에 깨진다. 배너로 보내지도 않는다 —
+    /// 실패한 순간 사람 눈은 방금 누른 줄에 가 있다.
+    ///
+    /// 권한 문제만 예외로 상자를 띄운다. 그건 지나가는 한 줄로 끝날 일이 아니라 사람이
+    /// 가서 고쳐야 하는 일이다.
+    private func jump(to session: Session) {
+        let outcome = SessionJump.jump(to: session)
+        guard let message = outcome.message else {
+            SessionJump.report(outcome, sessionName: session.name)
+            return
+        }
+        notice = (session.id, message)
+        noticeTimer?.invalidate()
+        noticeTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { [weak self] _ in
+            self?.notice = nil
+            self?.forceRebuild()
+        }
+        forceRebuild()
     }
 
     // MARK: 손잡이
@@ -270,12 +319,15 @@ final class PanelNoteView: NSView {
     private static let insetX: CGFloat = 20
     private static let insetY: CGFloat = 4
 
-    init(text string: String) {
+    /// `emphasised` 는 안내가 아니라 **방금 벌어진 일**을 적을 때 쓴다.
+    /// 시스템 요약과 같은 흐린 글로 두면 3초 뒤 사라지는 말을 놓친다.
+    init(text string: String, emphasised: Bool = false) {
         text = NSAttributedString(
             string: string,
             attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
-                .foregroundColor: NSColor.secondaryLabelColor,
+                .font: NSFont.monospacedSystemFont(ofSize: emphasised ? 12 : 11,
+                                                   weight: emphasised ? .semibold : .regular),
+                .foregroundColor: emphasised ? NSColor.systemOrange : NSColor.secondaryLabelColor,
             ]
         )
         let size = text.size()

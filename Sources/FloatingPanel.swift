@@ -69,9 +69,12 @@ final class FloatingPanel: NSPanel {
         // 글자가 겹쳐 보였다. 「기다리는 것만」에서 특히 그랬다 — 세션이 대기와 작업을
         // 오갈 때마다 줄 수가 바뀌므로 그 한 프레임이 계속 보인다.
         //
-        // 그래서 다음 flush 까지 이 창이 그려지는 것을 막아 두고, 다 바꾼 뒤에 한 번만
-        // 그린다. 중간 상태가 화면에 나갈 틈 자체를 없앤다.
-        disableScreenUpdatesUntilFlush()
+        // 그래서 **하나의 실행 흐름 안에서** 자리·크기·내용을 다 바꾸고 마지막에 한 번만
+        // 그린다. `display: false` 로 미뤄 두는 것이 그 열쇠다.
+        //
+        // ⚠ `disableScreenUpdatesUntilFlush()` 를 부르지 않는다. 이 자리에 딱 맞아 보이지만
+        // **macOS 15부터 아무 일도 하지 않는 빈 함수**다. 한 번 넣었다가 「막아 두었다」고
+        // 믿을 뻔했다 — 실제로 깜빡임을 없앤 것은 아래 두 가지다.
         setFrame(NSRect(origin: anchoredOrigin(for: size), size: size), display: false)
 
         effect.subviews.forEach { $0.removeFromSuperview() }

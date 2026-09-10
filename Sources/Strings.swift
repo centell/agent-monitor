@@ -58,6 +58,28 @@ enum S {
           "A background session has no terminal window to go to")
     }
 
+    // MARK: 이동 실패
+
+    /// 목록의 한 줄 자리에 들어가는 말이라 짧게 둔다. 자세한 것은 `~Detail` 로 뺀다.
+    static var jumpNoWindow: String {
+        p("터미널 창을 못 찾았습니다", "Could not find its terminal window")
+    }
+    static var jumpNoWindowDetail: String {
+        p("그 탭이 닫혔거나, Terminal.app 이 아닌 터미널일 수 있습니다. 이 앱은 아직 Terminal.app 만 압니다.",
+          "The tab may be closed, or it may be a terminal other than Terminal.app — the only one this app knows so far.")
+    }
+    static var jumpNoTerminal: String {
+        p("터미널 없이 도는 세션입니다", "This session runs without a terminal")
+    }
+    static var jumpNoTerminalDetail: String {
+        p("터미널에 매여 있지 않아 옮겨 갈 창이 없습니다.",
+          "It is not attached to a terminal, so there is no window to move to.")
+    }
+    static var jumpFailedTitle: String { p("이동하지 못했습니다", "Could not move there") }
+    static func jumpFailedLine(_ why: String) -> String {
+        p("이동 실패 — \(why.fitted(to: 28))", "Jump failed — \(why.fitted(to: 28))")
+    }
+
     // MARK: 상시 창
 
     static var panelShowItem: String { p("상시 창 열기", "Show panel") }

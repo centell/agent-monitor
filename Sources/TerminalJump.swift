@@ -17,6 +17,22 @@ enum TerminalJump {
         case windowNotFound     // tty 는 있는데 그 창을 못 찾았다
         case notPermitted       // 자동화 권한이 없다
         case failed(String)
+
+        /// 누른 사람에게 그 자리에서 보일 한 줄.
+        ///
+        /// 성공과 «권한 없음» 에는 없다 — 성공은 할 말이 없고, 권한은 사람이 **고칠 수
+        /// 있는** 문제라 지나가는 한 줄이 아니라 안내가 필요하다.
+        ///
+        /// 짧게 둔다. 이 글은 목록의 한 줄 자리에 들어가므로, 길면 그 3초 동안 창이
+        /// 넓어졌다 줄어든다.
+        var message: String? {
+            switch self {
+            case .moved, .notPermitted: return nil
+            case .noTTY:                return S.jumpNoTerminal
+            case .windowNotFound:       return S.jumpNoWindow
+            case .failed(let why):      return S.jumpFailedLine(why)
+            }
+        }
     }
 
     // MARK: tty 읽기
@@ -82,33 +98,53 @@ enum TerminalJump {
 
     /// 실패를 조용히 삼키지 않는다.
     ///
-    /// 권한 문제는 사람이 고칠 수 있는 것이므로 무엇을 하면 되는지까지 말해 준다.
-    /// 나머지는 소리로만 알린다 — 메뉴가 이미 닫힌 뒤라 띄울 자리가 마땅치 않다.
+    /// **답할 자리가 없을 때 쓴다.** 메뉴에서 누른 경우가 그렇다 — 누르는 순간 메뉴가
+    /// 닫히므로 글자를 바꿀 줄 자체가 사라진다. 상시 창에서 누른 경우는 그 줄에 그대로
+    /// 띄우므로 여기까지 오지 않는다 (`FloatingPanelController`).
+    ///
+    /// 예전에는 권한 문제만 말을 걸고 나머지는 **삑 소리 한 번**이었다. 이유는 `stderr`
+    /// 에 적었는데, 이 앱은 GUI 번들이라 그 글이 뜨는 곳이 세상에 없다. 다른 터미널을
+    /// 쓰는 사람에게는 모든 줄이 아무 설명 없이 안 되는 물건으로 보였다.
     static func report(_ outcome: Outcome, sessionName: String) {
         switch outcome {
         case .moved:
             return
 
         case .notPermitted:
-            NSApp.activate(ignoringOtherApps: true)
-            let alert = NSAlert()
-            alert.messageText = S.permissionTitle
-            alert.informativeText = S.permissionBody
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: S.okButton)
-            alert.runModal()
+            log(sessionName, S.permissionTitle)
+            speak(title: S.permissionTitle, body: S.permissionBody)
 
         case .noTTY:
-            NSSound.beep()
-            FileHandle.standardError.write(Data("\(sessionName): \(S.logNoTTY)\n".utf8))
+            log(sessionName, S.logNoTTY)
+            speak(title: S.jumpNoTerminal, body: S.jumpNoTerminalDetail)
 
         case .windowNotFound:
-            NSSound.beep()
-            FileHandle.standardError.write(Data("\(sessionName): \(S.logNoWindow)\n".utf8))
+            log(sessionName, S.logNoWindow)
+            speak(title: S.jumpNoWindow, body: S.jumpNoWindowDetail)
 
         case .failed(let message):
-            NSSound.beep()
-            FileHandle.standardError.write(Data("\(sessionName): \(S.logFailed(message))\n".utf8))
+            log(sessionName, S.logFailed(message))
+            speak(title: S.jumpFailedTitle, body: message)
         }
+    }
+
+    /// 앞을 뺏고 말을 건다.
+    ///
+    /// 이 앱은 Dock 아이콘이 없어 `activate` 없이는 상자가 뒤에 깔린 채 뜬다.
+    /// 메뉴바를 방금 누른 뒤라 손이 다른 데 가 있지 않은 순간이라서, 여기서는 이 무게가
+    /// 치를 만하다. 같은 상자를 상시 창에서 띄우지 않는 이유도 이것이다 — 그쪽은
+    /// 「눌러도 앞을 안 뺏는다」로 서 있다.
+    private static func speak(title: String, body: String) {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = body
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: S.okButton)
+        alert.runModal()
+    }
+
+    private static func log(_ sessionName: String, _ line: String) {
+        FileHandle.standardError.write(Data("\(sessionName): \(line)\n".utf8))
     }
 }
