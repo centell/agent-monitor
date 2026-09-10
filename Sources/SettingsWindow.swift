@@ -24,6 +24,13 @@ struct LayoutSettingsView: View {
                     ForEach(Language.allCases) { Text($0.label).tag($0) }
                 }
 
+                // 언어 바로 아래. 둘 다 「앱 전체가 어떤 말·어떤 낯으로 보이나」라
+                // 같은 결이고, 아래의 줄 손잡이들과는 층이 다르다.
+                Picker(S.appearance, selection: $settings.appearance) {
+                    ForEach(AppAppearance.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
+
                 Picker(S.rowLayout, selection: $settings.layout) {
                     ForEach(RowLayout.allCases) { Text($0.label).tag($0) }
                 }
@@ -98,7 +105,7 @@ struct LayoutSettingsView: View {
             .formStyle(.grouped)
             // 손잡이 수에 맞춘 높이. 모자라면 Form 안에서 마지막 줄이 잘리므로
             // 손잡이를 더할 때는 이 값도 한 줄만큼 올린다.
-            .frame(height: 610)
+            .frame(height: 650)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(S.preview)

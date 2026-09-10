@@ -232,6 +232,7 @@ enum S {
     static var tabStats: String      { p("통계", "Statistics") }
 
     static var language: String      { p("언어", "Language") }
+    static var appearance: String    { p("밝기", "Appearance") }
     static var rowLayout: String     { p("줄 배치", "Row layout") }
     static var layoutSingle: String  { p("한 줄", "One line") }
     static var layoutDouble: String  { p("두 줄", "Two lines") }

@@ -36,7 +36,7 @@ final class FloatingPanel: NSPanel {
     /// 흐림 결. 진하기는 `alphaValue` 로 준다 — 몸통이 형제라 글자는 함께 흐려지지 않는다.
     private let effect = NSVisualEffectView()
     /// 단색 결. 흐림과 **둘 중 하나만** 보인다.
-    private let plate = NSView()
+    private let plate = PanelPlateView()
 
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0, width: 300, height: 160),
@@ -69,7 +69,6 @@ final class FloatingPanel: NSPanel {
         effect.frame = backing.bounds
         backing.addSubview(effect)
 
-        plate.wantsLayer = true
         plate.autoresizingMask = [.width, .height]
         plate.frame = backing.bounds
         backing.addSubview(plate)
@@ -88,8 +87,7 @@ final class FloatingPanel: NSPanel {
         effect.alphaValue = alpha
 
         plate.isHidden = bare || backdropStyle != .solid
-        plate.layer?.backgroundColor = NSColor.windowBackgroundColor
-            .withAlphaComponent(alpha).cgColor
+        plate.shade = alpha
 
         hasShadow = !bare
         invalidateShadow()
@@ -190,5 +188,30 @@ final class FloatingPanel: NSPanel {
             origin.y = min(max(origin.y, visible.minY + margin), visible.maxY - size.height - margin)
         }
         return origin
+    }
+}
+
+/// 단색 바탕 판.
+///
+/// **층(`layer.backgroundColor`)에 색을 박지 않는다.** `cgColor` 는 넣는 순간의 겉모습으로
+/// 굳어서, 시스템이 밝게↔어둡게 뒤집혀도 따라오지 않는다 — 실측에서 어두운 화면에
+/// 흰 판(1.000 1.000 1.000)이 그대로 남았고, 다시 그려도 손잡이를 돌려도 안 나았다.
+/// 같은 식을 어두운 그리기 겉모습 **안에서** 풀면 0.118 이 나온다.
+///
+/// 그릴 때 칠하면 `NSColor` 가 이 뷰의 겉모습에 맞춰 그 자리에서 풀린다. 그래서 아무것도
+/// 다시 계산해 줄 필요가 없다.
+final class PanelPlateView: NSView {
+
+    var shade: CGFloat = 1 { didSet { needsDisplay = true } }
+
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.windowBackgroundColor.withAlphaComponent(shade).setFill()
+        dirtyRect.fill()
+    }
+
+    /// 겉모습이 바뀌면 다시 칠한다. 색은 그릴 때 풀리므로 다시 그리라고만 하면 된다.
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
     }
 }

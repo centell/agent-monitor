@@ -28,6 +28,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)   // Dock 에 뜨지 않는다
+        applyAppearance()
 
         // 툴팁이 뜰 때까지 기다리는 시간(밀리초).
         //
@@ -57,11 +58,22 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NotificationCenter.default.addObserver(
             forName: Settings.didChange, object: nil, queue: .main
         ) { [weak self] _ in
+            self?.applyAppearance()
             self?.restartTimer()
             self?.restartHoverWatch()
             FloatingPanelController.shared.sync()
             self?.refresh()
         }
+    }
+
+    /// 밝게 볼지 어둡게 볼지를 **앱 전체에** 건다.
+    ///
+    /// 창마다 따로 걸지 않는다. 메뉴·상시 창·설정창·툴팁이 다 여기 딸려 있어서, 한 군데씩
+    /// 걸면 새 창이 생길 때마다 거는 것을 잊는 자리가 하나씩 는다.
+    /// 「시스템 따름」은 `nil` 이다 — 지금 시스템이 어느 쪽인지 읽어다 박으면 그 뒤에
+    /// 시스템이 뒤집혀도 안 따라간다.
+    private func applyAppearance() {
+        NSApp.appearance = settings.appearance.nsAppearance
     }
 
     // MARK: 올리면 열기

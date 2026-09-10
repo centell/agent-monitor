@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import Foundation
 
@@ -48,6 +49,37 @@ enum PanelBackdropStyle: String, CaseIterable, Identifiable {
     var label: String { self == .blur ? S.backdropBlur : S.backdropSolid }
 }
 
+/// 밝게 볼 것인가, 어둡게 볼 것인가.
+///
+/// 색은 전부 의미색이라 시스템을 따라가는 것이 기본이고, 그것만으로 충분한 앱이 많다.
+/// 그런데 이 앱은 **남의 화면 위에 얹혀 사는 계기판**이다 — 밝은 바탕 구석에 어두운
+/// 창을 두고 싶을 수도, 그 반대일 수도 있고, 그건 그 화면을 보는 사람만 안다.
+///
+/// 메뉴와 창에 **함께** 걸린다. 그래서 상시 창 탭이 아니라 표시 탭에 있다.
+enum AppAppearance: String, CaseIterable, Identifiable {
+    case system, light, dark
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .system: return S.p("시스템 따름", "Follow system")
+        case .light:  return S.p("늘 밝게", "Always light")
+        case .dark:   return S.p("늘 어둡게", "Always dark")
+        }
+    }
+
+    /// AppKit 에 넘길 것. 「시스템 따름」은 **아무것도 지정하지 않는 것**이다 —
+    /// 지금 시스템이 어느 쪽인지 우리가 읽어다 박으면, 그 뒤에 시스템이 바뀌어도 안 따라간다.
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .system: return nil
+        case .light:  return NSAppearance(named: .aqua)
+        case .dark:   return NSAppearance(named: .darkAqua)
+        }
+    }
+}
+
 /// 상시 창 줄의 **옷**.
 ///
 /// 무엇을 보이는가(`RowFormatter`)는 그대로 두고 어떻게 보이는가만 바꾼다. 칸이 고정폭이라
@@ -81,6 +113,7 @@ final class Settings: ObservableObject {
     static let didChange = Notification.Name("me.centell.agent-monitor.settingsDidChange")
 
     @Published var language: Language               { didSet { persist() } }
+    @Published var appearance: AppAppearance        { didSet { persist() } }
     @Published var layout: RowLayout                { didSet { persist() } }
     @Published var showStateLabel: Bool             { didSet { persist() } }
     @Published var showTool: Bool                   { didSet { persist() } }
@@ -181,6 +214,7 @@ final class Settings: ObservableObject {
 
     private init() {
         language = Language(rawValue: store.string(forKey: Key.language) ?? "") ?? .system
+        appearance = AppAppearance(rawValue: store.string(forKey: Key.appearance) ?? "") ?? .system
         layout = RowLayout(rawValue: store.string(forKey: Key.layout) ?? "") ?? .single
         showStateLabel = store.object(forKey: Key.stateLabel) as? Bool ?? true
         showTool = store.object(forKey: Key.tool) as? Bool ?? true
@@ -251,6 +285,7 @@ final class Settings: ObservableObject {
     func resetToDefaults() {
         loading = true
         language = .system
+        appearance = .system
         layout = .single
         showStateLabel = true
         showTool = true
@@ -283,6 +318,7 @@ final class Settings: ObservableObject {
     private func persist() {
         guard !loading else { return }
         store.set(language.rawValue, forKey: Key.language)
+        store.set(appearance.rawValue, forKey: Key.appearance)
         store.set(layout.rawValue, forKey: Key.layout)
         store.set(showStateLabel, forKey: Key.stateLabel)
         store.set(showTool, forKey: Key.tool)
@@ -319,6 +355,7 @@ final class Settings: ObservableObject {
 
     private enum Key {
         static let language = "language"
+        static let appearance = "appearance"
         static let layout = "rowLayout"
         static let stateLabel = "showStateLabel"
         static let tool = "showTool"
