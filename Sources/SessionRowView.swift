@@ -103,9 +103,29 @@ final class SessionRowView: NSView {
         needsDisplay = true
     }
 
+    /// 누르기 시작한 자리. 상시 창에서는 이 줄 위에서 **창을 잡아 끌 수도** 있어서,
+    /// 끌고 놓은 것을 클릭으로 세면 옮길 때마다 엉뚱한 터미널이 앞으로 튀어나온다.
+    ///
+    /// 창을 끄는 일 자체는 창이 한다(`isMovableByWindowBackground`). 여기서는 자리만
+    /// 적어 두고 `super` 로 넘긴다 — 삼키면 줄 위에서는 창이 안 움직인다.
+    private var pressedAt: NSPoint?
+
+    override func mouseDown(with event: NSEvent) {
+        pressedAt = event.locationInWindow
+        super.mouseDown(with: event)
+    }
+
     override func mouseUp(with event: NSEvent) {
         guard let onClick else { return }
+        // 메뉴 안에서는 `mouseDown` 이 여기까지 오지 않는다. 적힌 자리가 없으면 «안 움직였다»로
+        // 본다 — 메뉴에서 하던 동작을 그대로 둔다.
+        let moved = pressedAt.map {
+            abs(event.locationInWindow.x - $0.x) > 3 || abs(event.locationInWindow.y - $0.y) > 3
+        } ?? false
+        pressedAt = nil
+        guard !moved else { return }
         // 메뉴를 먼저 닫고 동작한다. 열린 채로 창을 띄우면 메뉴가 위에 남는다.
+        // 상시 창에는 닫을 메뉴가 없어 이 줄은 조용히 지나간다.
         enclosingMenuItem?.menu?.cancelTracking()
         onClick()
     }

@@ -45,6 +45,16 @@ struct LayoutSettingsView: View {
 
                 Toggle(S.showSummary, isOn: $settings.showSummary)
 
+                // 상시 창의 손잡이 셋. 창의 머리줄을 우클릭해도 같은 것이 나오지만,
+                // 창을 안 띄운 사람은 그 자리를 볼 일이 없다 — 켜는 문은 여기 있어야 한다.
+                LabeledContent(S.panelGroup) {
+                    HStack(spacing: 14) {
+                        Toggle(S.panelShowToggle, isOn: $settings.panelOpen)
+                        Toggle(S.panelAlwaysOnTop, isOn: $settings.panelAlwaysOnTop)
+                        Toggle(S.panelWaitingOnly, isOn: $settings.panelWaitingOnly)
+                    }
+                }
+
                 VStack(alignment: .leading, spacing: 2) {
                     Toggle(S.recordStats, isOn: $settings.recordStats)
                     // 무엇을 남기는지 그 자리에 적는다. 기록을 켜 두는 손잡이 옆에
@@ -77,7 +87,7 @@ struct LayoutSettingsView: View {
             .formStyle(.grouped)
             // 손잡이 수에 맞춘 높이. 모자라면 Form 안에서 마지막 줄이 잘리므로
             // 손잡이를 더할 때는 이 값도 한 줄만큼 올린다.
-            .frame(height: 552)
+            .frame(height: 590)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(S.preview)

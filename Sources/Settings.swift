@@ -78,6 +78,17 @@ final class Settings: ObservableObject {
     /// 줄에 출처를 어떻게 적을지.
     @Published var sourceStyle: SourceStyle         { didSet { persist() } }
 
+    /// 상시 띄우기 창이 떠 있는가.
+    ///
+    /// 켜는 길이 셋이다 — 메뉴바 항목·창의 우클릭 메뉴·설정창 스위치. 셋이 각자 상태를
+    /// 들면 언젠가 어긋나므로 **모두 이 값 하나만 뒤집고**, 창을 여닫는 일은
+    /// `FloatingPanelController.sync()` 한 곳에서만 한다.
+    @Published var panelOpen: Bool                  { didSet { persist() } }
+    /// 그 창을 다른 창들 위에 둘 것인가.
+    @Published var panelAlwaysOnTop: Bool           { didSet { persist() } }
+    /// 그 창에 손이 필요한 줄만 남길 것인가. 메뉴는 이 값과 무관하게 늘 전부 보여준다.
+    @Published var panelWaitingOnly: Bool           { didSet { persist() } }
+
     /// 상단에 고정한 세션들 (sessionId).
     ///
     /// 폴더가 아니라 **세션**에 꽂는다. 한 폴더에서 세션을 여럿 띄우는 일이 흔한데
@@ -120,7 +131,26 @@ final class Settings: ObservableObject {
         codexAppWindow = store.object(forKey: Key.codexAppWindow) as? Double ?? 30
         sourceStyle = SourceStyle(rawValue: store.string(forKey: Key.sourceStyle) ?? "") ?? .short
         pinnedSessions = Set(store.stringArray(forKey: Key.pinned) ?? [])
+        panelOpen = store.object(forKey: Key.panelOpen) as? Bool ?? false
+        panelAlwaysOnTop = store.object(forKey: Key.panelAlwaysOnTop) as? Bool ?? true
+        panelWaitingOnly = store.object(forKey: Key.panelWaitingOnly) as? Bool ?? false
         loading = false
+    }
+
+    /// 상시 창을 마지막에 두었던 자리.
+    ///
+    /// **알림을 쏘지 않는다.** 창을 끄는 동안 수십 번 불리는 값이라, 그때마다
+    /// «설정이 바뀌었다» 를 외치면 타이머가 계속 다시 걸리고 목록도 계속 다시 그려진다.
+    /// 다른 값들과 달리 이건 손잡이가 아니라 **창이 스스로 적어 두는 자국**이다.
+    var panelFrame: NSRect? {
+        get {
+            guard let v = store.array(forKey: Key.panelFrame) as? [Double], v.count == 4 else { return nil }
+            return NSRect(x: v[0], y: v[1], width: v[2], height: v[3])
+        }
+        set {
+            guard let f = newValue else { return store.removeObject(forKey: Key.panelFrame) }
+            store.set([f.minX, f.minY, f.width, f.height].map(Double.init), forKey: Key.panelFrame)
+        }
     }
 
     /// 이 세션이 고정되어 있는가.
@@ -152,8 +182,11 @@ final class Settings: ObservableObject {
         refreshInterval = 2
         codexAppWindow = 30
         sourceStyle = .short
-        // 핀은 되돌리지 않는다. 이 단추는 «표시 손잡이»를 처음으로 돌리는 문이지,
-        // 주인이 직접 꽂아 둔 것을 치우는 문이 아니다.
+        panelAlwaysOnTop = true
+        panelWaitingOnly = false
+        // 핀과 «상시 창이 떠 있는가»는 되돌리지 않는다. 이 단추는 «표시 손잡이»를 처음으로
+        // 돌리는 문이지, 주인이 직접 꽂아 두거나 직접 띄워 둔 것을 치우는 문이 아니다.
+        // 창 안의 손잡이(항상 위로·기다리는 것만)는 표시 손잡이라 되돌린다.
         loading = false
         persist()
     }
@@ -174,6 +207,9 @@ final class Settings: ObservableObject {
         store.set(codexAppWindow, forKey: Key.codexAppWindow)
         store.set(sourceStyle.rawValue, forKey: Key.sourceStyle)
         store.set(pinnedSessions.sorted(), forKey: Key.pinned)
+        store.set(panelOpen, forKey: Key.panelOpen)
+        store.set(panelAlwaysOnTop, forKey: Key.panelAlwaysOnTop)
+        store.set(panelWaitingOnly, forKey: Key.panelWaitingOnly)
         NotificationCenter.default.post(name: Settings.didChange, object: nil)
     }
 
@@ -201,5 +237,9 @@ final class Settings: ObservableObject {
         static let codexAppWindow = "codexAppWindow"
         static let sourceStyle = "sourceStyle"
         static let pinned = "pinnedSessions"
+        static let panelOpen = "panelOpen"
+        static let panelAlwaysOnTop = "panelAlwaysOnTop"
+        static let panelWaitingOnly = "panelWaitingOnly"
+        static let panelFrame = "panelFrame"
     }
 }

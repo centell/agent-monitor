@@ -47,6 +47,24 @@ enum S {
     static var quitItem: String     { p("종료", "Quit") }
     static var estimated: String    { p("  (추정)", "  (est.)") }
 
+    // MARK: 상시 창
+
+    static var panelShowItem: String { p("상시 창 열기", "Show panel") }
+    static var panelHideItem: String { p("상시 창 닫기", "Hide panel") }
+    static var panelGroup: String    { p("상시 창", "Panel") }
+    static var panelShowToggle: String { p("띄우기", "Show") }
+    static var panelAlwaysOnTop: String { p("항상 위로", "Always on top") }
+    static var panelWaitingOnly: String { p("기다리는 것만", "Waiting only") }
+    /// 「기다리는 것만」을 켜 두었는데 기다리는 것이 없을 때.
+    ///
+    /// 「없습니다」로 적지 않는다 — 세션은 살아 있고 다들 일하는 중인데 «없다»고 하면
+    /// 앱이 멎은 것처럼 읽힌다.
+    static var panelAllRunning: String { p("다 돌고 있습니다", "All running") }
+    static var panelHandlesHint: String {
+        p("우클릭 — 항상 위로 · 기다리는 것만 · 닫기",
+          "Right-click — always on top · waiting only · close")
+    }
+
     static func menuTooltip(waiting: Int, total: Int) -> String {
         waiting > 0
             ? p("\(waiting)개가 기다리는 중 · 전체 \(total)개", "\(waiting) waiting · \(total) total")

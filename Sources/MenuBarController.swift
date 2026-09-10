@@ -48,12 +48,16 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         refresh()
         restartTimer()
+        // 지난번에 띄워 두셨으면 그대로 다시 띄운다. 상시 창은 껐다 켤 때마다 다시
+        // 찾아 켜야 하면 «상시» 가 아니다.
+        FloatingPanelController.shared.sync()
 
         // 갱신 주기 같은 설정은 즉시 반영돼야 한다.
         NotificationCenter.default.addObserver(
             forName: Settings.didChange, object: nil, queue: .main
         ) { [weak self] _ in
             self?.restartTimer()
+            FloatingPanelController.shared.sync()
             self?.refresh()
         }
     }
@@ -75,6 +79,9 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if settings.recordStats { stats.record(sessions: sessions, memory: systemMemory) }
         updateTitle()
         if !menuIsOpen { rebuildMenu() }
+        // 상시 창은 스스로 훑지 않는다. 방금 잰 것을 그대로 건넨다 — 두 번 재면 값이
+        // 두 배로 들고, 더 나쁘게는 쓰임새 기록의 시간 단위가 뒤틀린다.
+        FloatingPanelController.shared.update(sessions: sessions, memory: systemMemory)
     }
 
     /// 앱이 내려갈 때 진행 중이던 대기를 적는다.
@@ -170,6 +177,13 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
+        // 창을 여닫는 문. 항목 하나가 양쪽을 겸한다 — 「열기」와 「닫기」가 따로 있으면
+        // 지금 떠 있는지를 메뉴가 아니라 화면을 보고 판단해야 한다.
+        let panelItem = NSMenuItem(title: settings.panelOpen ? S.panelHideItem : S.panelShowItem,
+                                   action: #selector(togglePanel), keyEquivalent: "")
+        panelItem.target = self
+        menu.addItem(panelItem)
+
         // 세션 줄이 커스텀 뷰라 단축키 칸이 그 줄들을 밀지 않는다. 그래서 단축키를 그대로 쓴다.
         let preferences = NSMenuItem(title: S.settingsItem, action: #selector(openSettings), keyEquivalent: ",")
         preferences.target = self
@@ -180,33 +194,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func row(for session: Session, formatter: RowFormatter) -> NSMenuItem {
-        let row = formatter.row(for: session)
-
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.lineSpacing = 2
-        // 머리(이름·상태·시간)는 굵게, 지표는 흐리게. 두 줄 배치에서는 첫 줄이 굵어지고
-        // 한 줄 배치에서는 왼쪽 절반이 굵어진다 — 배치가 달라도 규칙은 하나다.
-        // 각 세션이 어디서 시작하는지가 눈에 바로 들어온다.
-        let text = NSMutableAttributedString(
-            string: row.text,
-            attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .semibold),
-                .foregroundColor: NSColor.labelColor,
-                .paragraphStyle: paragraph,
-            ]
-        )
-        // 표식만 색을 준다. 줄 전체를 물들이면 목록이 시끄러워진다.
-        text.addAttribute(.foregroundColor,
-                          value: color(for: session.state),
-                          range: NSRange(location: 0, length: 1))
-        // 지표는 흐리게 — 평소엔 눈에 안 걸리고 찾을 때만 보이면 된다.
-        if let dim = row.dimRange {
-            text.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: dim)
-            text.addAttribute(.font,
-                              value: NSFont.monospacedSystemFont(
-                                  ofSize: row.secondLineStart != nil ? 11 : 12, weight: .regular),
-                              range: dim)
-        }
+        // 줄의 생김새(굵기·색·툴팁)는 상시 창과 한 벌을 쓴다 — `SessionRowStyle`.
+        let text = SessionRowStyle.attributed(for: session, formatter: formatter)
 
         // 누르면 그 세션이 사는 곳으로 간다 — 터미널 창이거나, 앱이거나.
         let canJump = SessionJump.canJump(session)
@@ -218,16 +207,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             onClick: { [weak self] in self?.jump(to: session) },
             onRightClick: { [weak self] in self?.togglePin(for: session) }
         )
-        // 왜 기다리는지를 맨 위에 둔다. 마우스를 올리는 이유가 대개 그것이라 경로보다 앞이고,
-        // 줄에서 뺀 값이므로 여기서는 폭에 맞춰 자르지 않는다 — 물음은 끝까지 읽혀야 한다.
-        var tip = ""
-        if settings.showReason, let why = session.reason, !why.isEmpty {
-            tip += Self.folded(why) + "\n\n"
-        }
-        tip += session.cwd
-        if canJump { tip += "\n" + SessionJump.hint(for: session) }
-        tip += "\n" + (session.isPinned ? S.unpinHint : S.pinHint)
-        if let m = session.metrics { tip += "\n" + S.descendants(m.descendantCount) }
+        let tip = SessionRowStyle.tooltip(for: session, settings: settings)
         // 툴팁은 **뷰**에 단다.
         //
         // 항목에 커스텀 뷰가 붙으면 AppKit 은 그 칸을 통째로 뷰에 넘기므로, 항목에 매단
@@ -255,16 +235,6 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         SessionJump.report(SessionJump.jump(to: session), sessionName: session.name)
     }
 
-    private func color(for state: SessionState) -> NSColor {
-        switch state {
-        case .waiting: return .systemOrange       // 가장 급하다 — 프롬프트가 떠 있다
-        case .idle:    return .systemYellow       // 턴이 끝나 기다린다
-        case .busy:    return .systemGreen
-        case .shell:   return .systemTeal
-        case .unknown: return .tertiaryLabelColor
-        }
-    }
-
     /// 누를 수 없는 안내 줄. 줄바꿈이 든 글도 그대로 그린다.
     private func disabledRow(_ text: String) -> NSMenuItem {
         let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
@@ -282,6 +252,10 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return item
     }
 
+    /// 상시 창을 켜고 끈다. 실제로 여닫는 일은 설정 알림을 타고
+    /// `FloatingPanelController.sync()` 한 곳에서만 일어난다.
+    @objc private func togglePanel() { settings.panelOpen.toggle() }
+
     @objc private func openSettings() {
         SettingsWindowController.shared.show { [weak self] in self?.sessions ?? [] }
     }
@@ -298,26 +272,5 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return "\(Int(s / 86400))d"
     }
 
-    /// 툴팁에 넣을 한 문단을 낱말 경계에서 접는다.
-    ///
-    /// 자르지는 않는다 — 줄에서 뺀 것이 잘려서였으므로 여기서까지 자르면 옮긴 뜻이 없다.
-    /// 다만 한 줄로 두면 툴팁이 화면 끝까지 늘어나므로 접기만 한다.
-    /// 낱말 하나가 한 줄보다 길면(긴 명령·경로) 쪼개지 않고 그대로 둔다. 가운데서
-    /// 쪼갠 경로는 읽을 수 없고, 읽을 수 없으면 접은 뜻도 없다.
-    static func folded(_ text: String, limit: Int = 46) -> String {
-        var lines: [String] = []
-        var current = ""
-        for word in text.split(separator: " ") {
-            let candidate = current.isEmpty ? String(word) : current + " " + word
-            if candidate.displayWidth <= limit {
-                current = candidate
-            } else {
-                if !current.isEmpty { lines.append(current) }
-                current = String(word)
-            }
-        }
-        if !current.isEmpty { lines.append(current) }
-        return lines.joined(separator: "\n")
-    }
 }
 
