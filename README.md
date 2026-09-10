@@ -216,7 +216,8 @@ has to come from recorded days, not from a guess made before any day was recorde
   instead, and rows using it are marked as estimates rather than failing silently.
 - **Terminal.app only** for the jump-to-terminal feature. iTerm2, Ghostty, WezTerm and kitty each
   need their own automation path. Inside tmux it reaches the window but not the pane.
-  **On another terminal a row click currently just beeps, without saying why.**
+  On another terminal a row click cannot move anything, but it **says why** — in the clicked row
+  for three seconds in the panel, and in a dialog from the menu.
 - **A background session has nowhere to go.** It runs on a pty the daemon made, so no terminal
   window exists for it. Those rows are shown as **not clickable** — being unable to click is more
   honest than clicking and having nothing happen.
