@@ -54,6 +54,13 @@ Right-click a row to **pin** it. A pinned session rises above the others while i
 and carries a tinted background. While it is working it keeps its place — there is nothing for
 you to do there yet. A pin lives with its session; restart the session and you pin it again.
 
+**A session split across two processes is still one row.** Claude Code can hand a session to
+another process while **the terminal window stays with the one it came from**, and the two halves
+then break in opposite ways: the one holding the window stops updating its status (three and a
+half hours of it, measured), and the one doing the work has no window to go to. The app follows
+the handoff recorded in the transcript and joins them, so **the live status and the real terminal
+land on the same row**. Their process trees overlap, so the memory is counted once.
+
 ## Keeping it open
 
 If you have the screen space, park the list in a corner instead: menu bar → **Show panel**.
@@ -204,11 +211,15 @@ has to come from recorded days, not from a guess made before any day was recorde
 
 ## Limitations
 
-- **Session status comes from an undocumented internal file.** Observed on Claude Code 2.1.263. If
-  the format changes this breaks; there is a fallback that reads the transcript instead, and rows
-  using it are marked as estimates rather than failing silently.
+- **Session status comes from an undocumented internal file.** Observed on Claude Code 2.1.263 and
+  2.1.267. If the format changes this breaks; there is a fallback that reads the transcript
+  instead, and rows using it are marked as estimates rather than failing silently.
 - **Terminal.app only** for the jump-to-terminal feature. iTerm2, Ghostty, WezTerm and kitty each
   need their own automation path. Inside tmux it reaches the window but not the pane.
+  **On another terminal a row click currently just beeps, without saying why.**
+- **A background session has nowhere to go.** It runs on a pty the daemon made, so no terminal
+  window exists for it. Those rows are shown as **not clickable** — being unable to click is more
+  honest than clicking and having nothing happen.
 - **Servers a session spawned can escape its total.** A dev server or container that detaches from
   the process tree is not counted in that session. The memory tab lists them separately, and says
   "multiple sessions (n)" rather than guessing when several sessions share a project.
