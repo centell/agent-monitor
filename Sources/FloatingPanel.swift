@@ -60,26 +60,42 @@ final class FloatingPanel: NSPanel {
         // 화면을 넘어서까지 자라지는 않는다. 넘으면 그때만 창 안에서 굴린다 —
         // 평소에 스크롤 막대가 없는 편이 구석에서 조용하다.
         let ceiling = max(120, (visible?.height ?? wanted.height) - 40)
-        let height = min(wanted.height, ceiling)
+        let size = NSSize(width: wanted.width, height: min(wanted.height, ceiling))
+
+        // **자리·크기·내용을 한 번에 바꾼다.**
+        //
+        // 처음에는 내용을 먼저 갈아 끼우고 창을 나중에 늘렸다. 그 사이 한 프레임 동안
+        // 새 몸통이 **옛 크기의 창** 안에 놓였다가 창과 함께 늘어나, 줄 수가 바뀔 때마다
+        // 글자가 겹쳐 보였다. 「기다리는 것만」에서 특히 그랬다 — 세션이 대기와 작업을
+        // 오갈 때마다 줄 수가 바뀌므로 그 한 프레임이 계속 보인다.
+        //
+        // 그래서 다음 flush 까지 이 창이 그려지는 것을 막아 두고, 다 바꾼 뒤에 한 번만
+        // 그린다. 중간 상태가 화면에 나갈 틈 자체를 없앤다.
+        disableScreenUpdatesUntilFlush()
+        setFrame(NSRect(origin: anchoredOrigin(for: size), size: size), display: false)
 
         effect.subviews.forEach { $0.removeFromSuperview() }
         if wanted.height > ceiling {
-            let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: wanted.width, height: height))
+            let scroll = NSScrollView(frame: NSRect(origin: .zero, size: size))
             scroll.drawsBackground = false
             scroll.hasVerticalScroller = true
             scroll.scrollerStyle = .overlay
             scroll.autohidesScrollers = true
-            scroll.autoresizingMask = [.width, .height]
             scroll.documentView = body
             effect.addSubview(scroll)
             // 몸통이 뒤집힌 좌표계라 원점이 맨 위다. 손이 필요한 줄부터 보여야 한다.
             scroll.contentView.scroll(to: .zero)
         } else {
             body.setFrameOrigin(.zero)
-            body.autoresizingMask = [.width, .height]
             effect.addSubview(body)
         }
-        resize(to: NSSize(width: wanted.width, height: height))
+        // 몸통에 `autoresizingMask` 를 달지 않는다. 목록이 바뀔 때마다 통째로 다시 만드니
+        // 저절로 늘어날 일이 없고, 달아 두면 창이 늘 때 **줄은 제자리인데 그릇만** 늘어나
+        // 글자가 밀린다. 창 크기를 바꾸는 손잡이가 없으므로 다른 쓸모도 없다.
+        displayIfNeeded()
+        // 테두리 없는 창은 크기가 바뀌어도 **그림자가 옛 크기로 남는다.** 줄어든 창 주위에
+        // 유령 윤곽이 걸려 있으면 그것부터 「깨졌다」로 읽힌다. 다시 그리게 시킨다.
+        invalidateShadow()
     }
 
     // MARK: 자리
@@ -94,32 +110,31 @@ final class FloatingPanel: NSPanel {
                       height: size.height)
     }
 
-    private func resize(to size: NSSize) {
+    /// 새 크기로 앉을 자리.
+    ///
+    /// **붙여 둔 구석은 지킨다.** 어느 구석에 두셨는지는 창이 화면의 어느 사분면에 앉아
+    /// 있는지로 읽는다 — 따로 여쭐 것이 없다.
+    ///
+    /// 그러고도 끝이 화면을 넘으면 도로 들여놓는다. 사분면으로 읽은 구석이 늘 맞지는
+    /// 않기 때문이다 — 한가운데 두셨다가 세션이 열 개로 늘면 어느 쪽으로 자라도 넘치고,
+    /// 모니터를 빼면 적어 둔 자리 자체가 화면 밖이 된다.
+    ///
+    /// 자리를 **하나의 `setFrame` 안에서** 정해야 한다. 옮기고 나서 또 옮기면 그 사이가
+    /// 화면에 나가고, 그게 곧 깜빡임이다.
+    private func anchoredOrigin(for size: NSSize) -> NSPoint {
         let old = frame
         var origin = old.origin
-        if let visible = (screen ?? NSScreen.main)?.visibleFrame {
-            if old.midX > visible.midX { origin.x = old.maxX - size.width }   // 오른쪽에 붙었다
-            if old.midY > visible.midY { origin.y = old.maxY - size.height }  // 위쪽에 붙었다
-        }
-        setFrame(NSRect(origin: origin, size: size), display: true)
-        clampIntoScreen()
-    }
+        guard let visible = (screen ?? NSScreen.main)?.visibleFrame else { return origin }
+        if old.midX > visible.midX { origin.x = old.maxX - size.width }   // 오른쪽에 붙었다
+        if old.midY > visible.midY { origin.y = old.maxY - size.height }  // 위쪽에 붙었다
 
-    /// 자란 끝이 화면 밖으로 나갔으면 도로 들여놓는다.
-    ///
-    /// 사분면으로 읽은 «붙인 구석» 이 늘 맞지는 않는다 — 화면 한가운데 두셨다가
-    /// 세션이 열 개로 늘면 어느 쪽으로 자라도 끝이 넘친다. 그때 조용히 잘려 있는 것보다
-    /// 들여놓는 편이 낫다.
-    func clampIntoScreen() {
-        guard let visible = (screen ?? NSScreen.main)?.visibleFrame else { return }
         let margin: CGFloat = 8
-        var origin = frame.origin
-        if frame.width <= visible.width - margin * 2 {
-            origin.x = min(max(origin.x, visible.minX + margin), visible.maxX - frame.width - margin)
+        if size.width <= visible.width - margin * 2 {
+            origin.x = min(max(origin.x, visible.minX + margin), visible.maxX - size.width - margin)
         }
-        if frame.height <= visible.height - margin * 2 {
-            origin.y = min(max(origin.y, visible.minY + margin), visible.maxY - frame.height - margin)
+        if size.height <= visible.height - margin * 2 {
+            origin.y = min(max(origin.y, visible.minY + margin), visible.maxY - size.height - margin)
         }
-        if origin != frame.origin { setFrameOrigin(origin) }
+        return origin
     }
 }
