@@ -205,7 +205,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             enabled: canJump,
             pinned: session.isPinned,
             onClick: { [weak self] in self?.jump(to: session) },
-            onRightClick: { [weak self] in self?.togglePin(for: session) }
+            onRightClick: { [weak self] _ in self?.togglePin(for: session) }
         )
         let tip = SessionRowStyle.tooltip(for: session, settings: settings)
         // 툴팁은 **뷰**에 단다.

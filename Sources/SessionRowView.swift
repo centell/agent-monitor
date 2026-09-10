@@ -13,10 +13,18 @@ final class SessionRowView: NSView {
     private let normalText: NSAttributedString
     private let highlightedText: NSAttributedString
     private let onClick: (() -> Void)?
-    private let onRightClick: (() -> Void)?
+    private let onRightClick: ((NSEvent) -> Void)?
     private let isPinned: Bool
     private var isHighlighted = false
     private var tracking: NSTrackingArea?
+
+    /// 상시 창에서 마우스를 올렸을 때 띄울 글.
+    ///
+    /// 메뉴에서는 **비워 둔다.** 메뉴 트래킹 중에는 AppKit 툴팁(`toolTip`)이 멀쩡히 뜨므로
+    /// 그쪽은 지금까지 하던 것을 그대로 쓰고, 이것은 그 툴팁이 죽어 있는 상시 창에서만
+    /// 쓴다. 둘 다 켜면 같은 글이 두 장 겹쳐 뜬다. 왜 상시 창에서만 죽는지는
+    /// `RowTooltip` 에 실측과 함께 적어 두었다.
+    var panelToolTip: String?
 
     /// 좌우·위아래 여백.
     ///
@@ -32,7 +40,7 @@ final class SessionRowView: NSView {
     /// 이유는 없다 — 오히려 못 가는 줄일수록 눈에 띄게 두고 싶을 수 있다.
     init(text: NSAttributedString, enabled: Bool, pinned: Bool = false,
          insetX: CGFloat = 20, insetY: CGFloat = 3,
-         onClick: (() -> Void)?, onRightClick: (() -> Void)? = nil) {
+         onClick: (() -> Void)?, onRightClick: ((NSEvent) -> Void)? = nil) {
         self.onClick = enabled ? onClick : nil
         self.onRightClick = onRightClick
         self.isPinned = pinned
@@ -102,14 +110,25 @@ final class SessionRowView: NSView {
     }
 
     override func mouseEntered(with event: NSEvent) {
+        // 툴팁은 **갈 수 없는 줄에도** 띄운다. 오히려 그 줄이야말로 왜 못 가는지를
+        // 읽어야 하는 줄이다. 강조만 누를 수 있는 줄에 준다.
+        if let tip = panelToolTip { RowTooltip.shared.schedule(tip, for: self) }
         guard onClick != nil else { return }
         isHighlighted = true
         needsDisplay = true
     }
 
     override func mouseExited(with event: NSEvent) {
+        RowTooltip.shared.hide(if: self)
         isHighlighted = false
         needsDisplay = true
+    }
+
+    /// 목록은 몇 초마다 통째로 다시 그려진다. 그때 옛 줄은 창을 떠나는데, 떠나는 줄에는
+    /// `mouseExited` 가 오지 않는다 — 걷어 주지 않으면 툴팁이 주인 없이 화면에 남는다.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil { RowTooltip.shared.hide(if: self) }
     }
 
     /// 누르기 시작한 자리. 상시 창에서는 이 줄 위에서 **창을 잡아 끌 수도** 있어서,
@@ -125,6 +144,8 @@ final class SessionRowView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        // 누른 순간 툴팁은 할 일이 끝났다. 남겨 두면 창이 옮겨 간 뒤에도 덩그러니 뜬다.
+        RowTooltip.shared.hide(if: self)
         guard let onClick else { return }
         // 메뉴 안에서는 `mouseDown` 이 여기까지 오지 않는다. 적힌 자리가 없으면 «안 움직였다»로
         // 본다 — 메뉴에서 하던 동작을 그대로 둔다.
@@ -139,12 +160,17 @@ final class SessionRowView: NSView {
         onClick()
     }
 
-    /// 우클릭 — 고정을 켜고 끈다.
+    /// 우클릭 — 무엇을 할지는 **부르는 쪽이 정한다.**
     ///
-    /// 왼쪽과 달리 메뉴를 닫지 않는다. 줄이 위로 올라가는 것을 그 자리에서 봐야
-    /// 무엇이 일어났는지 알 수 있고, 여러 줄을 잇달아 꽂을 수도 있다.
+    /// 메뉴에서는 고정을 켜고 끈다. 왼쪽과 달리 메뉴를 닫지 않는다 — 줄이 위로 올라가는
+    /// 것을 그 자리에서 봐야 무엇이 일어났는지 알 수 있고, 여러 줄을 잇달아 꽂을 수도 있다.
+    /// 상시 창에서는 작은 메뉴가 열린다 (`FloatingPanelController`). 메뉴 트래킹 중에
+    /// 또 메뉴를 띄우는 일은 위험해서 두 화면이 여기서 갈린다.
+    ///
+    /// 사건을 그대로 넘긴다 — 메뉴를 띄우려면 어디서 눌렸는지가 필요하다.
     override func rightMouseUp(with event: NSEvent) {
-        onRightClick?()
+        RowTooltip.shared.hide(if: self)
+        onRightClick?(event)
     }
 
     /// 메뉴 트래킹 중에는 `rightMouseUp` 이 뷰까지 오지 않는 경우가 있어

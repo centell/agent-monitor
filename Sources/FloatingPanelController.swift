@@ -189,13 +189,80 @@ final class FloatingPanelController: NSObject {
             pinned: session.isPinned,
             insetY: settings.panelDensity,
             onClick: { [weak self] in self?.jump(to: session) },
-            onRightClick: { [weak self] in
-                Settings.shared.togglePin(session.id)
-                self?.forceRebuild()
+            onRightClick: { [weak self] event in
+                self?.showRowMenu(for: session, from: event)
             }
         )
-        view.toolTip = SessionRowStyle.tooltip(for: session, settings: settings)
+        // AppKit 툴팁이 아니라 우리가 그리는 쪽을 쓴다. 이 창에서는 `toolTip` 이 뜨지
+        // 않는다 — 실측과 이유는 `RowTooltip` 에 있다.
+        view.panelToolTip = SessionRowStyle.tooltip(for: session, settings: settings, inPanel: true)
         return view
+    }
+
+    // MARK: 줄 우클릭
+
+    /// 우클릭하면 나오는 작은 메뉴 — 고정, 그리고 멈출 수 있는 줄이면 멈추기.
+    ///
+    /// 예전에는 우클릭 한 번이 곧 고정이었다. 멈추기가 붙으면서 메뉴로 바꿨다 —
+    /// 되돌리기 쉬운 일(고정)과 세션을 끄는 일이 **같은 손짓 하나**를 나눠 쓰면 안 된다.
+    private func showRowMenu(for session: Session, from event: NSEvent) {
+        guard let view = event.window?.contentView else { return }
+        let menu = NSMenu()
+
+        let pin = NSMenuItem(title: session.isPinned ? S.unpinItem : S.pinItem,
+                             action: #selector(flipPin(_:)), keyEquivalent: "")
+        pin.target = self
+        pin.representedObject = session.id
+        menu.addItem(pin)
+
+        if SessionStop.canStop(session) {
+            menu.addItem(.separator())
+            // **한 단계로 끝내지 않는다.** 상자를 띄워 묻는 길도 있지만 그러면 이 창이
+            // 앞을 뺏게 되고, 그건 이 창이 서 있는 약속을 깨는 일이다. 그래서 확인을
+            // 메뉴 **안**에서 받는다 — 겉 항목은 문일 뿐이고, 한 칸 더 들어가야 돈다.
+            //
+            // 항목을 눌러 말을 굳히는 방법도 있었는데, 메뉴는 누르는 순간 닫히므로
+            // 다시 열어야 하고 그 되열기가 사람에게는 「눌렀는데 아무 일도 없었다」로
+            // 보인다. 하위 메뉴는 열려 있는 채로 한 걸음이 더 생긴다.
+            let stop = NSMenuItem(title: S.stopItem, action: nil, keyEquivalent: "")
+            let confirm = NSMenu()
+            let go = NSMenuItem(title: S.stopConfirmItem, action: #selector(reallyStop(_:)), keyEquivalent: "")
+            go.target = self
+            go.representedObject = session
+            confirm.addItem(go)
+            // 대화가 남는다는 것을 그 자리에 적는다. 되돌릴 수 있는 종료라는 것을 모르면
+            // 누르기까지의 무게가 실제보다 무거워진다.
+            let note = NSMenuItem(title: S.stopKeepsChat, action: nil, keyEquivalent: "")
+            note.isEnabled = false
+            confirm.addItem(note)
+            stop.submenu = confirm
+            menu.addItem(stop)
+        }
+        NSMenu.popUpContextMenu(menu, with: event, for: view)
+    }
+
+    @objc private func flipPin(_ item: NSMenuItem) {
+        guard let id = item.representedObject as? String else { return }
+        settings.togglePin(id)
+        forceRebuild()
+    }
+
+    @objc private func reallyStop(_ item: NSMenuItem) {
+        guard let session = item.representedObject as? Session else { return }
+        SessionStop.stop(session) { [weak self] outcome in
+            guard let self else { return }
+            guard let message = outcome.message else {
+                // 멈췄으면 다음 훑기에서 그 줄이 사라진다. 그것이 답이라 따로 말하지 않는다.
+                return
+            }
+            self.notice = (session.id, message)
+            self.noticeTimer?.invalidate()
+            self.noticeTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { [weak self] _ in
+                self?.notice = nil
+                self?.forceRebuild()
+            }
+            self.forceRebuild()
+        }
     }
 
     // MARK: 눌렀는데 갈 수 없었을 때

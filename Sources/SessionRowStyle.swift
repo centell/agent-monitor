@@ -57,7 +57,10 @@ enum SessionRowStyle {
     ///
     /// 왜 기다리는지를 맨 위에 둔다. 마우스를 올리는 이유가 대개 그것이라 경로보다 앞이고,
     /// 줄에서 뺀 값이므로 여기서는 폭에 맞춰 자르지 않는다 — 물음은 끝까지 읽혀야 한다.
-    static func tooltip(for session: Session, settings: Settings) -> String {
+    /// `inPanel` 은 **우클릭이 무엇을 하는지가 두 화면에서 다르기 때문에** 필요하다.
+    /// 메뉴에서는 우클릭이 곧 고정이고, 상시 창에서는 작은 메뉴가 열린다.
+    /// 안내가 실제 손짓과 어긋나면 안 쓰느니만 못하다.
+    static func tooltip(for session: Session, settings: Settings, inPanel: Bool = false) -> String {
         var tip = ""
         if settings.showReason, let why = session.reason, !why.isEmpty {
             tip += folded(why) + "\n\n"
@@ -69,7 +72,11 @@ enum SessionRowStyle {
         // 갈 수 없는 줄에는 왜 못 가는지 적는다.
         else if session.isBackground { tip += "\n" + S.backgroundNoWindow }
         if SessionJump.canJump(session) { tip += "\n" + SessionJump.hint(for: session) }
-        tip += "\n" + (session.isPinned ? S.unpinHint : S.pinHint)
+        // 멈출 수 있는 줄이라는 것은 우클릭해 보기 전에는 알 길이 없다. 마침 이 줄은
+        // 눌러도 갈 데가 없는 줄이라, 여기 말고는 할 일을 알릴 자리가 없다.
+        if inPanel, SessionStop.canStop(session) { tip += "\n" + S.stopHint }
+        tip += "\n" + (inPanel ? (session.isPinned ? S.unpinHintPanel : S.pinHintPanel)
+                               : (session.isPinned ? S.unpinHint : S.pinHint))
         if let m = session.metrics { tip += "\n" + S.descendants(m.descendantCount) }
         return tip
     }

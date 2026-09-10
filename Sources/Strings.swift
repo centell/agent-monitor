@@ -157,6 +157,42 @@ enum S {
     static var unpinHint: String {
         p("우클릭으로 고정 해제", "Right-click to unpin")
     }
+
+    // MARK: 멈추기
+
+    static var pinItem: String       { p("맨 위에 고정", "Pin to top") }
+    static var unpinItem: String     { p("고정 해제", "Unpin") }
+    static var stopItem: String      { p("이 세션 멈추기…", "Stop this session…") }
+    /// 두 번째 단계. 「…」이 빠지고 말이 굳는 것으로 **이번엔 진짜 실행된다**를 알린다.
+    static var stopConfirmItem: String { p("정말 멈추기", "Stop it") }
+    static var stopKeepsChat: String {
+        p("대화는 남습니다 — claude attach 로 다시 열 수 있습니다",
+          "The conversation is kept — reopen it with claude attach")
+    }
+    /// 멈출 수 있는 줄이라고 툴팁에 적는다. 우클릭해 보기 전에는 알 길이 없다.
+    static var stopHint: String {
+        p("우클릭 메뉴에서 이 백그라운드 세션을 멈출 수 있습니다",
+          "Right-click for a menu to stop this background session")
+    }
+
+    /// 상시 창에서는 우클릭이 **메뉴를 연다.** 메뉴에서는 곧바로 고정이다.
+    /// 두 화면의 안내가 같으면 한쪽은 반드시 거짓말이 된다.
+    static var pinHintPanel: String {
+        p("우클릭 메뉴에서 고정 — 기다릴 때 맨 위로 올라옵니다",
+          "Right-click for a menu to pin — it rises to the top while waiting")
+    }
+    static var unpinHintPanel: String {
+        p("우클릭 메뉴에서 고정 해제", "Right-click for a menu to unpin")
+    }
+    static var stopNoBinary: String {
+        p("claude 명령을 못 찾았습니다", "Could not find the claude command")
+    }
+    static func stopFailedLine(_ why: String) -> String {
+        p("멈추지 못함 — \(why.fitted(to: 28))", "Stop failed — \(why.fitted(to: 28))")
+    }
+    static func errExit(_ code: Int) -> String {
+        p("종료 코드 \(code)", "exit code \(code)")
+    }
     static func descendants(_ count: Int) -> String {
         p("자손 프로세스 \(count)개 포함", "includes \(count) descendant processes")
     }
