@@ -4,14 +4,50 @@ import Foundation
 ///
 /// 메뉴와 설정창 미리보기가 **같은 코드**를 쓴다. 따로 두면 미리보기가 실제와
 /// 어긋나 거짓말을 하게 되고, 그러면 손잡이를 만져 보는 의미가 없다.
+///
+/// **칸을 정하는 일과 칸을 벌리는 일이 갈라져 있다.** 여기서는 「무슨 글이 어느 칸에
+/// 들어가는가」만 정한다. 그 칸이 화면에서 어디쯤 서는지는 `RowTypesetter` 가 정하고,
+/// 터미널에서 어떻게 채워지는지는 아래 `joined` 가 정한다. 갈라 둔 이유는 **공백으로는
+/// 화면을 못 벌리기 때문**이다 — 한글 한 자는 고정폭 글꼴에서도 공백 두 개가 아니라
+/// 1.3993 개다(12pt 실측 10.380pt 대 7.418pt). 정수배가 아니므로 공백을 몇 개 넣어도
+/// 맞출 수 없다. 터미널은 진짜 격자라 공백이 맞고, 화면은 아니다.
 struct RowFormatter {
 
     let settings: Settings
     let nameWidth: Int
 
-    struct Row {
+    /// 줄을 이루는 **칸** 하나.
+    ///
+    /// `text` 에는 채움 공백이 없다 — 잘릴 것만 잘려 있는 알맹이다. 채우거나 벌리는
+    /// 일은 이것을 받아 가는 쪽이 각자 한다.
+    struct Field {
+        /// 칸의 종류. 줄마다 있고 없고가 달라도 **차례는 이 순서로 고정**이다.
+        enum Column: CaseIterable { case mark, name, state, tool, age, flag, metrics }
+        enum Align { case left, right }
+
+        let column: Column
+        /// 채움 공백이 없는 알맹이.
         let text: String
-        /// 흐리게 그릴 구간(지표·둘째 줄). UTF-16 기준이며 없을 수 있다.
+        /// 터미널에서 채울 폭(칸). 0 이면 채우지 않는다.
+        ///
+        /// 화면에서는 이것이 **바닥값**이 된다 — 칸은 이 폭보다 좁아지지 않는다.
+        /// 그래서 영문만 있는 목록은 지금까지와 화소 단위로 같은 자리에 선다.
+        let cells: Int
+        /// 앞에 둘 여백(칸).
+        let gutter: Int
+        let align: Align
+        /// 흐리게 그릴 칸인가.
+        let dim: Bool
+    }
+
+    struct Row {
+        /// 첫 줄을 이루는 칸들. 화면이 쓴다.
+        let fields: [Field]
+        /// 두 줄 배치의 아랫줄. 칸이 없다 — 통째로 흐리다.
+        let secondLine: String?
+        /// 칸을 공백으로 채워 이은 것. 터미널(`main.swift`)이 쓴다.
+        let text: String
+        /// 흐리게 그릴 구간(지표·둘째 줄). `text` 기준 UTF-16 이며 없을 수 있다.
         let dimRange: NSRange?
         /// 둘째 줄이 시작하는 위치. 두 줄 배치일 때만 있다.
         let secondLineStart: Int?
@@ -29,26 +65,36 @@ struct RowFormatter {
     /// 「멈추는 중」만 남고 어느 세션이 멈추는 중인지는 안 보였다. 이름·상태·시간은 그대로
     /// 두고 지표만 바꾸면, 말이 붙을 자리와 그 말이 가리키는 것이 한 줄에 함께 남는다.
     func row(for session: Session, replacingMetrics: String? = nil) -> Row {
-        let head = header(for: session)
-        // 앞의 여백은 지표와 같게 둔다 — 바뀐 말이 지표가 서던 자리에 그대로 선다.
-        let tail = replacingMetrics.map { "     " + $0 } ?? metrics(for: session)
+        let head = headFields(for: session)
+        let headText = joined(head)
+        let tail = replacingMetrics ?? metricsBody(for: session)
 
         switch settings.layout {
         case .single:
-            let text = head + tail
-            let dim = tail.isEmpty ? nil
-                : NSRange(location: (head as NSString).length, length: (tail as NSString).length)
-            return Row(text: text, dimRange: dim, secondLineStart: nil)
+            guard !tail.isEmpty else {
+                return Row(fields: head, secondLine: nil, text: headText,
+                           dimRange: nil, secondLineStart: nil)
+            }
+            // 앞의 여백은 지표와 같게 둔다 — 바뀐 말이 지표가 서던 자리에 그대로 선다.
+            let fields = head + [Field(column: .metrics, text: tail, cells: 0, gutter: 5,
+                                       align: .left, dim: true)]
+            let text = joined(fields)
+            let start = (headText as NSString).length
+            return Row(fields: fields, secondLine: nil, text: text,
+                       dimRange: NSRange(location: start,
+                                         length: (text as NSString).length - start),
+                       secondLineStart: nil)
 
         case .double:
             // 두 줄일 때는 지표를 아래로 내리고 앞을 들여쓴다.
-            let second = "   " + tail.trimmingCharacters(in: .whitespaces)
             guard !tail.isEmpty else {
-                return Row(text: head, dimRange: nil, secondLineStart: nil)
+                return Row(fields: head, secondLine: nil, text: headText,
+                           dimRange: nil, secondLineStart: nil)
             }
-            let text = head + "\n" + second
-            let start = (head as NSString).length + 1
-            return Row(text: text,
+            let second = "   " + tail.trimmingCharacters(in: .whitespaces)
+            let text = headText + "\n" + second
+            let start = (headText as NSString).length + 1
+            return Row(fields: head, secondLine: second, text: text,
                        dimRange: NSRange(location: start, length: (second as NSString).length),
                        secondLineStart: start)
         }
@@ -57,18 +103,33 @@ struct RowFormatter {
     // MARK: 조각
 
     /// 표식 · 이름 · 상태 · 도구 · 경과 시간.
-    private func header(for session: Session) -> String {
-        var out = "\(session.state.symbol)  \(displayName(for: session).paddedDisplay(to: nameWidth))"
+    private func headFields(for session: Session) -> [Field] {
+        var out: [Field] = [
+            Field(column: .mark, text: session.state.symbol,
+                  cells: 1, gutter: 0, align: .left, dim: false),
+            Field(column: .name, text: displayName(for: session),
+                  cells: nameWidth, gutter: 2, align: .left, dim: false),
+        ]
         if settings.showStateLabel {
-            out += "  \(session.state.label.fitted(to: 10))"
+            out.append(Field(column: .state, text: session.state.label.truncatedDisplay(to: 10),
+                             cells: 10, gutter: 2, align: .left, dim: false))
         }
         if settings.showTool {
-            out += "  \((session.currentTool ?? "—").fitted(to: 14))"
-        } else {
-            out += "  "
+            out.append(Field(column: .tool,
+                             text: (session.currentTool ?? "—").truncatedDisplay(to: 14),
+                             cells: 14, gutter: 2, align: .left, dim: false))
         }
-        out += MenuBarController.elapsed(session.age()).rightAligned(to: 4)
-        if session.isEstimated { out += S.estimated }
+        // 도구 칸을 껐을 때 그 자리에 있던 여백 둘은 경과 시간 앞으로 옮겨 온다.
+        // 켜져 있을 때 여백이 0 인 것도 원래 그랬다 — 도구 칸이 제 폭까지 채워져 있어서
+        // 그 안의 빈자리가 곧 여백 노릇을 한다.
+        out.append(Field(column: .age, text: MenuBarController.elapsed(session.age()),
+                         cells: 4, gutter: settings.showTool ? 0 : 2, align: .right, dim: false))
+        if session.isEstimated {
+            // 추정 표식에 제 칸을 준다. 예전에는 경과 시간 뒤에 그냥 붙어서, 추정인 줄이
+            // 하나 섞이면 **그 줄만** 지표가 오른쪽으로 밀렸다.
+            out.append(Field(column: .flag, text: S.estimated.trimmingCharacters(in: .whitespaces),
+                             cells: 0, gutter: 2, align: .left, dim: false))
+        }
         return out
     }
 
@@ -76,7 +137,9 @@ struct RowFormatter {
     ///
     /// 조각마다 폭이 고정이라 어떤 조합을 골라도 줄과 줄 사이에서 열이 맞는다.
     /// 메모리 숫자를 CPU 앞에 두는 것도 그래서다 — CPU 가 들고 나도 앞이 안 흔들린다.
-    private func metrics(for session: Session) -> String {
+    /// 여기 쓰이는 글자는 막대(█▊▍▏)까지 전부 정확히 한 칸이라(실측 7.418pt) 안을
+    /// 더 쪼갤 것이 없다. 이 칸에서 폭이 튀는 것은 「멈추는 중…」뿐이고 그건 맨 뒤다.
+    private func metricsBody(for session: Session) -> String {
         guard let m = session.metrics else { return "" }
         var out = ""
         if settings.showMemoryBar {
@@ -93,7 +156,18 @@ struct RowFormatter {
             if !out.isEmpty { out += "  " }
             out += String(format: "CPU %3.0f%%", cpu)
         }
-        return out.isEmpty ? "" : "     " + out
+        return out
+    }
+
+    /// 칸을 공백으로 채워 잇는다 — **터미널용**.
+    ///
+    /// 터미널은 진짜 고정폭 격자라 이 셈이 맞는다. 화면에서 이 길로 가면 안 된다.
+    private func joined(_ fields: [Field]) -> String {
+        fields.reduce(into: "") { out, field in
+            out += String(repeating: " ", count: field.gutter)
+            out += field.align == .right ? field.text.rightAligned(to: field.cells)
+                                         : field.text.paddedDisplay(to: field.cells)
+        }
     }
 
     // MARK: 출처 붙이기

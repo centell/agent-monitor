@@ -103,11 +103,14 @@ struct LayoutSettingsView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(S.preview)
                     .font(.headline)
-                Text(previewText)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                // 가로로 흐르게 둔다. 줄을 **제 폭 그대로** 그려야 「폭이 곧 메뉴 폭」이
+                // 참인데, 그 폭이 창보다 넓을 수 있다. 굽히면 거짓이 되고, 안 굽히면
+                // 창을 밀어내 좌우가 잘린다 — 실측에서 640pt 창의 양옆이 날아갔다.
+                ScrollView(.horizontal) {
+                    RowPreview(text: previewRows)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10)
                     .background(Color(nsColor: .textBackgroundColor))
                     .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -130,17 +133,39 @@ struct LayoutSettingsView: View {
         .onReceive(tick) { _ in sessions = sessionsProvider() }
     }
 
-    private var previewText: String {
-        guard !sessions.isEmpty else { return S.noSessionsPeriod }
+    /// 미리보기의 알맹이 — **메뉴가 쓰는 그 코드**로 짠다.
+    ///
+    /// 목록 전체를 짜고 앞의 여섯 줄만 보인다. 여섯 줄만 짜면 칸이 그 여섯 줄에 맞춰
+    /// 좁아져, 「폭이 곧 메뉴 폭입니다」라는 말이 거짓이 된다.
+    private var previewRows: NSAttributedString {
+        let quiet: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
+            .foregroundColor: NSColor.secondaryLabelColor,
+        ]
+        guard !sessions.isEmpty else {
+            return NSAttributedString(string: S.noSessionsPeriod, attributes: quiet)
+        }
         let formatter = RowFormatter(settings: settings,
                                      nameWidth: RowFormatter.nameWidth(for: sessions))
-        var lines = sessions.prefix(6).map { formatter.row(for: $0).text }
+        let rows = RowTypesetter.rows(for: sessions, formatter: formatter).prefix(6)
+        let out = NSMutableAttributedString()
+        for row in rows {
+            if out.length > 0 { out.append(NSAttributedString(string: "\n")) }
+            out.append(row)
+        }
         if settings.showSummary, let memory = MetricsSampler.systemMemory() {
             let agent = sessions.compactMap { $0.metrics?.memoryBytes }.reduce(0, +)
-            lines.append("")
-            lines.append(MetricFormat.systemSummary(memory, agentBytes: agent))
+            out.append(NSAttributedString(
+                string: "\n\n" + MetricFormat.systemSummary(memory, agentBytes: agent),
+                attributes: quiet))
         }
-        return lines.joined(separator: "\n")
+        // 줄 사이에 끼운 줄바꿈에도 같은 문단 양식을 태운다. 안 태우면 그 글자만
+        // 기본 양식이 되어 줄 간격이 한 칸씩 들쭉날쭉해진다.
+        if let paragraph = rows.first?.attribute(.paragraphStyle, at: 0, effectiveRange: nil) {
+            out.addAttribute(.paragraphStyle, value: paragraph,
+                             range: NSRange(location: 0, length: out.length))
+        }
+        return out
     }
 }
 
@@ -286,5 +311,53 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         // 다시 메뉴바에만 사는 앱으로 돌아간다.
         NSApp.setActivationPolicy(.accessory)
+    }
+}
+
+// MARK: - 미리보기 그리기
+
+/// 미리보기를 **메뉴와 같은 그리기**로 태운다.
+///
+/// SwiftUI `Text` 로는 못 그린다. 줄의 칸은 `NSTextTab` 정지점으로 서고 그 정지점은
+/// 문단 양식에 박혀 있는데, SwiftUI 쪽으로 옮기면 그 양식이 그대로 태워진다는 보장이
+/// 없다. 여기서 따로 그리기 시작하면 미리보기가 실제와 어긋나고, 어긋난 미리보기는
+/// 손잡이를 만져 보는 뜻 자체를 없앤다 — 「폭이 곧 메뉴 폭입니다」가 거짓말이 된다.
+struct RowPreview: NSViewRepresentable {
+
+    let text: NSAttributedString
+
+    func makeNSView(context: Context) -> AttributedRowsView { AttributedRowsView() }
+
+    func updateNSView(_ view: AttributedRowsView, context: Context) { view.text = text }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: AttributedRowsView,
+                      context: Context) -> CGSize? {
+        nsView.intrinsicContentSize
+    }
+}
+
+/// 속성 문자열 여러 줄을 그대로 그리는 뷰.
+final class AttributedRowsView: NSView {
+
+    var text = NSAttributedString() {
+        didSet {
+            invalidateIntrinsicContentSize()
+            needsDisplay = true
+        }
+    }
+
+    /// 위에서 아래로 쌓아야 첫 줄이 위에 온다.
+    override var isFlipped: Bool { true }
+
+    override var intrinsicContentSize: NSSize {
+        let unbounded = NSSize(width: CGFloat.greatestFiniteMagnitude,
+                              height: CGFloat.greatestFiniteMagnitude)
+        let box = text.boundingRect(with: unbounded,
+                                    options: [.usesLineFragmentOrigin, .usesFontLeading])
+        return NSSize(width: ceil(box.width), height: ceil(box.height))
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        text.draw(with: bounds, options: [.usesLineFragmentOrigin, .usesFontLeading])
     }
 }

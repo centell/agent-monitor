@@ -214,9 +214,12 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else {
             let formatter = RowFormatter(settings: settings,
                                          nameWidth: RowFormatter.nameWidth(for: sessions))
+            // 칸은 **목록을 통째로 보고** 세운다. 한 줄씩 그리면 그 칸에서 가장 넓은
+            // 글이 얼마나 넓은지를 알 수 없어 정지점을 못 정한다 (`RowTypesetter`).
+            let texts = RowTypesetter.rows(for: sessions, formatter: formatter)
             var previousNeededAttention: Bool?
 
-            for session in sessions {
+            for (session, text) in zip(sessions, texts) {
                 // 손이 필요한 무리와 그렇지 않은 무리 사이에만 줄을 하나 긋는다.
                 // 접는 것이 아니라 가르는 것이다.
                 //
@@ -228,7 +231,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     menu.addItem(.separator())
                 }
                 previousNeededAttention = needs
-                menu.addItem(row(for: session, formatter: formatter))
+                menu.addItem(row(for: session, text: text))
             }
         }
 
@@ -256,10 +259,9 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(quit)
     }
 
-    private func row(for session: Session, formatter: RowFormatter) -> NSMenuItem {
-        // 줄의 생김새(굵기·색·툴팁)는 상시 창과 한 벌을 쓴다 — `SessionRowStyle`.
-        let text = SessionRowStyle.attributed(for: session, formatter: formatter)
-
+    /// 줄의 생김새(굵기·색·툴팁)는 상시 창과 한 벌을 쓴다 — `SessionRowStyle`.
+    /// 다 짜인 글을 받는다. 여기서 만들면 그 줄 하나만 보게 되어 칸이 안 맞는다.
+    private func row(for session: Session, text: NSAttributedString) -> NSMenuItem {
         // 누르면 그 세션이 사는 곳으로 간다 — 터미널 창이거나, 앱이거나.
         let canJump = SessionJump.canJump(session)
         let item = NSMenuItem()

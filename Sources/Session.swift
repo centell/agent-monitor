@@ -230,21 +230,30 @@ extension String {
         return w >= width ? self : self + String(repeating: " ", count: width - w)
     }
 
-    /// 칸에 맞춰 자르거나 채운다.
+    /// 칸에 맞춰 **자르기만** 한다. 채우지 않는다.
     ///
-    /// `padding(toLength:)` 는 긴 문자열을 자르기만 하고 뒤에 공백을 남기지 않아
-    /// 다음 칸과 글자가 맞붙는다 (`AskUserQuestio4m`). 여기서는 잘릴 때 말줄임표를
-    /// 넣고 **언제나 한 칸은 비워** 다음 값과 붙지 않게 한다.
-    func fitted(to width: Int) -> String {
-        guard width > 2 else { return self }
+    /// 채우기와 갈라 둔 이유는 화면이 공백으로 못 벌리기 때문이다 — 한글 한 자는
+    /// 고정폭 글꼴에서도 공백 두 개가 아니라 1.3993 개다(12pt 실측 10.380 대 7.418).
+    /// 화면은 잘린 알맹이만 받아 정지점으로 벌리고(`RowTypesetter`), 터미널은
+    /// 진짜 격자라 아래 `fitted` 로 공백까지 채워 받는다.
+    func truncatedDisplay(to width: Int) -> String {
         // 딱 맞는 것은 자르지 않는다. 넘칠 때만 줄인다.
-        guard displayWidth > width else { return paddedDisplay(to: width) }
+        guard width > 2, displayWidth > width else { return self }
         var out = ""
         for ch in self {
             if out.displayWidth + ch.displayWidth > width - 1 { break }
             out.append(ch)
         }
-        return (out + "…").paddedDisplay(to: width)
+        return out + "…"
+    }
+
+    /// 칸에 맞춰 자르거나 채운다.
+    ///
+    /// `padding(toLength:)` 는 긴 문자열을 자르기만 하고 뒤에 공백을 남기지 않아
+    /// 다음 칸과 글자가 맞붙는다 (`AskUserQuestio4m`). 여기서는 잘릴 때 말줄임표를 넣는다.
+    func fitted(to width: Int) -> String {
+        guard width > 2 else { return self }
+        return truncatedDisplay(to: width).paddedDisplay(to: width)
     }
 
     /// 표시 폭 기준으로 왼쪽을 채운다 (오른쪽 정렬).

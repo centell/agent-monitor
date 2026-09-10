@@ -127,17 +127,24 @@ final class FloatingPanelController: NSObject {
                 size: settings.panelFontSize - 1))
         } else {
             // 손이 필요한 무리와 그렇지 않은 무리 사이에만 줄을 하나 긋는다 — 메뉴와 같다.
+            // 칸은 **보이는 줄을 통째로 보고** 세운다 (`RowTypesetter`). 스킨이 칸마다
+            // 굵기를 바꾸므로 스킨도 함께 넘긴다 — 굵어진 글을 보통 굵기로 재면
+            // 정지점이 좁아지고, 좁은 정지점은 글을 다음 칸으로 넘겨 버린다.
+            let texts = RowTypesetter.rows(for: shown, formatter: formatter,
+                                           size: settings.panelFontSize,
+                                           skin: settings.panelSkin,
+                                           stopping: stopping)
             var previousNeededAttention: Bool?
-            for session in shown {
+            for (session, text) in zip(shown, texts) {
                 let needs = session.state.needsAttention
                 if let previous = previousNeededAttention, previous != needs {
                     pieces.append(PanelSeparatorView())
                 }
                 previousNeededAttention = needs
 
-                let row = makeRow(session, formatter: formatter)
+                let row = makeRow(session, text: text)
                 if let notice, notice.sessionID == session.id {
-                    pieces.append(replacing(row, for: session, formatter: formatter,
+                    pieces.append(replacing(row, rowText: text,
                                             text: "⚠  " + notice.text, emphasised: true))
                 } else {
                     pieces.append(row)
@@ -176,12 +183,15 @@ final class FloatingPanelController: NSObject {
     /// 글은 잘라서 맞춘다. 바닥값을 두지 않는다. 행은 표식·이름(최소 12칸)·경과 시간만
     /// 켜도 21칸이라 좁아질 수 없고, 바닥값을 두면 그 값이 행보다 커지는 순간 막으려던
     /// 바로 그 벌어짐이 생긴다.
-    private func replacing(_ row: NSView, for session: Session, formatter: RowFormatter,
+    ///
+    /// **칸 수가 아니라 점 폭으로 잰다.** 행에는 정지점이 걸려 있어 글자 수로는 폭을
+    /// 셈할 수 없고, 자를 글과 맞출 행이 서로 다른 글자로 되어 있으면 칸 수가 같아도
+    /// 폭이 다르다. 여백(`insetX`)은 행과 이 뷰가 20pt 로 같아 서로 상쇄된다.
+    private func replacing(_ row: NSView, rowText: NSAttributedString,
                            text: String, emphasised: Bool) -> PanelNoteView {
-        let firstLine = formatter.row(for: session).text
-            .split(separator: "\n").first.map(String.init) ?? ""
-        let note = PanelNoteView(text: text.fitted(to: firstLine.displayWidth),
-                                 size: settings.panelFontSize, emphasised: emphasised)
+        let font = NSFont.monospacedSystemFont(ofSize: settings.panelFontSize, weight: .semibold)
+        let fitted = RowTypesetter.truncated(text, toWidth: RowTypesetter.width(of: rowText), font: font)
+        let note = PanelNoteView(text: fitted, size: settings.panelFontSize, emphasised: emphasised)
         note.setFrameSize(NSSize(width: row.frame.width, height: row.frame.height))
         return note
     }
@@ -195,12 +205,10 @@ final class FloatingPanelController: NSObject {
         }
     }
 
-    private func makeRow(_ session: Session, formatter: RowFormatter) -> SessionRowView {
+    /// 다 짜인 글을 받는다. 여기서 만들면 그 줄 하나만 보게 되어 칸이 안 맞는다.
+    private func makeRow(_ session: Session, text: NSAttributedString) -> SessionRowView {
         let view = SessionRowView(
-            text: SessionRowStyle.attributed(for: session, formatter: formatter,
-                                             size: settings.panelFontSize,
-                                             skin: settings.panelSkin,
-                                             stopping: stopping.contains(session.id)),
+            text: text,
             enabled: SessionJump.canJump(session),
             pinned: session.isPinned,
             insetY: settings.panelDensity,

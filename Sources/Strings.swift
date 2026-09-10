@@ -278,8 +278,8 @@ enum S {
     static func hours(_ n: Int) -> String   { p("\(n)시간", "\(n)h") }
     static var preview: String       { p("미리보기", "Preview") }
     static var previewNote: String {
-        p("실제 세션을 메뉴와 같은 코드로 그린 것입니다. 폭이 곧 메뉴 폭입니다.",
-          "Rendered from real sessions with the same code the menu uses. This width is the menu width.")
+        p("실제 세션을 메뉴와 같은 코드로 그린 것입니다. 폭이 곧 메뉴 폭입니다 — 창을 넓히면 끝까지 보입니다.",
+          "Rendered from real sessions with the same code the menu uses. This width is the menu width — widen the window to see it all.")
     }
     static var resetButton: String   { p("처음 모습으로", "Reset to defaults") }
 
