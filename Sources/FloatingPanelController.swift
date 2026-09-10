@@ -28,6 +28,7 @@ final class FloatingPanelController: NSObject {
         if settings.panelOpen {
             open()
             panel?.isAlwaysOnTop = settings.panelAlwaysOnTop
+            panel?.backdrop = settings.panelBackdrop
         } else {
             close()
         }
@@ -37,6 +38,7 @@ final class FloatingPanelController: NSObject {
         guard panel == nil else { return }
         let p = FloatingPanel()
         p.isAlwaysOnTop = settings.panelAlwaysOnTop
+        p.backdrop = settings.panelBackdrop
         p.setFrame(settings.panelFrame ?? FloatingPanel.defaultFrame(), display: false)
         panel = p
         NotificationCenter.default.addObserver(
@@ -110,7 +112,8 @@ final class FloatingPanelController: NSObject {
 
         if shown.isEmpty {
             pieces.append(PanelNoteView(
-                text: settings.panelWaitingOnly && !sessions.isEmpty ? S.panelAllRunning : S.noSessions))
+                text: settings.panelWaitingOnly && !sessions.isEmpty ? S.panelAllRunning : S.noSessions,
+                size: settings.panelFontSize - 1))
         } else {
             // 손이 필요한 무리와 그렇지 않은 무리 사이에만 줄을 하나 긋는다 — 메뉴와 같다.
             var previousNeededAttention: Bool?
@@ -135,7 +138,7 @@ final class FloatingPanelController: NSObject {
                     let firstLine = formatter.row(for: session).text
                         .split(separator: "\n").first.map(String.init) ?? ""
                     let note = PanelNoteView(text: ("⚠  " + notice.text).fitted(to: firstLine.displayWidth),
-                                             emphasised: true)
+                                             size: settings.panelFontSize, emphasised: true)
                     note.setFrameSize(NSSize(width: row.frame.width, height: row.frame.height))
                     pieces.append(note)
                 } else {
@@ -147,7 +150,8 @@ final class FloatingPanelController: NSObject {
         if settings.showSummary, let memory {
             pieces.append(PanelSeparatorView())
             let agentBytes = sessions.compactMap { $0.metrics?.memoryBytes }.reduce(0, +)
-            pieces.append(PanelNoteView(text: MetricFormat.systemSummary(memory, agentBytes: agentBytes)))
+            pieces.append(PanelNoteView(text: MetricFormat.systemSummary(memory, agentBytes: agentBytes),
+                                        size: settings.panelFontSize - 1))
         }
 
         // 가장 넓은 조각에 나머지를 맞춘다. 조각마다 제 폭이면 오른쪽 끝이 들쭉날쭉해진다.
@@ -167,16 +171,19 @@ final class FloatingPanelController: NSObject {
     private func makeHeader() -> PanelHeaderView {
         PanelHeaderView(waiting: sessions.attentionCount,
                         total: sessions.count,
-                        pinnedOnTop: settings.panelAlwaysOnTop) { [weak self] view, event in
+                        pinnedOnTop: settings.panelAlwaysOnTop,
+                        size: settings.panelFontSize) { [weak self] view, event in
             self?.showHandles(from: view, event: event)
         }
     }
 
     private func makeRow(_ session: Session, formatter: RowFormatter) -> SessionRowView {
         let view = SessionRowView(
-            text: SessionRowStyle.attributed(for: session, formatter: formatter),
+            text: SessionRowStyle.attributed(for: session, formatter: formatter,
+                                             size: settings.panelFontSize),
             enabled: SessionJump.canJump(session),
             pinned: session.isPinned,
+            insetY: settings.panelDensity,
             onClick: { [weak self] in self?.jump(to: session) },
             onRightClick: { [weak self] in
                 Settings.shared.togglePin(session.id)
@@ -270,14 +277,16 @@ final class PanelHeaderView: NSView {
 
     /// 세션 줄과 글자 시작 위치를 맞춘다.
     private static let insetX: CGFloat = 20
-    private static let height: CGFloat = 22
+    /// 글자가 커지면 머리줄도 따라 커진다. 글자만 커지고 칸이 그대로면 위아래가 잘린다.
+    private let height: CGFloat
 
-    init(waiting: Int, total: Int, pinnedOnTop: Bool, onMenu: @escaping (NSView, NSEvent) -> Void) {
+    init(waiting: Int, total: Int, pinnedOnTop: Bool, size: CGFloat,
+         onMenu: @escaping (NSView, NSEvent) -> Void) {
         self.onMenu = onMenu
         text = NSAttributedString(
             string: "\(waiting)/\(total)",
             attributes: [
-                .font: NSFont.monospacedDigitSystemFont(ofSize: 12,
+                .font: NSFont.monospacedDigitSystemFont(ofSize: size,
                                                         weight: waiting > 0 ? .bold : .regular),
                 .foregroundColor: waiting > 0 ? NSColor.labelColor : NSColor.secondaryLabelColor,
             ]
@@ -290,13 +299,14 @@ final class PanelHeaderView: NSView {
         mark = NSAttributedString(
             string: pinnedOnTop ? "▲" : "△",
             attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
+                .font: NSFont.monospacedSystemFont(ofSize: size - 1, weight: .regular),
                 .foregroundColor: NSColor.secondaryLabelColor,
             ]
         )
+        height = ceil(size) + 10
         super.init(frame: NSRect(x: 0, y: 0,
                                  width: ceil(text.size().width) + Self.insetX * 2 + 40,
-                                 height: Self.height))
+                                 height: height))
         toolTip = S.panelHandlesHint
     }
 
@@ -321,11 +331,11 @@ final class PanelNoteView: NSView {
 
     /// `emphasised` 는 안내가 아니라 **방금 벌어진 일**을 적을 때 쓴다.
     /// 시스템 요약과 같은 흐린 글로 두면 3초 뒤 사라지는 말을 놓친다.
-    init(text string: String, emphasised: Bool = false) {
+    init(text string: String, size: CGFloat = 11, emphasised: Bool = false) {
         text = NSAttributedString(
             string: string,
             attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: emphasised ? 12 : 11,
+                .font: NSFont.monospacedSystemFont(ofSize: size,
                                                    weight: emphasised ? .semibold : .regular),
                 .foregroundColor: emphasised ? NSColor.systemOrange : NSColor.secondaryLabelColor,
             ]

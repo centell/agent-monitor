@@ -19,6 +19,18 @@ final class FloatingPanel: NSPanel {
         didSet { level = isAlwaysOnTop ? .floating : .normal }
     }
 
+    /// 바탕을 어떻게 깔 것인가.
+    var backdrop: PanelBackdrop = .blur {
+        didSet { applyBackdrop() }
+    }
+
+    /// 바탕과 내용을 **형제로** 둔다.
+    ///
+    /// 예전에는 내용을 흐림 뷰 **안에** 넣었다. 「바탕 없음」을 만들려고 흐림 뷰를 숨겼더니
+    /// 그 안에 든 줄들까지 함께 사라졌다 — 시험용 하네스에서 실제로 겪었고, 하마터면
+    /// 「바탕을 없애면 글자가 안 보인다」는 엉뚱한 결론을 낼 뻔했다.
+    /// 형제로 두면 바탕만 걷어낼 수 있다.
+    private let backing = NSView()
     private let effect = NSVisualEffectView()
 
     init() {
@@ -40,13 +52,33 @@ final class FloatingPanel: NSPanel {
         // 없앤다. `ignoresCycle` 로 ⌘` 차례에는 끼지 않는다 — 이건 문서가 아니라 계기판이다.
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
 
-        effect.material = .hudWindow
+        backing.wantsLayer = true
+        backing.layer?.cornerRadius = 10
+        backing.layer?.masksToBounds = true
+        contentView = backing
+
         effect.blendingMode = .behindWindow
         effect.state = .active
-        effect.wantsLayer = true
-        effect.layer?.cornerRadius = 10
-        effect.layer?.masksToBounds = true
-        contentView = effect
+        effect.autoresizingMask = [.width, .height]
+        effect.frame = backing.bounds
+        backing.addSubview(effect)
+        applyBackdrop()
+    }
+
+    /// 바탕만 갈아 끼운다. 내용은 형제라 건드리지 않는다.
+    ///
+    /// 「없음」은 그림자도 함께 끈다. 바탕이 없는데 그림자만 남으면 **아무것도 없는 자리에
+    /// 네모난 그늘**이 뜬다.
+    private func applyBackdrop() {
+        switch backdrop {
+        case .blur:  effect.material = .hudWindow
+        case .soft:  effect.material = .popover
+        case .solid: effect.material = .windowBackground
+        case .clear: break
+        }
+        effect.isHidden = backdrop == .clear
+        hasShadow = backdrop != .clear
+        invalidateShadow()
     }
 
     /// 몸통을 갈아 끼우고 창 크기를 내용에 맞춘다.
@@ -77,7 +109,7 @@ final class FloatingPanel: NSPanel {
         // 믿을 뻔했다 — 실제로 깜빡임을 없앤 것은 아래 두 가지다.
         setFrame(NSRect(origin: anchoredOrigin(for: size), size: size), display: false)
 
-        effect.subviews.forEach { $0.removeFromSuperview() }
+        backing.subviews.filter { $0 !== effect }.forEach { $0.removeFromSuperview() }
         if wanted.height > ceiling {
             let scroll = NSScrollView(frame: NSRect(origin: .zero, size: size))
             scroll.drawsBackground = false
@@ -85,12 +117,12 @@ final class FloatingPanel: NSPanel {
             scroll.scrollerStyle = .overlay
             scroll.autohidesScrollers = true
             scroll.documentView = body
-            effect.addSubview(scroll)
+            backing.addSubview(scroll)
             // 몸통이 뒤집힌 좌표계라 원점이 맨 위다. 손이 필요한 줄부터 보여야 한다.
             scroll.contentView.scroll(to: .zero)
         } else {
             body.setFrameOrigin(.zero)
-            effect.addSubview(body)
+            backing.addSubview(body)
         }
         // 몸통에 `autoresizingMask` 를 달지 않는다. 목록이 바뀔 때마다 통째로 다시 만드니
         // 저절로 늘어날 일이 없고, 달아 두면 창이 늘 때 **줄은 제자리인데 그릇만** 늘어나

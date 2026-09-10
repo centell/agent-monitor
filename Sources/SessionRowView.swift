@@ -18,17 +18,26 @@ final class SessionRowView: NSView {
     private var isHighlighted = false
     private var tracking: NSTrackingArea?
 
-    /// 메뉴 항목의 좌우 여백. 기본 메뉴 항목의 글자 시작 위치에 맞춘 값이다.
-    private static let insetX: CGFloat = 20
-    private static let insetY: CGFloat = 3
+    /// 좌우·위아래 여백.
+    ///
+    /// **인스턴스 값이다.** 예전에는 `static` 이었는데, 그러면 상시 창의 「밀도」 손잡이를
+    /// 돌리는 순간 메뉴까지 같이 촘촘해진다. 메뉴는 기본값을 그대로 받아 한 픽셀도
+    /// 달라지지 않고, 창만 제 값을 넘긴다.
+    ///
+    /// 좌우 기본값 20pt 는 기본 메뉴 항목의 글자 시작 위치에 맞춘 값이다.
+    private let insetX: CGFloat
+    private let insetY: CGFloat
 
     /// 우클릭은 `enabled` 와 무관하게 늘 산다. 갈 수 없는 줄이라고 고정까지 막을
     /// 이유는 없다 — 오히려 못 가는 줄일수록 눈에 띄게 두고 싶을 수 있다.
     init(text: NSAttributedString, enabled: Bool, pinned: Bool = false,
+         insetX: CGFloat = 20, insetY: CGFloat = 3,
          onClick: (() -> Void)?, onRightClick: (() -> Void)? = nil) {
         self.onClick = enabled ? onClick : nil
         self.onRightClick = onRightClick
         self.isPinned = pinned
+        self.insetX = insetX
+        self.insetY = insetY
 
         // 눌릴 수 없는 줄은 흐리게 둔다. 눌리는 줄과 생김새로 구분되어야 한다.
         let base = NSMutableAttributedString(attributedString: text)
@@ -50,8 +59,8 @@ final class SessionRowView: NSView {
         let size = base.boundingRect(with: unbounded,
                                      options: [.usesLineFragmentOrigin, .usesFontLeading]).size
         super.init(frame: NSRect(x: 0, y: 0,
-                                 width: ceil(size.width) + Self.insetX * 2,
-                                 height: ceil(size.height) + Self.insetY * 2))
+                                 width: ceil(size.width) + insetX * 2,
+                                 height: ceil(size.height) + insetY * 2))
     }
 
     required init?(coder: NSCoder) { fatalError("사용하지 않음") }
@@ -77,7 +86,7 @@ final class SessionRowView: NSView {
             NSBezierPath(roundedRect: bounds.insetBy(dx: 5, dy: 0), xRadius: 4, yRadius: 4).fill()
         }
         (isHighlighted ? highlightedText : normalText)
-            .draw(at: NSPoint(x: Self.insetX, y: Self.insetY))
+            .draw(at: NSPoint(x: insetX, y: insetY))
     }
 
     // MARK: 마우스

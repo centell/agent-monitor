@@ -93,6 +93,25 @@ enum S {
     /// 「없습니다」로 적지 않는다 — 세션은 살아 있고 다들 일하는 중인데 «없다»고 하면
     /// 앱이 멎은 것처럼 읽힌다.
     static var panelAllRunning: String { p("다 돌고 있습니다", "All running") }
+    static var panelLook: String     { p("상시 창 바탕", "Panel backdrop") }
+    static var panelText: String     { p("상시 창 글자·밀도", "Panel text · density") }
+    static var backdropBlur: String  { p("흐릿", "Blur") }
+    static var backdropSoft: String  { p("보통", "Soft") }
+    static var backdropSolid: String { p("또렷", "Solid") }
+    static var backdropClear: String { p("없음", "None") }
+    /// 「없음」의 대가를 그 자리에 적는다. 배경화면 위에서는 멀쩡한데 다른 창 위에 겹치면
+    /// 뒤 글자와 섞여 읽기 어려워지는 것을 실제로 보았다.
+    static var backdropNote: String {
+        p("「없음」은 바탕 없이 글자만 띄웁니다. 다른 창 위에 겹치면 읽기 어려워집니다.",
+          "“None” shows the text with no backdrop. Over another window it becomes hard to read.")
+    }
+    static var textSmall: String     { p("작게", "Small") }
+    static var textNormal: String    { p("보통", "Normal") }
+    static var textLarge: String     { p("크게", "Large") }
+    static var densityTight: String  { p("촘촘", "Tight") }
+    static var densityNormal: String { p("보통", "Normal") }
+    static var densityLoose: String  { p("넉넉", "Loose") }
+
     static var panelHandlesHint: String {
         p("우클릭 — 항상 위로 · 기다리는 것만 · 닫기",
           "Right-click — always on top · waiting only · close")

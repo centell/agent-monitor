@@ -33,6 +33,31 @@ enum SourceStyle: String, CaseIterable, Identifiable {
     }
 }
 
+/// 상시 창의 바탕.
+///
+/// 구석에 늘 떠 있는 물건이라 배경화면·창 배치와의 궁합이 사람마다 다르다. 만든 사람이
+/// 대신 고를 일이 아니라 손잡이로 내놓는다.
+enum PanelBackdrop: String, CaseIterable, Identifiable {
+    /// 지금까지의 값. 은은하게 비친다.
+    case blur
+    /// 뒤 색이 조금 더 올라온다.
+    case soft
+    /// 거의 불투명. 뒤가 복잡해도 글자가 가장 선명하다.
+    case solid
+    /// 바탕을 아예 두지 않는다. 글자만 뜬다.
+    case clear
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .blur:  return S.backdropBlur
+        case .soft:  return S.backdropSoft
+        case .solid: return S.backdropSolid
+        case .clear: return S.backdropClear
+        }
+    }
+}
+
 /// 화면 배치 설정. `UserDefaults` 에 남아 다음 실행에도 유지된다.
 final class Settings: ObservableObject {
 
@@ -89,6 +114,15 @@ final class Settings: ObservableObject {
     /// 그 창에 손이 필요한 줄만 남길 것인가. 메뉴는 이 값과 무관하게 늘 전부 보여준다.
     @Published var panelWaitingOnly: Bool           { didSet { persist() } }
 
+    /// 상시 창의 **생김새** 셋. 메뉴에는 영향을 주지 않는다 — 메뉴는 늘 기본값으로 그린다.
+    ///
+    /// 「무엇을 보일지」(칸·지표)를 고르는 손잡이들과 결이 다르다. 그쪽은 정보의 문제이고
+    /// 이쪽은 이 창이 화면 구석에서 어떻게 앉아 있을지의 문제다.
+    @Published var panelBackdrop: PanelBackdrop      { didSet { persist() } }
+    @Published var panelFontSize: Double             { didSet { persist() } }
+    /// 줄 위아래 여백(pt). 촘촘 1 · 보통 3 · 넉넉 6.
+    @Published var panelDensity: Double              { didSet { persist() } }
+
     /// 상단에 고정한 세션들 (sessionId).
     ///
     /// 폴더가 아니라 **세션**에 꽂는다. 한 폴더에서 세션을 여럿 띄우는 일이 흔한데
@@ -134,6 +168,9 @@ final class Settings: ObservableObject {
         panelOpen = store.object(forKey: Key.panelOpen) as? Bool ?? false
         panelAlwaysOnTop = store.object(forKey: Key.panelAlwaysOnTop) as? Bool ?? true
         panelWaitingOnly = store.object(forKey: Key.panelWaitingOnly) as? Bool ?? false
+        panelBackdrop = PanelBackdrop(rawValue: store.string(forKey: Key.panelBackdrop) ?? "") ?? .blur
+        panelFontSize = store.object(forKey: Key.panelFontSize) as? Double ?? 12
+        panelDensity = store.object(forKey: Key.panelDensity) as? Double ?? 3
         loading = false
     }
 
@@ -184,6 +221,9 @@ final class Settings: ObservableObject {
         sourceStyle = .short
         panelAlwaysOnTop = true
         panelWaitingOnly = false
+        panelBackdrop = .blur
+        panelFontSize = 12
+        panelDensity = 3
         // 핀과 «상시 창이 떠 있는가»는 되돌리지 않는다. 이 단추는 «표시 손잡이»를 처음으로
         // 돌리는 문이지, 주인이 직접 꽂아 두거나 직접 띄워 둔 것을 치우는 문이 아니다.
         // 창 안의 손잡이(항상 위로·기다리는 것만)는 표시 손잡이라 되돌린다.
@@ -210,6 +250,9 @@ final class Settings: ObservableObject {
         store.set(panelOpen, forKey: Key.panelOpen)
         store.set(panelAlwaysOnTop, forKey: Key.panelAlwaysOnTop)
         store.set(panelWaitingOnly, forKey: Key.panelWaitingOnly)
+        store.set(panelBackdrop.rawValue, forKey: Key.panelBackdrop)
+        store.set(panelFontSize, forKey: Key.panelFontSize)
+        store.set(panelDensity, forKey: Key.panelDensity)
         NotificationCenter.default.post(name: Settings.didChange, object: nil)
     }
 
@@ -241,5 +284,8 @@ final class Settings: ObservableObject {
         static let panelAlwaysOnTop = "panelAlwaysOnTop"
         static let panelWaitingOnly = "panelWaitingOnly"
         static let panelFrame = "panelFrame"
+        static let panelBackdrop = "panelBackdrop"
+        static let panelFontSize = "panelFontSize"
+        static let panelDensity = "panelDensity"
     }
 }

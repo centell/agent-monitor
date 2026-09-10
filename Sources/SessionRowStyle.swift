@@ -23,7 +23,10 @@ enum SessionRowStyle {
     ///
     /// 두 줄 배치에서는 첫 줄이 굵어지고 한 줄 배치에서는 왼쪽 절반이 굵어진다 —
     /// 배치가 달라도 규칙은 하나다. 각 세션이 어디서 시작하는지가 눈에 바로 들어온다.
-    static func attributed(for session: Session, formatter: RowFormatter) -> NSAttributedString {
+    /// `size` 는 상시 창이 제 글자 크기를 넘기기 위한 것이다. 메뉴는 넘기지 않고
+    /// 기본값 12pt 로 그린다 — 손잡이를 돌려도 메뉴는 그대로여야 한다.
+    static func attributed(for session: Session, formatter: RowFormatter,
+                           size: CGFloat = 12) -> NSAttributedString {
         let row = formatter.row(for: session)
 
         let paragraph = NSMutableParagraphStyle()
@@ -31,7 +34,7 @@ enum SessionRowStyle {
         let text = NSMutableAttributedString(
             string: row.text,
             attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .semibold),
+                .font: NSFont.monospacedSystemFont(ofSize: size, weight: .semibold),
                 .foregroundColor: NSColor.labelColor,
                 .paragraphStyle: paragraph,
             ]
@@ -44,7 +47,7 @@ enum SessionRowStyle {
             text.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: dim)
             text.addAttribute(.font,
                               value: NSFont.monospacedSystemFont(
-                                  ofSize: row.secondLineStart != nil ? 11 : 12, weight: .regular),
+                                  ofSize: row.secondLineStart != nil ? size - 1 : size, weight: .regular),
                               range: dim)
         }
         return text
