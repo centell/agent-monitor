@@ -68,12 +68,39 @@ pending approval and a long shell command are told apart instead of both looking
 
 The two that write nothing down are estimated rather than stated, and those rows say so instead of
 passing as measured. An app thread has no process of its own — one app runs them all — so it
-carries no memory or CPU, and nothing tells us whether a finished one is still open; only threads
-finished inside a recent window are listed, which Display sets (10m, 30m, 12h, or hidden).
+carries no memory or CPU — tokens it does carry, since codex writes those down itself — and
+nothing tells us whether a finished one is still open; only threads finished inside a recent
+window are listed, which Display sets (10m, 30m, 12h, or hidden).
 
 How the source is written into the name is yours to choose, also in Display: `claude` /
 `claude-app`, or `claude-cli` / `claude-app` so all four say what they are, or a single mark that
 costs one column — `>` for a terminal, `□` for an app.
+
+**Two more columns count tokens, and both start off.** Turning them on widens the row by 25
+columns, and a width you have settled into should not change because you updated.
+
+```
+●  web-client       Working    Read    4s      █▌   RAM  0.8G  CTX 512k  TOK 640k/ 96M
+○  docs-site        Idle       —      20m      ▊    RAM  0.4G  CTX  88k  TOK  91k/ 12M
+```
+
+`CTX` is how full the session is right now — what the last turn carried in. `TOK` is what it has
+burned since it started, written as **freshly burned / everything**: the first number leaves out
+context replayed from cache, the second counts it. Either number alone misleads, whichever you
+pick — one measured session read 17.2M one way and 81.9M the other — so both are printed.
+
+The sources write down different things. codex keeps a running total in its own transcript, so
+reading the tail is enough. Claude Code records only per-turn usage, so the whole transcript has
+to be read — which is why `TOK` has a switch of its own: with it off, nothing is scanned. The app
+remembers how far it got and reads only what has been appended since, so that cost is paid once
+(0.30s across 66MB of transcripts, measured; every refresh after that was too fast to time).
+Subagents count too — they keep transcripts of their own beside the session's, and leaving them
+out lost between 1% and a third of a session's tokens.
+
+Nothing is printed as a denominator beside `CTX`. codex records its context window and Claude Code
+does not, and a table of model names to fill that gap would start printing a wrong denominator the
+day a new model ships. `--json` carries all three as `contextTokens`, `freshTokens` and
+`totalTokens`, switches or no switches.
 
 Hover a row that needs you and it says **why**. A session waiting on approval shows the call it
 is waiting on (`Bash: pnpm build --filter web`); an idle one shows the last thing it said to you
@@ -204,8 +231,9 @@ settings.
 **Settings** has four tabs:
 
 - **Display** — language, appearance (follow the system, or pin it light or dark), line layout,
-  which columns to show, whether hovering a row says why it is waiting, which of the three metrics
-  to show (RAM bar, RAM GB, CPU % — each on its own switch), whether recording is on, whether
+  which columns to show, whether hovering a row says why it is waiting, which metrics to show
+  (RAM bar, RAM GB, CPU %, and the two token columns — each on its own switch), whether recording
+  is on, whether
   pointing at the menu bar count opens the list without a click, refresh interval, how the source
   is written into the name, and how long a finished codex app thread stays listed. A live preview
   renders real sessions through the same code the menu uses, so what you see is what you get.
