@@ -264,10 +264,10 @@ evening of something else all count as present, and the queue grows through them
 elsewhere.
 
 ```
-시간대별
-  시간     앞에 계신     세션  돌던 수  줄 둘 이상
-  10시          1.1h      5.0      1.9         58%
-  22시          0.3h      6.0      0.4         96%
+By hour
+  Hour       at desk     sess      run    queue 2+
+  10:00         1.1h      5.0      1.9         58%
+  22:00         0.3h      6.0      0.4         96%
 ```
 
 Buckets holding less than five minutes are left out, and the line below the table says how many —
