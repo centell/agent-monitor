@@ -12,12 +12,24 @@ let claudeSource = ClaudeCodeSource()
 let claudeAppSource = ClaudeAppSource()
 let codexSource = CodexSource()
 let codexAppSource = CodexAppSource()
+
+/// 문서용 그림을 찍는 모드. 지어낸 세션만 그린다 (`DemoSource`).
+///
+/// 설정에 남지 않는다 — 켜는 길이 이 인자 하나뿐이라, 실수로 켜 둔 채 다음 실행까지
+/// 지어낸 줄을 보게 되는 일이 없다.
+let demoMode = args.contains("--demo")
+
 // 레지스트리를 직접 읽는 출처를 앞에 둔다 — 겹치면 앞선 쪽이 남는다.
-let source = CompositeSource([claudeSource, claudeAppSource, codexSource, codexAppSource])
+let source: SessionSource = demoMode
+    ? DemoSource()
+    : CompositeSource([claudeSource, claudeAppSource, codexSource, codexAppSource])
 
 /// 한 번 실행하고 끝나는 모드용. CPU 사용률은 두 표본의 차이로만 구할 수 있으므로
 /// 잠깐 사이를 두고 두 번 잰다.
 func measuredSessions(sampleCPU: Bool) -> ([Session], SystemMemory?) {
+    // 지어낸 세션에는 잴 프로세스가 없다. 지표도 시스템 요약도 함께 지어낸 것을 쓴다 —
+    // 안 그러면 찍는 사람의 맥 메모리가 그림에 실린다.
+    guard !demoMode else { return (source.scan().sortedForDisplay(), DemoSource.systemMemory) }
     let sampler = MetricsSampler()
     var scanned = source.scan()
     if sampleCPU {
@@ -214,6 +226,6 @@ if args.contains("--list") {
 
 // 기본 — 메뉴바에 띄운다.
 let app = NSApplication.shared
-let controller = MenuBarController(source: source)
+let controller = MenuBarController(source: source, demo: demoMode)
 app.delegate = controller
 app.run()

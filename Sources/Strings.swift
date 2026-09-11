@@ -627,6 +627,7 @@ enum S {
             agent-monitor --memory   이 맥의 메모리를 누가 쓰는지 보여준다
             agent-monitor --roots    훑는 계정 루트를 보여준다
             agent-monitor --stats    쌓아 둔 쓰임새 기록을 요약한다 (기본 7일)
+            agent-monitor --demo     문서용 그림을 찍기 위해 지어낸 세션만 그린다
 
           메뉴바에는 «기다리는 중/전체» 숫자만 띄운다. 세션이 몇 개든 잘라내지 않는다.
 
@@ -661,6 +662,7 @@ enum S {
             agent-monitor --memory   show what is using RAM on this machine
             agent-monitor --roots    show which account roots are scanned
             agent-monitor --stats    summarise the recorded usage (7 days by default)
+            agent-monitor --demo     draw made-up sessions only, for documentation shots
 
           The menu bar shows only a "waiting/total" count. It never truncates the list.
 
@@ -697,6 +699,7 @@ enum S {
             agent-monitor --memory   この Mac のメモリを何が使っているかを見せる
             agent-monitor --roots    走査するアカウントルートを見せる
             agent-monitor --stats    溜めた使い方の記録を要約する (既定は7日)
+            agent-monitor --demo     文書用の画像を撮るため、作り物のセッションだけを描く
 
           メニューバーには «待機中/全体» の数字だけを出す。セッションがいくつあっても切り捨てない。
 

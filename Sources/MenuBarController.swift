@@ -3,6 +3,8 @@ import AppKit
 final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private let source: SessionSource
+    /// 문서용 그림을 찍는 중인가. 잴 것도 남길 것도 없다.
+    private let demo: Bool
     private let interval: TimeInterval
     private var statusItem: NSStatusItem!
     private var timer: Timer?
@@ -19,8 +21,9 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// 한 번 훑고 죽는 `--list` 같은 실행이 끼어들면 그 단위가 뒤죽박죽이 된다.
     private let stats = StatsRecorder()
 
-    init(source: SessionSource, interval: TimeInterval = 2) {
+    init(source: SessionSource, demo: Bool = false, interval: TimeInterval = 2) {
         self.source = source
+        self.demo = demo
         self.interval = interval
     }
 
@@ -145,7 +148,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func refresh() {
         sessions = scanned()
-        if settings.recordStats { stats.record(sessions: sessions, memory: systemMemory) }
+        // 지어낸 세션은 기록에 남기지 않는다. 한 번 섞이면 그 통계는 영영 못 믿는다.
+        if settings.recordStats && !demo { stats.record(sessions: sessions, memory: systemMemory) }
         updateTitle()
         if !menuIsOpen { rebuildMenu() }
         // 상시 창은 스스로 훑지 않는다. 방금 잰 것을 그대로 건넨다 — 두 번 재면 값이
@@ -158,6 +162,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// 없으면 껐다 켤 때마다 «가장 오래 기다린 것» 이 통째로 사라진다. 남는 것은 짧은
     /// 대기뿐이라, 기록이 실제보다 늘 낙관적으로 보인다.
     func applicationWillTerminate(_ notification: Notification) {
+        guard !demo else { return }
         stats.finish()
     }
 
@@ -169,6 +174,10 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func scanned() -> [Session] {
         TokenLedger.shared.countsCumulative = settings.showTokens
         TokenLedger.shared.wantsTokens = settings.showTokens || settings.showContext
+        guard !demo else {
+            systemMemory = DemoSource.systemMemory
+            return source.scan().sortedForDisplay()
+        }
         return measured(source.scan()).sortedForDisplay()
     }
 
