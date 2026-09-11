@@ -95,7 +95,13 @@ struct RowFormatter {
                 return Row(fields: head, secondLine: nil, text: headText,
                            dimRange: nil, secondLineStart: nil)
             }
-            let second = "   " + tail.trimmingCharacters(in: .whitespaces)
+            // **앞은 깎지 않는다.** 예전에는 양쪽을 다 깎았는데, 그때는 지표가 늘 막대로
+            // 시작해서 앞에 깎을 것이 없었다. 지금은 막대를 못 그린 줄의 빈 막대 자리가
+            // 앞의 공백이라, 깎으면 **그 줄만 지표가 7칸 왼쪽으로 당겨진다** —
+            // 첫 줄에서 지키려던 열을 둘째 줄에서 도로 깨는 셈이다. 뒤만 깎는다.
+            var body = tail
+            while body.hasSuffix(" ") { body.removeLast() }
+            let second = "   " + body
             let text = headText + "\n" + second
             let start = (headText as NSString).length + 1
             return Row(fields: head, secondLine: second, text: text,
