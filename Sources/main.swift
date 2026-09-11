@@ -19,9 +19,12 @@ let codexAppSource = CodexAppSource()
 /// 지어낸 줄을 보게 되는 일이 없다.
 let demoMode = args.contains("--demo")
 
+/// 어느 판을 그릴지. `--demo quiet` 로 «아무도 안 기다리는 화면» 을 찍는다.
+let demoScene = args.contains("quiet") ? DemoSource.Scene.quiet : .busy
+
 // 레지스트리를 직접 읽는 출처를 앞에 둔다 — 겹치면 앞선 쪽이 남는다.
 let source: SessionSource = demoMode
-    ? DemoSource()
+    ? DemoSource(scene: demoScene)
     : CompositeSource([claudeSource, claudeAppSource, codexSource, codexAppSource])
 
 /// 한 번 실행하고 끝나는 모드용. CPU 사용률은 두 표본의 차이로만 구할 수 있으므로

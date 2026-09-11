@@ -9,8 +9,8 @@ codex, in a terminal or in the desktop app. The hard question is not *what are t
 *which one has finished and is waiting for me*.
 
 <p align="center">
-  <img src="docs/images/desktop.png" width="358"
-       alt="The menu bar reads 1/4. Below it the list is open: one idle session on top, three working ones under a rule.">
+  <img src="docs/images/en/desktop.png" width="441"
+       alt="The menu bar reads 3/5. Below it the list is open: an approval row and two idle ones on top, a shell row and a working one under a rule.">
 </p>
 
 ---
@@ -20,14 +20,14 @@ codex, in a terminal or in the desktop app. The hard question is not *what are t
 The menu bar shows `2/5` — two waiting, five alive. That is all. It never grows with the session
 count and it never truncates the list.
 
-<img src="docs/images/menubar.png" width="342"
-     alt="A menu bar: 1/4 sits at the left, then the input source, wifi, battery and the clock.">
+<img src="docs/images/en/menubar.png" width="350"
+     alt="A menu bar: 3/5 sits at the left, then the input source, wifi, battery and the clock.">
 
 With nobody waiting it reads `0/4` and goes quiet — the count is drawn dimmed while nothing is
 yours to answer, and at full strength the moment something is.
 
-<img src="docs/images/menubar-clear.png" width="82"
-     alt="The menu bar count reading 0/4 in a muted grey.">
+<img src="docs/images/en/menubar-clear.png" width="44"
+     alt="The menu bar count reading 0/5 in a muted grey.">
 
 
 Click it and every session is on one screen, no folding, the ones needing you on top:
@@ -44,8 +44,8 @@ Memory 15.6/25.8GB · Swap 12.3GB · Agents 3.7GB
 
 The same list on a real machine, in the two-line layout with the source mark on:
 
-<img src="docs/images/menu.png" width="359"
-     alt="The open menu: an idle session on top, three working ones below a rule, then the memory summary and the Hide panel, Settings and Quit items.">
+<img src="docs/images/en/menu.png" width="441"
+     alt="The open menu: an approval row and two idle ones on top, a shell row and a working one below a rule, then the memory summary and the Hide panel, Settings and Quit items.">
 
 | Marker | Status | Needs you |
 |---|---|---|
@@ -148,8 +148,8 @@ them.
  Memory 15.6/25.8GB · Swap 12.3GB · Agents 3.7GB
 ```
 
-<img src="docs/images/panel.png" width="425"
-     alt="The panel parked on the desktop: 2/4 in the header with the on-top arrow, an approval row and an idle row above the rule, two working rows below it.">
+<img src="docs/images/en/panel.png" width="520"
+     alt="The panel parked on the desktop: 3/5 in the header with the on-top arrow, an approval row and two idle ones above the rule, a shell row and a working one below it.">
 
 **Clicking it never takes the front.** Apart from a row sending you to its terminal, the editor you
 were in stays where it was. This app has no Dock icon, so a window that comes to the front has no
@@ -238,8 +238,8 @@ settings.
   is written into the name, and how long a finished codex app thread stays listed. A live preview
   renders real sessions through the same code the menu uses, so what you see is what you get.
 
-  <img src="docs/images/settings-display.png" width="620"
-       alt="The Display tab of Settings, with rows for language, appearance, row layout, metrics, recording, refresh, open on hover, source label and codex app threads.">
+  <img src="docs/images/en/settings-display.png" width="640"
+       alt="The Display tab of Settings, with rows for language, appearance, row layout, metrics, tokens, recording, refresh, open on hover, source label and codex app threads.">
 
 - **Panel** — show it, always on top, waiting only, and how it looks: backdrop style and opacity,
   text size, row density, the margin around the list, and the skin. Everything on this tab touches

@@ -15,6 +15,19 @@ import Foundation
 struct DemoSource: SessionSource {
     let sourceName = "demo"
 
+    /// 어느 판을 그릴 것인가.
+    ///
+    /// 문서에는 **아무도 안 기다리는 화면**도 실린다 — 메뉴바 숫자가 `0/4` 로 흐려진
+    /// 그림이 그렇다. 기다리는 줄이 있는 판으로는 그 그림을 못 찍으므로 판을 둘 둔다.
+    enum Scene: String {
+        /// 손이 필요한 줄이 섞인 판. 기본.
+        case busy
+        /// 아무도 안 기다리는 판 — 전부 도는 중이다.
+        case quiet
+    }
+
+    var scene: Scene = .busy
+
     /// 시스템 요약 줄에 쓸 값도 지어낸다. 안 그러면 찍는 사람의 맥 메모리가 그림에 실린다.
     static let systemMemory = SystemMemory(usedBytes: 15_600_000_000,
                                            totalBytes: 25_800_000_000,
@@ -82,9 +95,19 @@ struct DemoSource: SessionSource {
                 context: 109_000, fresh: 8_617, total: 634_000, estimated: false),
     ]
 
+    /// 조용한 판. 같은 줄들을 쓰되 **손이 필요한 상태를 없앤다** — 줄을 따로 짓지 않는 것은
+    /// 두 판이 서로 다른 앱처럼 보이지 않게 하려는 것이다.
+    private static let quietFixtures: [Fixture] = fixtures.map {
+        Fixture(id: $0.id, pid: $0.pid, name: $0.name, source: $0.source, runsInApp: $0.runsInApp,
+                state: $0.state.needsAttention ? .busy : $0.state,
+                secondsAgo: $0.secondsAgo, tool: $0.tool ?? "Read", reason: nil,
+                memoryBytes: $0.memoryBytes, cpuPercent: $0.cpuPercent,
+                context: $0.context, fresh: $0.fresh, total: $0.total, estimated: $0.estimated)
+    }
+
     func scan() -> [Session] {
         let now = Date()
-        return Self.fixtures.map { f in
+        return (scene == .quiet ? Self.quietFixtures : Self.fixtures).map { f in
             var session = Session(
                 id: f.id,
                 pid: f.pid,
@@ -104,6 +127,10 @@ struct DemoSource: SessionSource {
             // 마우스를 올렸을 때 실물과 같은 글이 뜬다.
             if f.state == .waiting { session.pendingCall = f.reason } else { session.lastSay = f.reason }
             session.isEstimated = f.estimated
+            // **갈 곳을 준다.** 없으면 «눌러도 갈 데 없는 줄» 로 판정되어 목록이 통째로
+            // 흐려지고 상태 표식의 색까지 빠진다 (`SessionRowView`). 진짜 세션은 터미널이나
+            // 딥링크를 가지므로, 색이 빠진 그림은 실제보다 못하게 보이는 거짓이 된다.
+            session.deepLink = URL(string: "x-agent-monitor-demo://\(f.name)")
             if let bytes = f.memoryBytes {
                 session.metrics = SessionMetrics(memoryBytes: bytes,
                                                  cpuPercent: f.cpuPercent,
