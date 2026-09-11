@@ -233,9 +233,9 @@ agent-monitor --roots     # which account roots are scanned
 agent-monitor --stats     # how you have actually been using it (7 days; --stats 30 for a month)
 ```
 
-The interface is available in English and Korean, following the system language by default.
-Columns are placed by measured glyph width rather than by counting cells, so a row holds its
-columns whether the names are Latin or Hangul.
+The interface is available in English, Korean and Japanese, following the system language by
+default. Columns are placed by measured glyph width rather than by counting cells, so a row holds
+its columns whether the names are Latin, Hangul, kana or kanji.
 
 ## How many sessions can you actually feed?
 

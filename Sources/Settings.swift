@@ -63,9 +63,9 @@ enum AppAppearance: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .system: return S.p("시스템 따름", "Follow system")
-        case .light:  return S.p("늘 밝게", "Always light")
-        case .dark:   return S.p("늘 어둡게", "Always dark")
+        case .system: return S.p("시스템 따름", "Follow system", "システムに従う")
+        case .light:  return S.p("늘 밝게", "Always light", "常に明るく")
+        case .dark:   return S.p("늘 어둡게", "Always dark", "常に暗く")
         }
     }
 
@@ -347,10 +347,14 @@ final class Settings: ObservableObject {
     }
 
     /// 실제로 쓸 언어. `system` 이면 맥의 언어를 따른다.
+    ///
+    /// 맞는 것이 없으면 영어로 떨어진다 — 아는 말로 적는 것보다 읽을 수 있는 말로 적는 것이 낫다.
     var resolvedLanguage: Language {
         guard language == .system else { return language }
         let preferred = Locale.preferredLanguages.first ?? "en"
-        return preferred.hasPrefix("ko") ? .korean : .english
+        if preferred.hasPrefix("ko") { return .korean }
+        if preferred.hasPrefix("ja") { return .japanese }
+        return .english
     }
 
     private enum Key {
