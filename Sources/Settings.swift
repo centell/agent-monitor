@@ -213,12 +213,26 @@ final class Settings: ObservableObject {
     /// 한 번 봤다** — 안 지워도 되는 것을 지우는 위험이, 안 지워서 남는 것보다 크다.
     @Published var pinnedSessions: Set<String>      { didSet { persist() } }
 
-    /// 저장소를 도메인 이름으로 못 박는다.
+    /// 설정이 사는 곳. **앱과 CLI 가 같은 곳을 봐야 한다.**
     ///
     /// `UserDefaults.standard` 는 번들 식별자를 따라가는데, 앱은 번들 안에서 돌고
     /// CLI(`--list`)는 번들 없이 돈다. 그래서 둘이 **서로 다른 곳**을 보고 있었다.
     /// 앱에서 두 줄로 바꿔도 `--list` 는 한 줄로 그리던 것이 이 때문이다.
-    private let store = UserDefaults(suiteName: "me.centell.agent-monitor") ?? .standard
+    ///
+    /// 그래서 도메인을 못 박는데, **번들 안에서는 그 이름으로 열면 안 된다.** 번들
+    /// 식별자와 같은 이름으로 suite 를 열면 애플이 「말이 안 되고 동작하지도 않는다」며
+    /// 콘솔에 경고를 찍는다. 지금까지 값이 멀쩡히 공유된 것은 그 실패를 아래 `?? .standard`
+    /// 가 받아 주었고 번들 안에서는 그 기본 저장소가 **마침 같은 도메인**이었기 때문이다 —
+    /// 맞게 돌긴 했지만 코드가 그렇게 시킨 것이 아니라 폴백이 우연히 같은 자리를 가리킨 것이고,
+    /// 그 우연이 깨지면 앱과 CLI 가 **조용히** 갈라진다. 위에 적힌 그 증상 그대로.
+    ///
+    /// 그러니 갈래를 밖으로 꺼내 둔다. 번들 식별자가 이미 그 도메인이면 기본 저장소가
+    /// 곧 그 도메인이므로 그대로 쓰고, 아니면(=CLI) 이름을 대고 연다.
+    private static let domain = "me.centell.agent-monitor"
+    private let store: UserDefaults =
+        Bundle.main.bundleIdentifier == Settings.domain
+            ? .standard
+            : UserDefaults(suiteName: Settings.domain) ?? .standard
     private var loading = true
 
     private init() {
