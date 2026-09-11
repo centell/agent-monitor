@@ -2,8 +2,14 @@
 
 **Which of your agent sessions is waiting for you?**
 
-A macOS menu bar app for people who keep several Claude Code sessions open at once. The hard
-question is not *what are they doing* — it is *which one has finished and is waiting for me*.
+A macOS menu bar app for people who keep several agent sessions open at once — Claude Code or
+codex, in a terminal or in the desktop app. The hard question is not *what are they doing* — it is
+*which one has finished and is waiting for me*.
+
+<p align="center">
+  <img src="docs/images/desktop.png" width="358"
+       alt="The menu bar reads 1/4. Below it the list is open: one idle session on top, three working ones under a rule.">
+</p>
 
 한국어 문서는 [README.ko.md](README.ko.md) 에 있습니다.
 
@@ -13,6 +19,16 @@ question is not *what are they doing* — it is *which one has finished and is w
 
 The menu bar shows `2/5` — two waiting, five alive. That is all. It never grows with the session
 count and it never truncates the list.
+
+<img src="docs/images/menubar.png" width="342"
+     alt="A menu bar: 1/4 sits at the left, then the input source, wifi, battery and the clock.">
+
+With nobody waiting it reads `0/4` and goes quiet — the count is drawn dimmed while nothing is
+yours to answer, and at full strength the moment something is.
+
+<img src="docs/images/menubar-clear.png" width="82"
+     alt="The menu bar count reading 0/4 in a muted grey.">
+
 
 Click it and every session is on one screen, no folding, the ones needing you on top:
 
@@ -26,6 +42,11 @@ Click it and every session is on one screen, no folding, the ones needing you on
 Memory 15.6/25.8GB · Swap 12.3GB · Agents 3.7GB
 ```
 
+The same list on a real machine, in the two-line layout with the source mark on:
+
+<img src="docs/images/menu.png" width="359"
+     alt="The open menu: an idle session on top, three working ones below a rule, then the memory summary and the Hide panel, Settings and Quit items.">
+
 | Marker | Status | Needs you |
 |---|---|---|
 | `◆` | `waiting` — a permission prompt is open | **yes** |
@@ -35,6 +56,24 @@ Memory 15.6/25.8GB · Swap 12.3GB · Agents 3.7GB
 
 Status comes from the file Claude Code writes for itself, not from guessing at file timings — so a
 pending approval and a long shell command are told apart instead of both looking like silence.
+
+**It watches four places, counted as one list.** The name carries where each row came from.
+
+| Source | Status read from | A click goes to |
+|---|---|---|
+| Claude Code in a terminal | the registry it writes for itself | its terminal window |
+| Claude Code in the desktop app | the end of the transcript — **an estimate** | nowhere; it has no terminal |
+| codex in a terminal | the end of the transcript — **an estimate** | its terminal window |
+| codex threads in the ChatGPT app | the thread database it writes | the thread, by deep link |
+
+The two that write nothing down are estimated rather than stated, and those rows say so instead of
+passing as measured. An app thread has no process of its own — one app runs them all — so it
+carries no memory or CPU, and nothing tells us whether a finished one is still open; only threads
+finished inside a recent window are listed, which Display sets (10m, 30m, 12h, or hidden).
+
+How the source is written into the name is yours to choose, also in Display: `claude` /
+`claude-app`, or `claude-cli` / `claude-app` so all four say what they are, or a single mark that
+costs one column — `>` for a terminal, `□` for an app.
 
 Hover a row that needs you and it says **why**. A session waiting on approval shows the call it
 is waiting on (`Bash: pnpm build --filter web`); an idle one shows the last thing it said to you
@@ -81,6 +120,9 @@ them.
  ────────────────────────────────────────────────────────────────
  Memory 15.6/25.8GB · Swap 12.3GB · Agents 3.7GB
 ```
+
+<img src="docs/images/panel.png" width="425"
+     alt="The panel parked on the desktop: 2/4 in the header with the on-top arrow, an approval row and an idle row above the rule, two working rows below it.">
 
 **Clicking it never takes the front.** Apart from a row sending you to its terminal, the editor you
 were in stays where it was. This app has no Dock icon, so a window that comes to the front has no
@@ -163,9 +205,14 @@ settings.
 
 - **Display** — language, appearance (follow the system, or pin it light or dark), line layout,
   which columns to show, whether hovering a row says why it is waiting, which of the three metrics
-  to show (RAM bar, RAM GB, CPU % — each on its own switch), whether pointing at the menu bar
-  count opens the list without a click, refresh interval. A live preview renders real sessions
-  through the same code the menu uses, so what you see is what you get.
+  to show (RAM bar, RAM GB, CPU % — each on its own switch), whether recording is on, whether
+  pointing at the menu bar count opens the list without a click, refresh interval, how the source
+  is written into the name, and how long a finished codex app thread stays listed. A live preview
+  renders real sessions through the same code the menu uses, so what you see is what you get.
+
+  <img src="docs/images/settings-display.png" width="620"
+       alt="The Display tab of Settings, with rows for language, appearance, row layout, metrics, recording, refresh, open on hover, source label and codex app threads.">
+
 - **Panel** — show it, always on top, waiting only, and how it looks: backdrop style and opacity,
   text size, row density, the margin around the list, and the skin. Everything on this tab touches
   the panel alone — the menu does not change.
@@ -240,6 +287,12 @@ has to come from recorded days, not from a guess made before any day was recorde
 - **Session status comes from an undocumented internal file.** Observed on Claude Code 2.1.263 and
   2.1.267. If the format changes this breaks; there is a fallback that reads the transcript
   instead, and rows using it are marked as estimates rather than failing silently.
+- **Half of what it watches writes no status down.** Claude Code in a terminal and codex threads in
+  the ChatGPT app record their own state; the Claude desktop app and terminal codex record none, so
+  those rows are read off the end of the transcript and carry an estimate mark. An app thread has no
+  process of its own, so it shows no memory or CPU and cannot be told apart from one still open —
+  only recently finished threads are listed. Of terminal codex it takes the interactive session
+  (`codex-tui`) alone; `codex exec` has nobody sitting in front of it to wait for.
 - **Terminal.app only** for the jump-to-terminal feature. iTerm2, Ghostty, WezTerm and kitty each
   need their own automation path. Inside tmux it reaches the window but not the pane.
   On another terminal a row click cannot move anything, but it **says why** — in the clicked row
@@ -253,7 +306,7 @@ has to come from recorded days, not from a guess made before any day was recorde
   "multiple sessions (n)" rather than guessing when several sessions share a project.
 - **Unsigned.** Releases are not signed or notarised, so macOS blocks the first launch.
 - **macOS only**, universal (Apple Silicon and Intel), built against the macOS 13 SDK but only run
-  on macOS 26. It knows about Claude Code and nothing else so far.
+  on macOS 26.
 
 ## License
 
