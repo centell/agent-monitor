@@ -99,10 +99,25 @@ it is currently on top.
 | Waiting only | Keeps just the rows that need you, and the window narrows to match |
 | Close | Same as **Hide panel** in the menu bar |
 
-**Its look is yours to choose,** in Settings → Display: a backdrop from blur through solid, or
-none at all — text on the desktop with no plate behind it — plus text size and row density. None
-is clean over a wallpaper and tangles with the text behind it over another window, which the
-setting says next to the choice rather than after you make it.
+**A background session can be stopped from here.** Right-click one of the rows a click cannot
+move — a daemon holds their pty, so no terminal window exists to go to — and the menu offers to
+stop it. The two sets are exactly the same rows, turned around: the one you could never reach is
+the one you can now end.
+
+It asks the CLI (`claude stop`) instead of killing the process, so a transcript is not cut
+mid-write and the conversation survives — `claude attach <id>` opens it again. While it winds
+down the row says **Stopping…** where its metrics were, then leaves the list.
+
+**Its look is yours to choose,** in Settings → Panel: a backdrop — blur or solid, at any opacity
+down to none at all, which leaves the text on the desktop with no plate behind it — plus text
+size, row density and the margin around the list. None is clean over a wallpaper and tangles with
+the text behind it over another window, which the setting says next to the choice rather than
+after you make it.
+
+Three **skins** dress the same rows without moving anything. **Simple** keeps every row at one
+weight. **Bold** puts the name first and lets status and metrics fall back. **Quiet** holds only
+the rows that need you and sinks the rest toward the background — this app's whole argument,
+drawn.
 
 While the pointer is over the panel the list holds still. Waiting rows sort to the top, so an
 unfrozen list would move the row you were reaching for out from under you.
@@ -144,12 +159,16 @@ permission is what moves the window; without it the jump does nothing.
 **Menu bar** — the count. Click for the list, or **Show panel** to park it in a corner. `⌘,` opens
 settings.
 
-**Settings** has three tabs:
+**Settings** has four tabs:
 
-- **Display** — language, line layout, which columns to show, whether hovering a row says why it
-  is waiting, which of the three metrics to show (RAM bar, RAM GB, CPU % — each on its own
-  switch), the **panel** (show, always on top, waiting only) and **how it looks** (backdrop, text size, density), refresh interval. A live preview
-  renders real sessions through the same code the menu uses, so what you see is what you get.
+- **Display** — language, appearance (follow the system, or pin it light or dark), line layout,
+  which columns to show, whether hovering a row says why it is waiting, which of the three metrics
+  to show (RAM bar, RAM GB, CPU % — each on its own switch), whether pointing at the menu bar
+  count opens the list without a click, refresh interval. A live preview renders real sessions
+  through the same code the menu uses, so what you see is what you get.
+- **Panel** — show it, always on top, waiting only, and how it looks: backdrop style and opacity,
+  text size, row density, the margin around the list, and the skin. Everything on this tab touches
+  the panel alone — the menu does not change.
 - **Memory** — system used/swap/compressed, the agent total, and the largest consumers outside
   every session tree. Per-session memory is summed across the whole process tree, not the `claude`
   process alone, which is usually several times larger.
@@ -168,6 +187,8 @@ agent-monitor --stats     # how you have actually been using it (7 days; --stats
 ```
 
 The interface is available in English and Korean, following the system language by default.
+Columns are placed by measured glyph width rather than by counting cells, so a row holds its
+columns whether the names are Latin or Hangul.
 
 ## How many sessions can you actually feed?
 
@@ -225,7 +246,8 @@ has to come from recorded days, not from a guess made before any day was recorde
   for three seconds in the panel, and in a dialog from the menu.
 - **A background session has nowhere to go.** It runs on a pty the daemon made, so no terminal
   window exists for it. Those rows are shown as **not clickable** — being unable to click is more
-  honest than clicking and having nothing happen.
+  honest than clicking and having nothing happen. From the panel you can right-click one and stop
+  it, which is the one thing that row can still do for you.
 - **Servers a session spawned can escape its total.** A dev server or container that detaches from
   the process tree is not counted in that session. The memory tab lists them separately, and says
   "multiple sessions (n)" rather than guessing when several sessions share a project.
