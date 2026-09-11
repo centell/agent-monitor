@@ -67,7 +67,11 @@ struct RowFormatter {
     func row(for session: Session, replacingMetrics: String? = nil) -> Row {
         let head = headFields(for: session)
         let headText = joined(head)
-        let tail = replacingMetrics ?? metricsBody(for: session)
+        // 공백만 남은 지표는 **없는 것으로 본다.** 켠 칸이 자리를 지키느라 채워 둔 공백인데,
+        // 그것을 「있다」로 세면 두 줄 배치에서 아무것도 안 적힌 둘째 줄이 한 줄 생긴다
+        // (지표를 못 잰 줄에서만 그렇게 되어, 그 줄만 키가 커진다).
+        var tail = replacingMetrics ?? metricsBody(for: session)
+        if tail.allSatisfy({ $0 == " " }) { tail = "" }
 
         switch settings.layout {
         case .single:
@@ -133,30 +137,59 @@ struct RowFormatter {
         return out
     }
 
-    /// 막대 · 메모리 · CPU. 셋을 따로 켜고 끄므로 켜진 것만 이어 붙인다.
+    /// 막대 · 메모리 · CPU · 컨텍스트 · 토큰. 각각 따로 켜고 끄므로 켜진 것만 이어 붙인다.
     ///
     /// 조각마다 폭이 고정이라 어떤 조합을 골라도 줄과 줄 사이에서 열이 맞는다.
     /// 메모리 숫자를 CPU 앞에 두는 것도 그래서다 — CPU 가 들고 나도 앞이 안 흔들린다.
     /// 여기 쓰이는 글자는 막대(█▊▍▏)까지 전부 정확히 한 칸이라(실측 7.418pt) 안을
     /// 더 쪼갤 것이 없다. 이 칸에서 폭이 튀는 것은 「멈추는 중…」뿐이고 그건 맨 뒤다.
+    ///
+    /// **켠 칸은 값이 없어도 자리를 지킨다.**
+    ///
+    /// 예전에는 지표를 못 잰 줄이 통째로 비었는데, 그때는 지표가 프로세스에서만 왔으므로
+    /// 「못 잰 줄은 전부 못 잰다」가 참이었다. 토큰이 붙으면서 그게 깨졌다 — codex 앱
+    /// 스레드는 제 프로세스가 없어 메모리는 못 재지만 토큰은 codex 가 적어 두므로 잰다.
+    /// 앞칸을 비워 두면 그런 줄만 토큰이 왼쪽으로 밀려 열이 어긋난다.
+    /// 그래서 못 잰 자리는 `—` 로 채운다 — 빈칸과 달리 «여기서는 못 쟀다» 라고 말한다.
     private func metricsBody(for session: Session) -> String {
-        guard let m = session.metrics else { return "" }
         var out = ""
+        let m = session.metrics
+
         if settings.showMemoryBar {
-            out += MetricFormat.bar(bytes: m.memoryBytes).paddedDisplay(to: 7)
+            out += (m.map { MetricFormat.bar(bytes: $0.memoryBytes) } ?? "").paddedDisplay(to: 7)
         }
         // 숫자에 이름을 붙인다. `0.5G` 와 `3%` 는 만든 사람에게만 뜻이 분명하다.
         if settings.showMemoryValue {
-            out += "RAM " + MetricFormat.gigabytes(m.memoryBytes).rightAligned(to: 5)
+            out += "RAM " + (m.map { MetricFormat.gigabytes($0.memoryBytes) } ?? "—")
+                .rightAligned(to: 5)
         }
         // 문턱을 두지 않는다. 「CPU %」를 켜 둔 것이 곧 «보여 달라»는 뜻이며,
         // 켜 놓았는데 아무것도 안 나오면 설정이 고장 난 것처럼 보인다.
         // 조용히 두고 싶으면 그 스위치를 끄면 된다 — 그게 손잡이의 일이다.
-        if settings.showCPU, let cpu = m.cpuPercent {
+        if settings.showCPU {
             if !out.isEmpty { out += "  " }
-            out += String(format: "CPU %3.0f%%", cpu)
+            out += m?.cpuPercent.map { String(format: "CPU %3.0f%%", $0) }
+                ?? ("CPU " + "—".rightAligned(to: 4))
+        }
+        // 지금 얼마나 찼는가. 분모를 적지 않는다 — codex 는 창 크기를 기록에 적지만
+        // Claude 는 적지 않아서, 모델 이름으로 표를 만들어 채우면 새 모델이 나오는
+        // 순간 조용히 틀린 분모가 뜬다.
+        if settings.showContext {
+            if !out.isEmpty { out += "  " }
+            out += "CTX " + tokenCell(session.usage?.context)
+        }
+        // 새로 태운 것과 전부를 나란히 적는다. 하나만 적으면 어느 쪽을 골라도
+        // 읽는 사람이 오해한다 (실측 한 세션에서 17.2M 대 81.9M).
+        if settings.showTokens {
+            if !out.isEmpty { out += "  " }
+            out += "TOK " + tokenCell(session.usage?.fresh) + "/" + tokenCell(session.usage?.total)
         }
         return out
+    }
+
+    /// 토큰 한 칸. 없으면 `—`, 있으면 네 칸에 맞춰 오른쪽 정렬.
+    private func tokenCell(_ count: UInt64?) -> String {
+        (count.map(MetricFormat.tokens) ?? "—").rightAligned(to: 4)
     }
 
     /// 칸을 공백으로 채워 잇는다 — **터미널용**.

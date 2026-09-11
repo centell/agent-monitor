@@ -131,6 +131,15 @@ final class Settings: ObservableObject {
     @Published var showMemoryBar: Bool              { didSet { persist() } }
     @Published var showMemoryValue: Bool            { didSet { persist() } }
     @Published var showCPU: Bool                    { didSet { persist() } }
+    /// 마지막 턴이 들고 간 컨텍스트 크기를 줄에 적을 것인가.
+    ///
+    /// 기본은 끔이다. 켜면 줄이 넓어지는데, 쓰던 폭이 판을 올렸다고 말없이 바뀌면 안 된다.
+    @Published var showContext: Bool                { didSet { persist() } }
+    /// 세션이 지금까지 태운 토큰을 줄에 적을 것인가.
+    ///
+    /// **이 스위치만 값이 비싸다.** codex 는 누적을 스스로 적어 두지만 Claude 는 적지
+    /// 않아 기록을 통째로 훑어야 한다. 꺼져 있으면 훑지 않는다 (`TokenLedger.enabled`).
+    @Published var showTokens: Bool                 { didSet { persist() } }
     @Published var showSummary: Bool                { didSet { persist() } }
 
     /// 쓰임새를 기록해 둘 것인가 (`--stats` 의 재료).
@@ -227,6 +236,8 @@ final class Settings: ObservableObject {
             ?? legacy.map { $0 == "barAndValue" || $0 == "all" } ?? true
         showCPU = store.object(forKey: Key.cpu) as? Bool
             ?? legacy.map { $0 == "all" } ?? false
+        showContext = store.object(forKey: Key.context) as? Bool ?? false
+        showTokens = store.object(forKey: Key.tokens) as? Bool ?? false
         showSummary = store.object(forKey: Key.summary) as? Bool ?? true
         recordStats = store.object(forKey: Key.recordStats) as? Bool ?? true
         refreshInterval = store.object(forKey: Key.interval) as? Double ?? 2
@@ -293,6 +304,8 @@ final class Settings: ObservableObject {
         showMemoryBar = true
         showMemoryValue = true
         showCPU = false
+        showContext = false
+        showTokens = false
         showSummary = true
         recordStats = true
         refreshInterval = 2
@@ -326,6 +339,8 @@ final class Settings: ObservableObject {
         store.set(showMemoryBar, forKey: Key.memoryBar)
         store.set(showMemoryValue, forKey: Key.memoryValue)
         store.set(showCPU, forKey: Key.cpu)
+        store.set(showContext, forKey: Key.context)
+        store.set(showTokens, forKey: Key.tokens)
         store.set(showSummary, forKey: Key.summary)
         store.set(recordStats, forKey: Key.recordStats)
         store.set(refreshInterval, forKey: Key.interval)
@@ -369,6 +384,8 @@ final class Settings: ObservableObject {
         static let memoryBar = "showMemoryBar"
         static let memoryValue = "showMemoryValue"
         static let cpu = "showCPU"
+        static let context = "showContext"
+        static let tokens = "showTokens"
         static let summary = "showSummary"
         static let recordStats = "recordStats"
         static let interval = "refreshInterval"

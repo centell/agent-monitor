@@ -201,6 +201,19 @@ struct ClaudeCodeSource: SessionSource {
         session.pendingCall = facts.pendingCall
         session.lastSay = facts.lastSay
         session.continuedIn = facts.continuedIn
+
+        // 컨텍스트는 방금 읽은 꼬리에서 공짜로 나온다. 누적은 기록을 통째로 훑어야
+        // 하므로 원장에 맡긴다 — 꺼져 있으면 원장이 아무것도 하지 않는다.
+        var usage = TokenUsage(context: facts.context)
+        if let totals = TokenLedger.shared.session(transcript: url) {
+            usage.fresh = totals.fresh
+            usage.total = totals.total
+            // 꼬리에서 못 구했으면 원장이 본 것으로 메운다. 원장은 기록 전체를 보므로
+            // 서브에이전트가 꼬리를 가득 채운 세션에서도 본선 턴을 놓치지 않는다.
+            // 누적 칸을 꺼 두면 원장이 돌지 않으므로 그때는 여전히 «—» 다.
+            usage.context = usage.context ?? totals.context
+        }
+        session.usage = usage.isEmpty ? nil : usage
     }
 
     /// cwd 를 디렉터리 이름으로 바꾼다. 영숫자가 아닌 글자는 전부 `-` 가 된다.
@@ -252,6 +265,8 @@ struct ClaudeCodeSource: SessionSource {
         var lastSay: String?
         /// 이 세션이 넘어간 다음 세션의 id. 이어진 적이 없으면 없다.
         var continuedIn: String?
+        /// 마지막 턴이 들고 간 컨텍스트 크기.
+        var context: UInt64?
     }
 
     /// 끝에서부터 거슬러 올라가며 마지막 대화 이벤트를 찾는다.
@@ -294,6 +309,13 @@ struct ClaudeCodeSource: SessionSource {
             let message = obj["message"] as? [String: Any]
             let content = message?["content"] as? [[String: Any]]
 
+            // 컨텍스트는 **마지막 턴 하나**의 값이다. 거슬러 올라가는 순회라 처음 만나는
+            // assistant 줄이 그 턴이고, sidechain 은 위에서 이미 걸러졌다.
+            if type == "assistant", facts.context == nil,
+               let usage = message?["usage"] as? [String: Any] {
+                facts.context = TokenMath.claude(usage: usage).context
+            }
+
             if type == "user" {
                 // 도구 결과가 돌아온 호출을 적어 둔다. 남은 것이 대기 중인 호출이다.
                 for block in content ?? [] where block["type"] as? String == "tool_result" {
@@ -327,7 +349,9 @@ struct ClaudeCodeSource: SessionSource {
                 }
             }
 
-            if facts.timestamp != nil && facts.tool != nil
+            // 컨텍스트도 손에 넣기 전에는 멈추지 않는다. 없이 멈추면 켜 둔 칸이
+            // «—» 로 깜빡인다 — 값이 없어서가 아니라 우리가 덜 읽어서.
+            if facts.timestamp != nil && facts.tool != nil && facts.context != nil
                 && (facts.lastSay != nil || reachedPreviousTurn) { break }
         }
         return facts

@@ -292,6 +292,16 @@ enum S {
     static var metricBar: String     { p("RAM 막대", "RAM bar", "RAM バー") }
     static var metricValue: String   { "RAM GB" }
     static var metricCPU: String     { "CPU %" }
+    static var tokenMetrics: String  { p("토큰", "Tokens", "トークン") }
+    // 여기도 줄에 찍히는 말을 그대로 쓴다. 「컨텍스트」·「누적」으로 적으면 켜 보기
+    // 전에는 줄의 어느 칸이 그것인지 알 수 없다.
+    static var metricContext: String { p("CTX 컨텍스트", "CTX context", "CTX コンテキスト") }
+    static var metricTokens: String  { p("TOK 누적", "TOK cumulative", "TOK 累計") }
+    static var tokenNote: String {
+        p("TOK 은 «새로 태운 것 / 전부» 입니다. 뒤쪽은 캐시 재사용분까지 셉니다.",
+          "TOK reads «freshly burned / everything». The second number counts cache reads too.",
+          "TOK は «新たに焼いた分 / 全部» です。後ろはキャッシュ再利用分まで数えます。")
+    }
     static var showSummary: String {
         p("아래에 시스템 요약 보이기", "Show system summary below", "下にシステムの要約を見せる")
     }

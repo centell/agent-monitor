@@ -75,6 +75,7 @@ struct ClaudeAppSource: SessionSource {
             session.currentTool = facts.tool
             session.lastSay = facts.lastSay
             session.lastActivity = facts.timestamp ?? record.lastActivityAt
+            session.usage = facts.usage.isEmpty ? nil : facts.usage
             // 앱은 상태를 적지 않는다. 우리가 기록에서 읽어 낸 것이므로 «추정» 이라 적는다.
             session.isEstimated = true
             out.append(session)
@@ -157,13 +158,21 @@ struct ClaudeAppSource: SessionSource {
         var timestamp: Date?
         /// 마지막으로 사람에게 건넨 말. 앱 세션은 승인 대기를 내지 않으므로 이것만 쓴다.
         var lastSay: String?
+        /// 이 세션이 태운 토큰. CLI 와 **같은 기록**을 읽으므로 얻는 것도 같다.
+        var usage = TokenUsage()
     }
 
     private func readState(for record: Record) -> Facts {
         guard let url = transcriptURL(for: record), let text = Transcript.tail(of: url) else {
             return Facts()
         }
-        return parseTail(text)
+        var facts = parseTail(text)
+        if let totals = TokenLedger.shared.session(transcript: url) {
+            facts.usage.fresh = totals.fresh
+            facts.usage.total = totals.total
+            facts.usage.context = facts.usage.context ?? totals.context
+        }
+        return facts
     }
 
     private func transcriptURL(for record: Record) -> URL? {
@@ -212,6 +221,13 @@ struct ClaudeAppSource: SessionSource {
             let message = obj["message"] as? [String: Any]
             let content = message?["content"] as? [[String: Any]]
 
+            // 마지막 턴이 들고 간 컨텍스트. 거슬러 올라가는 순회라 처음 만나는
+            // assistant 줄이 그 턴이고, sidechain 은 위에서 이미 걸러졌다.
+            if type == "assistant", facts.usage.context == nil,
+               let usage = message?["usage"] as? [String: Any] {
+                facts.usage.context = TokenMath.claude(usage: usage).context
+            }
+
             if !stateFound {
                 if type == "assistant" {
                     switch message?["stop_reason"] as? String {
@@ -247,7 +263,9 @@ struct ClaudeAppSource: SessionSource {
                 }
             }
 
-            if stateFound && facts.tool != nil && facts.timestamp != nil { break }
+            // 컨텍스트도 손에 넣기 전에는 멈추지 않는다 (CLI 쪽과 같은 이유).
+            if stateFound && facts.tool != nil && facts.timestamp != nil
+                && facts.usage.context != nil { break }
         }
         return facts
     }

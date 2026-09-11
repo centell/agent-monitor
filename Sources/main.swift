@@ -138,6 +138,10 @@ if args.contains("--memory") {
 }
 
 if args.contains("--json") {
+    // 토큰은 기록을 훑어야 나온다. 화면 스위치와 무관하게 늘 낸다 —
+    // 기계가 읽는 값이 사람의 손잡이에 따라 흔들리면 안 된다.
+    TokenLedger.shared.countsCumulative = true
+    TokenLedger.shared.wantsTokens = true
     let (sessions, _) = measuredSessions(sampleCPU: true)
     let iso = ISO8601DateFormatter()
     let payload: [[String: Any]] = sessions.map { s in
@@ -172,6 +176,11 @@ if args.contains("--json") {
         row["memoryBytes"] = s.metrics.map { Int($0.memoryBytes) }
         row["cpuPercent"] = s.metrics?.cpuPercent.map { ($0 * 10).rounded() / 10 }
         row["descendantCount"] = s.metrics.map { $0.descendantCount }
+        row["contextTokens"] = s.usage?.context.map { Int($0) }
+        // 「새로 태운 것」과 「전부」를 따로 낸다. 하나로 합치면 어느 쪽을 골라도
+        // 읽는 쪽이 오해한다 — 둘은 캐시 재사용분만큼 갈린다.
+        row["freshTokens"] = s.usage?.fresh.map { Int($0) }
+        row["totalTokens"] = s.usage?.total.map { Int($0) }
         return row.compactMapValues { $0 }
     }
     let data = try JSONSerialization.data(withJSONObject: payload,
@@ -181,6 +190,9 @@ if args.contains("--json") {
 }
 
 if args.contains("--list") {
+    // 여기는 사람이 보는 줄이라 화면 스위치를 그대로 따른다. 꺼 두셨으면 훑지 않는다.
+    TokenLedger.shared.countsCumulative = Settings.shared.showTokens
+    TokenLedger.shared.wantsTokens = Settings.shared.showTokens || Settings.shared.showContext
     let (sessions, systemMemory) = measuredSessions(sampleCPU: true)
     if sessions.isEmpty {
         print(S.noSessionsPeriod)

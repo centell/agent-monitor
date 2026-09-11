@@ -144,7 +144,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: 갱신
 
     private func refresh() {
-        sessions = measured(source.scan()).sortedForDisplay()
+        sessions = scanned()
         if settings.recordStats { stats.record(sessions: sessions, memory: systemMemory) }
         updateTitle()
         if !menuIsOpen { rebuildMenu() }
@@ -159,6 +159,17 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// 대기뿐이라, 기록이 실제보다 늘 낙관적으로 보인다.
     func applicationWillTerminate(_ notification: Notification) {
         stats.finish()
+    }
+
+    /// 한 번 훑어 화면에 낼 차례까지 맞춘다.
+    ///
+    /// **훑는 길이 둘이다** — 타이머와 «메뉴를 여는 순간». 토큰 원장의 문을 그중 한
+    /// 곳에서만 열었더니, 스위치를 켜고 타이머가 돌기 전에 메뉴를 열면 그 판만
+    /// «—» 로 나왔다. 훑기와 문 여는 일을 한 곳에 묶어 두 길이 갈라질 자리를 없앤다.
+    private func scanned() -> [Session] {
+        TokenLedger.shared.countsCumulative = settings.showTokens
+        TokenLedger.shared.wantsTokens = settings.showTokens || settings.showContext
+        return measured(source.scan()).sortedForDisplay()
     }
 
     /// 세션마다 프로세스 트리의 메모리·CPU 를 붙인다.
@@ -204,7 +215,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuWillOpen(_ menu: NSMenu) {
         menuIsOpen = true
-        sessions = measured(source.scan()).sortedForDisplay()   // 열기 직전 값으로 그린다
+        sessions = scanned()                                    // 열기 직전 값으로 그린다
         updateTitle()
         rebuildMenu()
     }

@@ -81,6 +81,7 @@ struct CodexSource: SessionSource {
                 accountRoot: root
             )
             session.currentTool = facts.tool
+            session.usage = facts.usage.isEmpty ? nil : facts.usage
             session.lastActivity = facts.timestamp
             // 상태를 우리가 추정했다는 표식. 화면에 «추정» 으로 나간다.
             session.isEstimated = true
@@ -182,6 +183,8 @@ struct CodexSource: SessionSource {
         var state: SessionState = .unknown("no turn event")
         var tool: String?
         var timestamp: Date?
+        /// 이 세션이 태운 토큰. codex 는 누적을 **스스로 적어 둔다** — 훑을 필요가 없다.
+        var usage = TokenUsage()
     }
 
     /// 끝에서 거슬러 올라가며 turn 의 경계를 찾는다.
@@ -192,6 +195,7 @@ struct CodexSource: SessionSource {
     private func parseTail(_ text: String) -> TailFacts {
         var facts = TailFacts()
         var stateFound = false
+        var usageFound = false
 
         for line in text.split(separator: "\n").reversed() {
             guard let data = line.data(using: .utf8),
@@ -219,6 +223,14 @@ struct CodexSource: SessionSource {
                 }
             }
 
+            // codex 는 턴마다 «지금까지 얼마나 썼나» 를 통째로 다시 적는다. 그래서
+            // 끝에서 처음 만나는 것 하나면 되고, Claude 처럼 더해 갈 일이 없다.
+            if !usageFound, kind == "token_count",
+               let info = payload["info"] as? [String: Any] {
+                facts.usage = TokenMath.codexUsage(info: info)
+                usageFound = true
+            }
+
             if facts.tool == nil, kind == "item_completed",
                let item = payload["item"] as? [String: Any],
                let type = item["type"] as? String,
@@ -226,7 +238,7 @@ struct CodexSource: SessionSource {
                 facts.tool = type
             }
 
-            if stateFound && facts.tool != nil && facts.timestamp != nil { break }
+            if stateFound && usageFound && facts.tool != nil && facts.timestamp != nil { break }
         }
         return facts
     }

@@ -133,6 +133,9 @@ struct Session {
     /// 프로세스 트리의 메모리·CPU. 재지 못했으면 없다.
     var metrics: SessionMetrics?
 
+    /// 이 세션이 태운 토큰. 기록에서 못 읽었으면 없다.
+    var usage: TokenUsage?
+
     /// 터미널이 없는 세션을 여는 다른 문. 앱 세션처럼 tty 가 없을 때 쓴다.
     var deepLink: URL?
 
@@ -289,4 +292,29 @@ extension Array where Element == Session {
     }
 
     var attentionCount: Int { lazy.filter { $0.state.needsAttention }.count }
+}
+
+// MARK: - 토큰
+
+/// 이 세션이 태운 토큰.
+///
+/// 값마다 따로 없을 수 있어 셋 다 옵셔널이다. 출처가 적어 두는 것이 제각각이라
+/// (codex 는 누적을 스스로 적고, Claude 는 턴마다의 `usage` 만 적는다) 한 덩어리로
+/// 묶으면 **못 얻은 것을 0 으로 적게 된다.** 0 과 «모름» 은 다른 말이다.
+struct TokenUsage {
+    /// 마지막 턴의 컨텍스트 크기 — 지금 얼마나 찼는가.
+    ///
+    /// 본선만 센다. 서브에이전트는 제 컨텍스트를 따로 쓰므로 이 세션이 찬 정도가 아니다.
+    var context: UInt64?
+
+    /// 세션이 **새로 태운** 것. 캐시 재사용분을 뺀 값이다.
+    var fresh: UInt64?
+
+    /// API 가 세는 **전부**. 캐시 재사용분까지 포함한다.
+    ///
+    /// `fresh` 와 나란히 적는다. 실측 한 세션에서 17.15M 대 81.93M 로 다섯 배 가까이
+    /// 갈리는데, 둘 중 하나만 적으면 어느 쪽을 골라도 읽는 사람이 오해한다.
+    var total: UInt64?
+
+    var isEmpty: Bool { context == nil && fresh == nil && total == nil }
 }

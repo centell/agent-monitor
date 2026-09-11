@@ -50,6 +50,21 @@ struct LayoutSettingsView: View {
                     }
                 }
 
+                // 지표와 같은 꼴로 한 줄 더 둔다. 재는 것이 프로세스가 아니라 기록이라
+                // 짝이 다르므로 줄을 나눴다 — 다섯을 한 줄에 몰면 무엇이 한 짝인지 사라진다.
+                VStack(alignment: .leading, spacing: 2) {
+                    LabeledContent(S.tokenMetrics) {
+                        HStack(spacing: 14) {
+                            Toggle(S.metricContext, isOn: $settings.showContext)
+                            Toggle(S.metricTokens, isOn: $settings.showTokens)
+                        }
+                    }
+                    // 두 숫자가 무슨 뜻인지 켠 사람에게만 적는다. 늘 띄워 두면 배경이 된다.
+                    if settings.showTokens {
+                        Text(S.tokenNote).font(.caption).foregroundStyle(.tertiary)
+                    }
+                }
+
                 Toggle(S.showSummary, isOn: $settings.showSummary)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -105,7 +120,7 @@ struct LayoutSettingsView: View {
             .formStyle(.grouped)
             // 손잡이 수에 맞춘 높이. 모자라면 Form 안에서 마지막 줄이 잘리므로
             // 손잡이를 더할 때는 이 값도 한 줄만큼 올린다.
-            .frame(height: 650)
+            .frame(height: 715)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(S.preview)

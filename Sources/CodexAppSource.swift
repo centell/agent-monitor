@@ -70,6 +70,7 @@ struct CodexAppSource: SessionSource {
                 accountRoot: root
             )
             session.lastActivity = thread.updatedAt
+            session.usage = thread.usage.isEmpty ? nil : thread.usage
             session.deepLink = Self.deepLink(for: thread.id)
             // 상태를 codex 가 직접 적었다. 추정이 아니므로 «추정» 을 달지 않는다.
             session.isEstimated = false
@@ -100,6 +101,11 @@ struct CodexAppSource: SessionSource {
         let state: SessionState
         let startedAt: Date?
         let updatedAt: Date?
+        /// 이 스레드가 태운 토큰.
+        ///
+        /// 스레드마다 프로세스가 없어 메모리·CPU 는 못 재지만 토큰은 잰다 — 그건
+        /// 커널이 아니라 codex 가 적어 두는 값이라 프로세스가 없어도 남아 있다.
+        let usage: TokenUsage
     }
 
     /// 스레드와 그 **가장 최근 턴**을 한 번에 가져온다.
@@ -130,11 +136,18 @@ struct CodexAppSource: SessionSource {
         let attach = "ATTACH DATABASE 'file:\(historyURL.path)?mode=ro' AS h"
         guard sqlite3_exec(db, attach, nil, nil, nil) == SQLITE_OK else { return [] }
 
+        // 토큰 두 열은 **따로 뗀다.** 붙여서 한 문장으로 물으면, codex 가 판을 올려
+        // 그 열 이름이 바뀌는 날 `prepare` 가 통째로 실패하고 — 아래 `return []` 을
+        // 타고 — **codex 앱 세션이 목록에서 전부 사라진다.** 토큰은 곁들이지 세션의
+        // 뼈대가 아니므로, 없으면 토큰만 비우고 세션은 그대로 낸다.
+        let tokenColumns = hasTokenColumns(db)
+            ? ",\n               COALESCE(t.rollout_path, ''), t.tokens_used"
+            : ""
         let sql = """
         SELECT t.id,
                COALESCE(NULLIF(t.name, ''), NULLIF(t.title, ''), ''),
                COALESCE(t.cwd, ''),
-               u.status, u.started_at, COALESCE(u.completed_at, u.started_at)
+               u.status, u.started_at, COALESCE(u.completed_at, u.started_at)\(tokenColumns)
         FROM threads t
         JOIN (SELECT thread_id, status, started_at, completed_at,
                      ROW_NUMBER() OVER (PARTITION BY thread_id ORDER BY started_at DESC) rn
@@ -166,8 +179,51 @@ struct CodexAppSource: SessionSource {
                               cwd: cwd,
                               state: Self.state(fromTurnStatus: String(cString: statusText)),
                               startedAt: date(sqlite3_column_int64(stmt, 4)),
-                              updatedAt: date(sqlite3_column_int64(stmt, 5))))
+                              updatedAt: date(sqlite3_column_int64(stmt, 5)),
+                              usage: sqlite3_column_count(stmt) > 7
+                                  ? usage(rolloutPath: sqlite3_column_text(stmt, 6)
+                                              .map { String(cString: $0) } ?? "",
+                                          tokensUsed: sqlite3_column_int64(stmt, 7))
+                                  : TokenUsage()))
         }
+        return out
+    }
+
+    /// `threads` 에 토큰 열이 있는가.
+    ///
+    /// 있는 줄 알고 물었다가 없으면 `prepare` 가 실패하고 세션이 전부 사라지므로,
+    /// 묻기 전에 스키마에 확인한다. `PRAGMA` 는 파일을 읽지 않고 헤더만 본다.
+    private func hasTokenColumns(_ db: OpaquePointer?) -> Bool {
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, "PRAGMA table_info(threads)", -1, &stmt, nil) == SQLITE_OK
+        else { return false }
+        defer { sqlite3_finalize(stmt) }
+        var found = Set<String>()
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            if let name = sqlite3_column_text(stmt, 1) { found.insert(String(cString: name)) }
+        }
+        return found.contains("rollout_path") && found.contains("tokens_used")
+    }
+
+    /// 스레드가 태운 토큰을 두 곳에서 찾는다.
+    ///
+    /// DB 의 `tokens_used` 는 **전부**만 알려 준다 (실측 1,348,736 — 같은 스레드의
+    /// rollout 이 적은 `total_tokens` 와 정확히 같다). rollout 을 찾으면 거기에
+    /// 캐시 재사용분과 직전 요청까지 적혀 있으므로 그쪽을 먼저 본다.
+    ///
+    /// rollout 은 없을 수 있다 (실측: 최근 셋 중 하나가 아직 없었다). 그때는 DB 의
+    /// 값만 들고 나머지는 비워 둔다 — 못 얻은 것을 0 으로 적지 않는다.
+    private func usage(rolloutPath: String, tokensUsed: Int64) -> TokenUsage {
+        // 토큰 칸을 하나도 안 켜 두셨으면 이 파일들을 열 이유가 없다. DB 값은 이미
+        // 손에 있으니 그건 그대로 들고 간다 — 여는 것만 아낀다.
+        var out = TokenUsage()
+        if TokenLedger.shared.wantsTokens, !rolloutPath.isEmpty {
+            let url = URL(fileURLWithPath: rolloutPath)
+            if let tail = Transcript.tail(of: url) {
+                out = TokenMath.codexUsage(inTail: tail)
+            }
+        }
+        if out.total == nil, tokensUsed > 0 { out.total = UInt64(tokensUsed) }
         return out
     }
 

@@ -187,6 +187,37 @@ enum MetricFormat {
         String(format: "%.1fG", Double(bytes) / 1_000_000_000)
     }
 
+    /// 토큰 수. **어떤 값이 와도 네 칸을 넘지 않는다.**
+    ///
+    /// 폭이 고정이라야 줄과 줄 사이에서 열이 맞는다. 그래서 자릿수가 늘면 단위를
+    /// 올려 받는다 — `9999` 다음은 `10k`, `999k` 다음은 `1.0M` 이다.
+    /// 소수점은 자리가 남을 때만 붙인다.
+    ///
+    /// **띠의 경계를 숫자로 못 박지 않는다.** 그렇게 짜 보았다가 반올림에 당했다 —
+    /// `999,500` 은 「100만 미만」이라 `k` 띠에 남는데 `%.0f` 로 반올림하면 `1000k`,
+    /// 다섯 칸이 된다. 네 띠 경계마다 같은 자리가 있었고 표본에서 4151개 값이 걸렸다.
+    /// 그래서 경계를 재지 않고 **찍어 본 뒤 안 들어가면 단위를 올린다** — 폭이 조건이면
+    /// 폭으로 판단하는 것이 맞고, 그러면 반올림이 어디서 올라가든 알아서 따라온다.
+    static func tokens(_ count: UInt64) -> String {
+        let fits = 4
+        var value = Double(count)
+        for suffix in ["", "k", "M", "B"] {
+            if suffix.isEmpty {
+                let whole = String(count)
+                if whole.count <= fits { return whole }
+            } else {
+                for text in [String(format: "%.1f%@", value, suffix),
+                             String(format: "%.0f%@", value, suffix)] {
+                    if text.count <= fits { return text }
+                }
+            }
+            value /= 1_000
+        }
+        // 조(兆) 단위. 여기까지 오면 네 칸을 넘을 수 있지만, 그건 한 세션이 1000조
+        // 토큰을 태웠다는 뜻이라 열이 어긋나는 것을 걱정할 자리가 아니다.
+        return String(format: "%.0fT", value * 1_000)
+    }
+
     /// 시스템 요약 한 줄.
     static func systemSummary(_ memory: SystemMemory, agentBytes: UInt64) -> String {
         let gb = { (v: UInt64) in Double(v) / 1_000_000_000 }
