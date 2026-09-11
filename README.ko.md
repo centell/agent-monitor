@@ -1,5 +1,7 @@
 # agent-monitor
 
+[English](README.md) | **한국어** | [日本語](README.ja.md)
+
 **어느 세션이 나를 기다리고 있나.**
 
 에이전트 세션을 여러 개 띄워두고 쓰는 사람을 위한 macOS 메뉴바 앱입니다 — Claude Code 든
@@ -10,8 +12,6 @@ codex 든, 터미널이든 데스크탑 앱이든. 어려운 물음은 *무엇�
   <img src="docs/images/desktop.png" width="358"
        alt="메뉴바에 1/4 이 떠 있고, 그 아래 목록이 열려 입력 대기 세션 하나가 맨 위에, 작업 중 셋이 구분선 아래에 있다.">
 </p>
-
-English: [README.md](README.md)
 
 ---
 

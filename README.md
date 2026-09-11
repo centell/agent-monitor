@@ -1,5 +1,7 @@
 # agent-monitor
 
+**English** | [한국어](README.ko.md) | [日本語](README.ja.md)
+
 **Which of your agent sessions is waiting for you?**
 
 A macOS menu bar app for people who keep several agent sessions open at once — Claude Code or
@@ -10,8 +12,6 @@ codex, in a terminal or in the desktop app. The hard question is not *what are t
   <img src="docs/images/desktop.png" width="358"
        alt="The menu bar reads 1/4. Below it the list is open: one idle session on top, three working ones under a rule.">
 </p>
-
-한국어 문서는 [README.ko.md](README.ko.md) 에 있습니다.
 
 ---
 
