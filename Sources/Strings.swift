@@ -58,6 +58,49 @@ enum S {
         p("살아있는 세션이 없습니다", "No live sessions", "動いているセッションはありません")
     }
     static var settingsItem: String { p("설정…", "Settings…", "設定…") }
+
+    // MARK: 새 판
+
+    /// 메뉴에 내거는 줄. **판 번호를 적는다** — 「업데이트 있음」만으론 무엇이 오는지 모른다.
+    static func updateReady(_ version: String) -> String {
+        p("새 버전 \(version) — 지금 설치", "Version \(version) — install now", "新しい版 \(version) — 今すぐ入れる")
+    }
+    static var checkUpdates: String { p("새 버전 알림", "Tell me about new versions", "新しい版を知らせる") }
+    static var checkUpdatesNote: String {
+        p("하루에 한 번 릴리즈를 확인합니다. 받는 일은 누르셔야 시작합니다.",
+          "Checks releases once a day. Nothing downloads until you click.",
+          "1日1回リリースを確認します。押すまで何もダウンロードしません。")
+    }
+    static var checkNow: String { p("지금 확인", "Check now", "今すぐ確認") }
+    static var updateChecking: String { p("확인하는 중…", "Checking…", "確認中…") }
+    static var updateUpToDate: String { p("최신입니다", "Up to date", "最新です") }
+    static var updateCheckFailed: String {
+        p("확인하지 못했습니다", "Could not check", "確認できませんでした")
+    }
+    static var updateDownloading: String { p("받는 중…", "Downloading…", "ダウンロード中…") }
+    static var updateFailedTitle: String {
+        p("새 판을 넣지 못했습니다", "Could not install the update", "新しい版を入れられませんでした")
+    }
+    static var updateNotWritable: String {
+        p("앱이 놓인 자리를 이 앱이 바꿀 수 없습니다. 손으로 받아 바꿔 주세요.",
+          "This app cannot write where it is installed. Please replace it by hand.",
+          "インストール先に書き込めません。手動で入れ替えてください。")
+    }
+    static var updateDownloadFailed: String {
+        p("받아 오지 못했습니다.", "The download did not finish.", "ダウンロードできませんでした。")
+    }
+    static var updateBadArchive: String {
+        p("받은 것이 이 앱의 그 판이 아니어서 넣지 않았습니다.",
+          "What arrived was not this app at that version, so nothing was replaced.",
+          "届いたものがこのアプリのその版ではなかったため、入れ替えていません。")
+    }
+    static var updateSwapFailed: String {
+        p("바꿔 끼우지 못했습니다. 지금 판은 그대로입니다.",
+          "The swap did not start. The current version is untouched.",
+          "入れ替えを始められませんでした。今の版はそのままです。")
+    }
+    static var updateOpenPage: String { p("릴리즈 페이지 열기", "Open releases", "リリースページを開く") }
+    static var updateLater: String { p("나중에", "Later", "あとで") }
     static var quitItem: String     { p("종료", "Quit", "終了") }
     static var estimated: String    { p("  (추정)", "  (est.)", "  (推定)") }
 

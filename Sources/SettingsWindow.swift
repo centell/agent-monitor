@@ -10,6 +10,7 @@ import SwiftUI
 struct LayoutSettingsView: View {
 
     @ObservedObject private var settings = Settings.shared
+    @ObservedObject private var updates = UpdateCheck.shared
     let sessionsProvider: () -> [Session]
 
     @State private var sessions: [Session] = []
@@ -66,6 +67,19 @@ struct LayoutSettingsView: View {
                 }
 
                 Toggle(S.showSummary, isOn: $settings.showSummary)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Toggle(S.checkUpdates, isOn: $settings.checkForUpdates)
+                        Spacer()
+                        // 눌러 보고 「아무 일도 안 일어났다」가 되지 않도록 결과를 옆에 적는다.
+                        if let status = updates.status {
+                            Text(status).font(.caption).foregroundStyle(.tertiary)
+                        }
+                        Button(S.checkNow) { UpdateCheck.shared.check(force: true) }
+                    }
+                    Text(S.checkUpdatesNote).font(.caption).foregroundStyle(.tertiary)
+                }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Toggle(S.recordStats, isOn: $settings.recordStats)

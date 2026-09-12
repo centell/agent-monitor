@@ -150,6 +150,9 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         sessions = scanned()
         // 지어낸 세션은 기록에 남기지 않는다. 한 번 섞이면 그 통계는 영영 못 믿는다.
         if settings.recordStats && !demo { stats.record(sessions: sessions, memory: systemMemory) }
+        // 새 판이 나왔는지는 하루에 한 번만 본다. 여기서 불려도 대개 그 자리에서 돌아선다 —
+        // 그래서 타이머를 하나 더 두지 않는다.
+        if !demo { UpdateCheck.shared.check() }
         updateTitle()
         // 메뉴는 여기서 짓지 않는다. 닫혀 있는 동안 지어 봐야 아무도 안 보고, 열리는
         // 순간 `menuWillOpen` 이 어차피 통째로 다시 짓는다. 열려 있는 동안에도 안 짓는다 —
@@ -277,6 +280,15 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(disabledRow(MetricFormat.systemSummary(memory, agentBytes: agentBytes)))
         }
 
+        // 새 판이 있을 때만 줄이 하나 는다. 없으면 메뉴는 어제와 같은 모양이다.
+        if let update = UpdateCheck.shared.found {
+            menu.addItem(.separator())
+            let item = NSMenuItem(title: S.updateReady(update.version),
+                                  action: #selector(installUpdate), keyEquivalent: "")
+            item.target = self
+            menu.addItem(item)
+        }
+
         menu.addItem(.separator())
         // 창을 여닫는 문. 항목 하나가 양쪽을 겸한다 — 「열기」와 「닫기」가 따로 있으면
         // 지금 떠 있는지를 메뉴가 아니라 화면을 보고 판단해야 한다.
@@ -355,6 +367,12 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// 상시 창을 켜고 끈다. 실제로 여닫는 일은 설정 알림을 타고
     /// `FloatingPanelController.sync()` 한 곳에서만 일어난다.
     @objc private func togglePanel() { settings.panelOpen.toggle() }
+
+    /// 누르셨을 때만 받기 시작한다. 여기까지 오기 전에는 한 바이트도 안 받는다.
+    @objc private func installUpdate() {
+        guard let update = UpdateCheck.shared.found else { return }
+        UpdateCheck.shared.install(update)
+    }
 
     @objc private func openSettings() {
         SettingsWindowController.shared.show { [weak self] in self?.sessions ?? [] }

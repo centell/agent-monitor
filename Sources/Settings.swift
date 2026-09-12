@@ -147,6 +147,13 @@ final class Settings: ObservableObject {
     /// 기본은 켜 둔다 — 데이터는 지난 날로 돌아가 만들 수 없어서, 꺼 둔 채로 한 달이
     /// 지나면 그 한 달은 영영 없다. 대신 끄는 손잡이를 눈에 보이는 자리에 둔다.
     @Published var recordStats: Bool                { didSet { persist() } }
+
+    /// 새 판이 나왔는지 하루 한 번 볼 것인가.
+    ///
+    /// 기본은 켬이다. 이 앱은 서명이 없어 직접 받아 놓고 쓰는 사람이 많은데, 그러면
+    /// **새 판이 나온 줄을 알 길이 없다.** 다만 켜 두어도 받는 일은 시작되지 않는다 —
+    /// 알리기만 하고, 받는 것은 누르셔야 한다.
+    @Published var checkForUpdates: Bool            { didSet { persist() } }
     @Published var refreshInterval: Double          { didSet { persist() } }
 
     /// codex 앱 스레드를 최근 몇 분까지 보일지. `0` 이면 아예 보이지 않는다.
@@ -254,6 +261,7 @@ final class Settings: ObservableObject {
         showTokens = store.object(forKey: Key.tokens) as? Bool ?? false
         showSummary = store.object(forKey: Key.summary) as? Bool ?? true
         recordStats = store.object(forKey: Key.recordStats) as? Bool ?? true
+        checkForUpdates = store.object(forKey: Key.checkUpdates) as? Bool ?? true
         refreshInterval = store.object(forKey: Key.interval) as? Double ?? 2
         codexAppWindow = store.object(forKey: Key.codexAppWindow) as? Double ?? 30
         sourceStyle = SourceStyle(rawValue: store.string(forKey: Key.sourceStyle) ?? "") ?? .short
@@ -322,6 +330,7 @@ final class Settings: ObservableObject {
         showTokens = false
         showSummary = true
         recordStats = true
+        checkForUpdates = true
         refreshInterval = 2
         codexAppWindow = 30
         sourceStyle = .short
@@ -357,6 +366,7 @@ final class Settings: ObservableObject {
         store.set(showTokens, forKey: Key.tokens)
         store.set(showSummary, forKey: Key.summary)
         store.set(recordStats, forKey: Key.recordStats)
+        store.set(checkForUpdates, forKey: Key.checkUpdates)
         store.set(refreshInterval, forKey: Key.interval)
         store.set(codexAppWindow, forKey: Key.codexAppWindow)
         store.set(sourceStyle.rawValue, forKey: Key.sourceStyle)
@@ -402,6 +412,7 @@ final class Settings: ObservableObject {
         static let tokens = "showTokens"
         static let summary = "showSummary"
         static let recordStats = "recordStats"
+        static let checkUpdates = "checkForUpdates"
         static let interval = "refreshInterval"
         static let codexAppWindow = "codexAppWindow"
         static let sourceStyle = "sourceStyle"
