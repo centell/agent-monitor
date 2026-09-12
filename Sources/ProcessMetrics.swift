@@ -81,8 +81,12 @@ final class MetricsSampler {
 
     // MARK: 커널에서 읽기
 
-    /// 살아있는 모든 프로세스의 `pid` 와 `ppid`.
-    static func allProcesses() -> [(pid: Int32, ppid: Int32)] {
+    /// 살아있는 모든 프로세스의 `pid` · `ppid` · **시작 시각**.
+    ///
+    /// 시작 시각은 이 한 번의 `sysctl` 이 **이미 들고 온** 값에서 꺼낸다. 프로세스마다
+    /// `proc_pidinfo` 를 따로 물어도 같은 값이 나오지만(실측: 답한 346개가 마이크로초까지
+    /// 전부 일치), 그건 프로세스 수만큼 커널을 두드려 같은 답을 받는 값이다.
+    static func allProcesses() -> [(pid: Int32, ppid: Int32, started: Date)] {
         var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0]
         var size = 0
         guard sysctl(&mib, 4, nil, &size, nil, 0) == 0, size > 0 else { return [] }
@@ -91,7 +95,13 @@ final class MetricsSampler {
         size = capacity * MemoryLayout<kinfo_proc>.stride
         guard sysctl(&mib, 4, &buffer, &size, nil, 0) == 0 else { return [] }
         let count = size / MemoryLayout<kinfo_proc>.stride
-        return (0..<count).map { (buffer[$0].kp_proc.p_pid, buffer[$0].kp_eproc.e_ppid) }
+        return (0..<count).map { index in
+            let started = buffer[index].kp_proc.p_un.__p_starttime
+            return (buffer[index].kp_proc.p_pid,
+                    buffer[index].kp_eproc.e_ppid,
+                    Date(timeIntervalSince1970: Double(started.tv_sec)
+                                              + Double(started.tv_usec) / 1_000_000))
+        }
     }
 
     private static func descendants(of root: Int32, in children: [Int32: [Int32]]) -> [Int32] {

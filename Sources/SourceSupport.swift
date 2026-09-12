@@ -24,13 +24,44 @@ struct LiveProcessTable {
 
     let entries: [Entry]
 
+    /// 프로세스가 **어느 폴더에서 도는지**를 pid 마다 기억해 둔다.
+    ///
+    /// 이 표를 짓는 값의 거의 전부가 폴더를 묻는 `proc_pidinfo(PROC_PIDVNODEPATHINFO)` 다.
+    /// 커널이 경로를 되짚어 채워 주는 호출이라 비싼데, **맥의 모든 프로세스마다** 물어야
+    /// 한다 (실측: 581개가 도는 맥에서 갱신 주기마다 그만큼). 그런데 프로세스가 사는 동안
+    /// 제 폴더는 거의 바뀌지 않으므로, 한 번 물은 답은 들고 있는다.
+    ///
+    /// **번호가 되돌아오는 것**만 조심하면 된다. pid 는 돌려 쓰이므로 죽은 프로세스의
+    /// 폴더를 엉뚱한 새 프로세스에 물릴 수 있다. 시작 시각이 그걸 가른다 — 번호가 같아도
+    /// 시각이 다르면 남이다. 그 시각은 `allProcesses()` 가 이미 들고 온 것이라 공짜다.
+    private static let cacheLock = NSLock()
+    private static var cachedDirectories: [Int32: (started: Date, cwd: String)] = [:]
+
     /// 같은 사용자로 도는 프로세스만 담긴다. 남의 계정 것은 cwd 를 읽을 수 없어 저절로 빠진다.
     init() {
-        entries = MetricsSampler.allProcesses().compactMap { row in
-            guard let cwd = Self.workingDirectory(pid: row.pid),
-                  let started = Self.startTime(pid: row.pid) else { return nil }
-            return Entry(pid: row.pid, ppid: row.ppid, cwd: cwd, startedAt: started)
+        let rows = MetricsSampler.allProcesses()
+
+        Self.cacheLock.lock()
+        defer { Self.cacheLock.unlock() }
+
+        var fresh: [Int32: (started: Date, cwd: String)] = [:]
+        fresh.reserveCapacity(rows.count)
+        var out: [Entry] = []
+        out.reserveCapacity(rows.count)
+
+        for row in rows {
+            let remembered = Self.cachedDirectories[row.pid]
+            let cwd = (remembered?.started == row.started ? remembered?.cwd : nil)
+                ?? Self.workingDirectory(pid: row.pid)
+            guard let cwd else { continue }
+            fresh[row.pid] = (row.started, cwd)
+            out.append(Entry(pid: row.pid, ppid: row.ppid, cwd: cwd, startedAt: row.started))
         }
+
+        // 이번 훑기에 없던 pid 는 버린다. 죽은 프로세스의 자리가 쌓이지 않고, 번호가
+        // 돌아왔을 때 남의 폴더를 물려줄 여지도 남지 않는다.
+        Self.cachedDirectories = fresh
+        entries = out
     }
 
     /// 이 작업 폴더에서 도는 세션의 pid.
@@ -75,17 +106,6 @@ struct LiveProcessTable {
         return withUnsafePointer(to: &info.pvi_cdir.vip_path) {
             $0.withMemoryRebound(to: CChar.self, capacity: Int(MAXPATHLEN)) { String(cString: $0) }
         }
-    }
-
-    static func startTime(pid: Int32) -> Date? {
-        var info = proc_taskallinfo()
-        let size = Int32(MemoryLayout<proc_taskallinfo>.size)
-        let rc = withUnsafeMutablePointer(to: &info) {
-            proc_pidinfo(pid, PROC_PIDTASKALLINFO, 0, $0, size)
-        }
-        guard rc == size else { return nil }
-        return Date(timeIntervalSince1970: Double(info.pbsd.pbi_start_tvsec)
-                                         + Double(info.pbsd.pbi_start_tvusec) / 1_000_000)
     }
 }
 
