@@ -212,8 +212,7 @@ one a single line appears in the menu: *Version 0.6.0 — install now*. Nothing 
 you click it. When you do, the app fetches that release, checks that what arrived really is this
 app at that version, steps aside while a small helper swaps the bundle, and comes back. The
 previous version is kept next to it until the new one is seen running, so a failed update puts the
-old one back rather than leaving you with nothing. Turn the whole thing off in **Settings →
-Display → Tell me about new versions**.
+old one back rather than leaving you with nothing. Turn the whole thing off in **Settings → About**.
 
 > Because the app is unsigned, an update is only as trustworthy as the HTTPS connection to GitHub
 > — the same trust you already extend when you download the zip by hand. The difference is that a
@@ -240,15 +239,15 @@ permission is what moves the window; without it the jump does nothing.
 **Menu bar** — the count. Click for the list, or **Show panel** to park it in a corner. `⌘,` opens
 settings.
 
-**Settings** has four tabs:
+**Settings** has five tabs:
 
 - **Display** — language, appearance (follow the system, or pin it light or dark), line layout,
   which columns to show, whether hovering a row says why it is waiting, which metrics to show
-  (RAM bar, RAM GB, CPU %, and the two token columns — each on its own switch), whether new
-  versions are announced, whether recording is on, whether pointing at the menu bar count opens
-  the list without a click, refresh interval, how the source is written into the name, and how
-  long a finished codex app thread stays listed. A live preview renders real sessions through the
-  same code the menu uses, so what you see is what you get.
+  (RAM bar, RAM GB, CPU %, and the two token columns — each on its own switch), whether recording
+  is on, whether pointing at the menu bar count opens the list without a click, refresh interval,
+  how the source is written into the name, and how long a finished codex app thread stays listed.
+  A live preview renders real sessions through the same code the menu uses, so what you see is
+  what you get.
 
   <img src="docs/images/en/settings-display.png" width="640"
        alt="The Display tab of Settings, with rows for language, appearance, row layout, metrics, tokens, recording, refresh, open on hover, source label and codex app threads.">
@@ -262,6 +261,9 @@ settings.
 - **Statistics** — whether recording is alive (how much piled up today, when the last row landed),
   then the same numbers `--stats` prints: the last 7 days, by hour and by weekday, with a bar on
   the share of time two or more sessions were waiting.
+- **About** — the icon, the name and the version you are running, whether new versions are
+  announced and a button to look right now (with when it last looked), the repository and the
+  licence. When a newer release exists the line appears here too, with **Install now** next to it.
 
 **Command line** — the same data without the GUI:
 
