@@ -170,12 +170,30 @@ final class TokenLedger {
     }
 
     /// 이 기록 옆에 있는 서브에이전트 기록들. 없으면 빈 목록이다.
+    ///
+    /// 폴더를 손댄 시각이 그대로면 지난번 목록을 그대로 쓴다. 이 목록이 달라지는 것은
+    /// 파일이 **생기거나 없어질** 때뿐이고 그때는 폴더의 시각이 함께 움직인다. 이미 있는
+    /// 파일이 길어지는 것은 목록을 바꾸지 않으며, 그 늘어난 몫은 어차피 `totals(of:)` 가
+    /// 파일마다 따로 이어 센다 — 그래서 여기를 막아도 숫자는 안 멈춘다.
+    private static let folderLock = NSLock()
+    private static var folders: [String: (modified: Date, files: [URL])] = [:]
+
     private static func subagentTranscripts(besides url: URL) -> [URL] {
         let folder = url.deletingPathExtension().appendingPathComponent("subagents")
+        let modified = (try? folder.resourceValues(forKeys: [.contentModificationDateKey]))?
+            .contentModificationDate
+
+        folderLock.lock() ; defer { folderLock.unlock() }
+        if let modified, let remembered = folders[folder.path], remembered.modified == modified {
+            return remembered.files
+        }
         guard let files = try? FileManager.default.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
-        else { return [] }
-        return files.filter { $0.pathExtension == "jsonl" }
+        else { folders[folder.path] = nil ; return [] }
+
+        let out = files.filter { $0.pathExtension == "jsonl" }
+        if let modified { folders[folder.path] = (modified, out) }
+        return out
     }
 
     /// 파일 하나의 누적과, 훑으며 함께 본 본선 컨텍스트. 못 읽었거나 꺼져 있으면 없다.

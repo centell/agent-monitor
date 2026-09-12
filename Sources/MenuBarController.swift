@@ -151,7 +151,10 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // 지어낸 세션은 기록에 남기지 않는다. 한 번 섞이면 그 통계는 영영 못 믿는다.
         if settings.recordStats && !demo { stats.record(sessions: sessions, memory: systemMemory) }
         updateTitle()
-        if !menuIsOpen { rebuildMenu() }
+        // 메뉴는 여기서 짓지 않는다. 닫혀 있는 동안 지어 봐야 아무도 안 보고, 열리는
+        // 순간 `menuWillOpen` 이 어차피 통째로 다시 짓는다. 열려 있는 동안에도 안 짓는다 —
+        // 읽는 중에 목록이 흔들리면 누르려던 줄이 다른 줄로 바뀐다.
+        // (실측: 닫힌 채로 2초마다 다시 짓는 일이 이 앱이 쓰던 CPU 의 30% 였다.)
         // 상시 창은 스스로 훑지 않는다. 방금 잰 것을 그대로 건넨다 — 두 번 재면 값이
         // 두 배로 들고, 더 나쁘게는 쓰임새 기록의 시간 단위가 뒤틀린다.
         FloatingPanelController.shared.update(sessions: sessions, memory: systemMemory)

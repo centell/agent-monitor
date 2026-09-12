@@ -192,10 +192,77 @@ struct ClaudeCodeSource: SessionSource {
 
     // MARK: transcript 보강
 
+    /// 안 바뀐 기록을 두 번 풀지 않기 위한 기억.
+    ///
+    /// 기록은 **덧붙기만 한다.** 그래서 크기와 손댄 시각이 지난번과 같으면 꼬리도 같고,
+    /// 같은 꼬리를 다시 풀어야 같은 답이 나온다. 갱신 주기마다 세션 수만큼 64KB 를 다시
+    /// JSON 으로 푸는 일이 여기서 끊긴다 (실측: 그 파싱이 앱이 쓰던 CPU 의 45% 였다).
+    ///
+    /// **원장은 이 문을 타지 않는다.** 본 기록이 그대로여도 서브에이전트는 옆 파일에
+    /// 토큰을 계속 적으므로, 누적까지 함께 막으면 토큰 숫자가 얼어붙는다.
+    private final class TailCache {
+
+        struct Stamp: Equatable {
+            let size: UInt64
+            let modified: Date
+        }
+
+        private struct Entry {
+            let stamp: Stamp
+            let facts: TailFacts
+            let touched: Date
+        }
+
+        private var entries: [String: Entry] = [:]
+        private let lock = NSLock()
+
+        /// 지난번 답. 파일이 조금이라도 달라졌으면 없다.
+        func facts(for url: URL, stamp: Stamp) -> TailFacts? {
+            lock.lock() ; defer { lock.unlock() }
+            guard let entry = entries[url.path], entry.stamp == stamp else { return nil }
+            entries[url.path] = Entry(stamp: entry.stamp, facts: entry.facts, touched: Date())
+            return entry.facts
+        }
+
+        func remember(_ facts: TailFacts, for url: URL, stamp: Stamp) {
+            lock.lock() ; defer { lock.unlock() }
+            entries[url.path] = Entry(stamp: stamp, facts: facts, touched: Date())
+            // 끝난 세션의 자리는 저절로 비지 않는다. 며칠씩 떠 있는 앱이라 여기가 조용히
+            // 자라므로, 자리가 늘면 오래 손대지 않은 것을 걷어 낸다.
+            guard entries.count > 64 else { return }
+            let cutoff = Date().addingTimeInterval(-600)
+            entries = entries.filter { $0.value.touched > cutoff }
+        }
+
+        /// 지금 파일의 «크기와 손댄 시각». 못 읽으면 없다 — 그때는 캐시를 쓰지 않는다.
+        static func stamp(of url: URL) -> Stamp? {
+            guard let values = try? url.resourceValues(forKeys: [.fileSizeKey,
+                                                                .contentModificationDateKey]),
+                  let size = values.fileSize,
+                  let modified = values.contentModificationDate
+            else { return nil }
+            return Stamp(size: UInt64(size), modified: modified)
+        }
+    }
+
+    private static let tails = TailCache()
+
     private func enrich(_ session: inout Session, root: URL) {
-        guard let url = transcriptURL(for: session, root: root),
-              let tail = readTail(url) else { return }
-        let facts = parseTail(tail)
+        guard let url = transcriptURL(for: session, root: root) else { return }
+
+        // 지난번과 같은 파일이면 지난번의 답을 그대로 쓴다. 시각만 보지 않고 크기를 함께
+        // 보는 것은, 시각의 눈금이 1초인 파일 시스템에서는 같은 초 안의 변화를 시각만으로
+        // 가를 수 없어서다.
+        let stamp = TailCache.stamp(of: url)
+        var remembered = stamp.flatMap { Self.tails.facts(for: url, stamp: $0) }
+        if remembered == nil {
+            guard let tail = readTail(url) else { return }
+            let parsed = parseTail(tail)
+            if let stamp { Self.tails.remember(parsed, for: url, stamp: stamp) }
+            remembered = parsed
+        }
+        guard let facts = remembered else { return }
+
         session.currentTool = facts.tool
         session.lastActivity = facts.timestamp
         session.pendingCall = facts.pendingCall
