@@ -115,6 +115,9 @@ final class UpdateCheck: ObservableObject {
             guard let self else { return }
             guard let archive else {
                 self.busy = false
+                // 받다 만 자리도 치운다. 안 그러면 못 받을 때마다 빈 폴더가 하나씩 쌓인다
+                // (실측: 두 번 실패에 두 개가 남았다).
+                try? FileManager.default.removeItem(at: stage)
                 self.failed(S.updateDownloadFailed, release: release)
                 return
             }
