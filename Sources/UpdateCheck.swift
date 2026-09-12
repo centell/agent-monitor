@@ -34,7 +34,9 @@ final class UpdateCheck: ObservableObject {
     @Published private(set) var status: String?
 
     private var busy = false
-    private var lastChecked: Date?
+    /// 마지막으로 본 때. 「정보」 탭이 이걸 적어 둔다 — **언제 봤는지 모르는 확인은
+    /// 「확인하고 있다」는 말을 못 받쳐 준다.**
+    @Published private(set) var lastChecked: Date?
 
     /// 얼마나 자주 볼 것인가. 하루 한 번이면 충분하고, 그만큼 값이 없다.
     private let interval: TimeInterval = 24 * 60 * 60

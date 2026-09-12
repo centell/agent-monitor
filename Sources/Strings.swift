@@ -72,6 +72,25 @@ enum S {
           "1日1回リリースを確認します。押すまで何もダウンロードしません。")
     }
     static var checkNow: String { p("지금 확인", "Check now", "今すぐ確認") }
+    static var installNow: String { p("지금 설치", "Install now", "今すぐ入れる") }
+
+    /// **언제 봤는지를 함께 적는다.** 「확인하고 있습니다」만 있고 마지막 때가 없으면,
+    /// 조용히 멈춰 있어도 켜져 있는 것과 똑같아 보인다.
+    static func lastChecked(_ secondsAgo: Double?) -> String {
+        guard let secondsAgo else { return p("아직 확인한 적 없음", "Not checked yet", "まだ確認していません") }
+        if secondsAgo < 120 { return p("마지막 확인 방금", "Last checked just now", "最後の確認はたった今") }
+        let minutes = Int(secondsAgo / 60)
+        if minutes < 60 {
+            return p("마지막 확인 \(minutes)분 전", "Last checked \(minutes)m ago", "最後の確認は \(minutes)分前")
+        }
+        let hours = minutes / 60
+        return p("마지막 확인 \(hours)시간 전", "Last checked \(hours)h ago", "最後の確認は \(hours)時間前")
+    }
+    static func updateFound(_ version: String) -> String {
+        p("새 버전 \(version) 이 나왔습니다", "Version \(version) is out", "新しい版 \(version) が出ています")
+    }
+    static var aboutRepository: String { p("저장소", "Repository", "リポジトリ") }
+    static var aboutLicense: String { p("라이선스", "License", "ライセンス") }
     static var updateChecking: String { p("확인하는 중…", "Checking…", "確認中…") }
     static var updateUpToDate: String { p("최신입니다", "Up to date", "最新です") }
     static var updateCheckFailed: String {
@@ -315,6 +334,7 @@ enum S {
     static var windowTitle: String   { p("AgentMonitor 설정", "AgentMonitor Settings", "AgentMonitor 設定") }
     static var tabDisplay: String    { p("표시", "Display", "表示") }
     static var tabMemory: String     { p("메모리", "Memory", "メモリ") }
+    static var tabAbout: String { p("정보", "About", "情報") }
     static var tabStats: String      { p("통계", "Statistics", "統計") }
 
     static var language: String      { p("언어", "Language", "言語") }

@@ -10,7 +10,6 @@ import SwiftUI
 struct LayoutSettingsView: View {
 
     @ObservedObject private var settings = Settings.shared
-    @ObservedObject private var updates = UpdateCheck.shared
     let sessionsProvider: () -> [Session]
 
     @State private var sessions: [Session] = []
@@ -67,19 +66,6 @@ struct LayoutSettingsView: View {
                 }
 
                 Toggle(S.showSummary, isOn: $settings.showSummary)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack {
-                        Toggle(S.checkUpdates, isOn: $settings.checkForUpdates)
-                        Spacer()
-                        // 눌러 보고 「아무 일도 안 일어났다」가 되지 않도록 결과를 옆에 적는다.
-                        if let status = updates.status {
-                            Text(status).font(.caption).foregroundStyle(.tertiary)
-                        }
-                        Button(S.checkNow) { UpdateCheck.shared.check(force: true) }
-                    }
-                    Text(S.checkUpdatesNote).font(.caption).foregroundStyle(.tertiary)
-                }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Toggle(S.recordStats, isOn: $settings.recordStats)
@@ -213,6 +199,86 @@ struct LayoutSettingsView: View {
     }
 }
 
+// MARK: - 정보
+
+/// 「이 앱은 무엇이고, 새 판이 나왔는가」.
+///
+/// 업데이트 손잡이는 처음에 「표시」 탭에 있었는데 결이 맞지 않았다 — 그 탭은 **목록이
+/// 어떻게 보이나**를 모아 둔 자리다. 판·출처·라이선스와 한 묶음으로 여기로 옮긴다.
+struct AboutView: View {
+
+    @ObservedObject private var settings = Settings.shared
+    @ObservedObject private var updates = UpdateCheck.shared
+
+    /// 「마지막 확인 …분 전」이 멈춰 있지 않게 30초마다 다시 센다.
+    private let tick = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
+    @State private var now = Date()
+
+    private static let repository = URL(string: "https://github.com/centell/agent-monitor")!
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+
+                HStack(spacing: 12) {
+                    Image(nsImage: NSApp.applicationIconImage)
+                        .resizable()
+                        .frame(width: 56, height: 56)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("AgentMonitor").font(.title3.weight(.semibold))
+                        // 번들 밖(CLI)에서는 제 판을 모른다. 그때는 지어내지 않고 «—» 를 둔다.
+                        Text(UpdateCheck.currentVersion ?? "—")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 8)
+
+                Form {
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                            Toggle(S.checkUpdates, isOn: $settings.checkForUpdates)
+                            Spacer()
+                            // 눌러 보고 「아무 일도 안 일어났다」가 되지 않도록 결과를 옆에 적는다.
+                            if let status = updates.status {
+                                Text(status).font(.caption).foregroundStyle(.tertiary)
+                            }
+                            Button(S.checkNow) { UpdateCheck.shared.check(force: true) }
+                        }
+                        Text(S.checkUpdatesNote).font(.caption).foregroundStyle(.tertiary)
+                        Text(S.lastChecked(updates.lastChecked.map { now.timeIntervalSince($0) }))
+                            .font(.caption).foregroundStyle(.tertiary)
+                    }
+
+                    // 새 판이 있을 때만 나온다. 메뉴를 열지 않아도 여기서 보이고,
+                    // 여기서 바로 넣을 수 있다.
+                    if let update = updates.found {
+                        LabeledContent(S.updateFound(update.version)) {
+                            HStack(spacing: 8) {
+                                Button(S.updateOpenPage) { NSWorkspace.shared.open(update.pageURL) }
+                                Button(S.installNow) { UpdateCheck.shared.install(update) }
+                                    .buttonStyle(.borderedProminent)
+                            }
+                        }
+                    }
+
+                    LabeledContent(S.aboutRepository) {
+                        Link("github.com/centell/agent-monitor", destination: Self.repository)
+                    }
+                    LabeledContent(S.aboutLicense) { Text("MIT © 2026 Centell") }
+                }
+                .formStyle(.grouped)
+                .fixedSize(horizontal: false, vertical: true)
+                .scrollDisabled(true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .onReceive(tick) { now = $0 }
+    }
+}
+
 // MARK: - 탭 묶음
 
 struct SettingsWindowView: View {
@@ -228,6 +294,8 @@ struct SettingsWindowView: View {
                 .tabItem { Label(S.tabMemory, systemImage: "memorychip") }
             StatsView()
                 .tabItem { Label(S.tabStats, systemImage: "chart.bar") }
+            AboutView()
+                .tabItem { Label(S.tabAbout, systemImage: "info.circle") }
         }
         .padding(.top, 8)
         // 높이를 못 박지 않으면 SwiftUI 내용이 접혀 창이 179pt 로 나온다.
