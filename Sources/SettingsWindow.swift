@@ -138,6 +138,11 @@ struct LayoutSettingsView: View {
             // `fixedSize` 로 접히지 않게 못 박아 두면 Form 이 제 내용만큼 자라고,
             // 넘치는 몫은 바깥 `ScrollView` 가 받는다 — 손잡이가 몇이든 맞는다.
             .fixedSize(horizontal: false, vertical: true)
+            // **Form 은 제 안에 스크롤 뷰를 하나 더 들고 있다.** 키를 스스로 말하게 해 두어도
+            // 그 안쪽 뷰가 휠을 삼켜서, 손잡이 위에서 굴리면 아무 일도 안 일어나고 목록
+            // **바깥**(미리보기)에 올려야만 창이 움직였다. 안쪽 스크롤을 잠가 두면 휠이
+            // 바깥 `ScrollView` 로 넘어간다 — 어디에 올려 두고 굴려도 같게 움직인다.
+            .scrollDisabled(true)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(S.preview)
