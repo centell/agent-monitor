@@ -132,9 +132,12 @@ struct LayoutSettingsView: View {
                 .pickerStyle(.segmented)
             }
             .formStyle(.grouped)
-            // 손잡이 수에 맞춘 높이. 모자라면 Form 안에서 마지막 줄이 잘리므로
-            // 손잡이를 더할 때는 이 값도 한 줄만큼 올린다.
-            .frame(height: 715)
+            // **제 키를 스스로 말하게 한다.** 예전에는 여기에 높이를 못 박아 두고
+            // 「손잡이를 더할 때 이 값도 한 줄만큼 올려라」고 적어 두었는데, 그 주석을
+            // 읽고도 빠뜨리면 마지막 줄이 조용히 잘린다 (실측: 실제로 한 번 잘렸다).
+            // `fixedSize` 로 접히지 않게 못 박아 두면 Form 이 제 내용만큼 자라고,
+            // 넘치는 몫은 바깥 `ScrollView` 가 받는다 — 손잡이가 몇이든 맞는다.
+            .fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(S.preview)
