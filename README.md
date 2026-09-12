@@ -207,6 +207,18 @@ unfrozen list would move the row you were reaching for out from under you.
 Once is enough; later launches are normal. Or build it yourself instead — two commands, about
 fifteen seconds.
 
+**New versions.** Once a day the app asks GitHub whether a newer release exists, and if there is
+one a single line appears in the menu: *Version 0.6.0 — install now*. Nothing is downloaded until
+you click it. When you do, the app fetches that release, checks that what arrived really is this
+app at that version, steps aside while a small helper swaps the bundle, and comes back. The
+previous version is kept next to it until the new one is seen running, so a failed update puts the
+old one back rather than leaving you with nothing. Turn the whole thing off in **Settings →
+Display → Tell me about new versions**.
+
+> Because the app is unsigned, an update is only as trustworthy as the HTTPS connection to GitHub
+> — the same trust you already extend when you download the zip by hand. The difference is that a
+> human download passes under your eyes and an automatic one does not.
+
 ### Build from source
 
 Requires the Swift compiler (`xcode-select --install`). No other dependencies.
@@ -232,11 +244,11 @@ settings.
 
 - **Display** — language, appearance (follow the system, or pin it light or dark), line layout,
   which columns to show, whether hovering a row says why it is waiting, which metrics to show
-  (RAM bar, RAM GB, CPU %, and the two token columns — each on its own switch), whether recording
-  is on, whether
-  pointing at the menu bar count opens the list without a click, refresh interval, how the source
-  is written into the name, and how long a finished codex app thread stays listed. A live preview
-  renders real sessions through the same code the menu uses, so what you see is what you get.
+  (RAM bar, RAM GB, CPU %, and the two token columns — each on its own switch), whether new
+  versions are announced, whether recording is on, whether pointing at the menu bar count opens
+  the list without a click, refresh interval, how the source is written into the name, and how
+  long a finished codex app thread stays listed. A live preview renders real sessions through the
+  same code the menu uses, so what you see is what you get.
 
   <img src="docs/images/en/settings-display.png" width="640"
        alt="The Display tab of Settings, with rows for language, appearance, row layout, metrics, tokens, recording, refresh, open on hover, source label and codex app threads.">
