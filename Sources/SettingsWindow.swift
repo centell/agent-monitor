@@ -39,11 +39,6 @@ struct LayoutSettingsView: View {
                 Toggle(S.showStateLabel, isOn: $settings.showStateLabel)
                 Toggle(S.showTool, isOn: $settings.showTool)
                 Toggle(S.showReason, isOn: $settings.showReason)
-                // 애드온이 이름을 내놓을 때만 선다. 없는 판에서는 줄 자체가 안 생기므로
-                // 켤 수도 없는 손잡이를 보여 주지 않는다.
-                if let label = Addon.rowAnnotationLabel {
-                    Toggle(label, isOn: $settings.showAddonNote)
-                }
 
                 // 셋을 한 줄에 나란히 둔다. 줄 수가 늘지 않아 창 높이 상수를 안 건드리고,
                 // 셋이 한 짝이라는 것도 보인다.
@@ -299,6 +294,15 @@ struct SettingsWindowView: View {
                 .tabItem { Label(S.tabMemory, systemImage: "memorychip") }
             StatsView()
                 .tabItem { Label(S.tabStats, systemImage: "chart.bar") }
+            // 애드온이 제 탭을 내놓았을 때만 선다. 없는 판은 탭 다섯 그대로다 —
+            // 켤 수도 없는 방을 보여 주면 그것 자체가 무언가를 알리는 셈이다.
+            //
+            // **「정보」 앞에 둔다.** 「정보」는 앱이 무엇인지를 적는 자리라 관례상 맨 뒤고,
+            // 그 뒤에 손잡이가 붙으면 거기서 끝인 줄 알았던 사람이 한 칸을 더 보게 된다.
+            if let tab = Addon.settingsTab, let label = Addon.settingsTabLabel {
+                tab()
+                    .tabItem { Label(label, systemImage: "puzzlepiece.extension") }
+            }
             AboutView()
                 .tabItem { Label(S.tabAbout, systemImage: "info.circle") }
         }
