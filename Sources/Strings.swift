@@ -468,6 +468,15 @@ enum S {
         p("\(scheme):// 를 열 수 있는 앱이 없음", "no app can open \(scheme)://",
           "\(scheme):// を開けるアプリがありません")
     }
+    /// 모르는 인자를 받았을 때. **무엇이 모르는 것인지 그대로 돌려준다** —
+    /// 「잘못된 사용법」만 내면 오타 한 글자를 찾느라 사람이 줄 전체를 다시 읽는다.
+    static func errUnknownArgs(_ args: [String]) -> String {
+        let list = args.joined(separator: " ")
+        return p("모르는 명령입니다: \(list)\n`agent-monitor --help` 로 쓸 수 있는 것을 봅니다.",
+                 "unknown command: \(list)\nRun `agent-monitor --help` to see what it takes.",
+                 "知らないコマンドです: \(list)\n`agent-monitor --help` で使えるものを見られます。")
+    }
+
     static func errUnknown(_ code: Int) -> String {
         p("알 수 없는 오류(\(code))", "unknown error (\(code))", "不明なエラー(\(code))")
     }

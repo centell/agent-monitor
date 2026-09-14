@@ -244,6 +244,19 @@ if args.contains("--list") {
 // 되고, 그러면 애드온을 넣는 것만으로 무료판의 동작이 달라진다. 애드온은 더하기만 한다.
 for handle in Addon.extraCommands where handle(args) { exit(0) }
 
+// 여기까지 인자가 남아 있으면 아무도 그것을 모른다는 뜻이다.
+//
+// **모르는 채로 메뉴바를 띄우지 않는다.** 예전에는 `--lst` 같은 오타가 조용히 두 번째
+// 메뉴바 앱을 띄웠고, 띄운 사람은 무엇이 잘못됐는지도 모른 채 앱만 하나 더 갖게 됐다.
+//
+// 여기까지 내려오는 인자는 `--demo` 와 그 뒤의 `quiet` 뿐이다. 나머지 명령은 전부 제
+// 자리에서 `exit` 하고, 애드온이 가로챈 것도 바로 위에서 끝난다.
+let reachesMenuBar: Set<String> = ["--demo", "quiet"]
+if let unknown = args.first(where: { !reachesMenuBar.contains($0) }) {
+    FileHandle.standardError.write(Data((S.errUnknownArgs([unknown]) + "\n").utf8))
+    exit(2)
+}
+
 // 기본 — 메뉴바에 띄운다.
 let app = NSApplication.shared
 let controller = MenuBarController(source: source, demo: demoMode)
