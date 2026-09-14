@@ -18,6 +18,11 @@ enum AppActivation {
     private static var open: Set<ObjectIdentifier> = []
 
     /// 이 창을 앞으로 끌어온다. 이미 떠 있던 창이어도 안전하다.
+    ///
+    /// ⚠ **여기 태우는 창은 해제되지 않아야 한다.** 지금 두 창 모두 싱글턴이 강하게 쥐고
+    /// `isReleasedWhenClosed = false` 라 그 성질이 지켜진다. 「닫히면 풀리는」 창을 이 손에
+    /// 태우면 두 가지가 조용히 깨진다 — 해제된 창의 자취가 집합에 남아 집합이 영영 안 비고
+    /// 앱이 Dock 에 갇히거나, 그 자리에 새 창이 잡혀 같은 자취로 읽혀 넣기가 무시된다.
     static func enter(_ window: NSWindow) {
         open.insert(ObjectIdentifier(window))
         NSApp.setActivationPolicy(.regular)

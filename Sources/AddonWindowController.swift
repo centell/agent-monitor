@@ -29,11 +29,19 @@ final class AddonWindowController: NSObject, NSWindowDelegate {
             hosting.sizingOptions = []
             let w = NSWindow(contentViewController: hosting)
             w.title = Addon.extraWindowLabel ?? ""
-            w.styleMask = [.titled, .closable, .resizable]
+            // **최소화를 둔다.** 설정창에서 값을 가져왔는데 그쪽은 고치고 닫는 자리라
+            // 없어도 됐다. 켜 두고 보는 창에는 노란 단추와 `⌘M` 이 있어야 맞다.
+            w.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             w.setContentSize(NSSize(width: 760, height: 560))
             w.isReleasedWhenClosed = false
             w.delegate = self
             w.center()
+            // 앉혀 둔 자리를 기억한다. 켜 두고 보는 창이라 매번 가운데로 돌아오면
+            // 매번 다시 옮겨야 한다.
+            //
+            // **`center()` 보다 뒤에 둔다** — 저장된 자리가 있으면 그쪽이 이겨야 하는데,
+            // 앞에 두면 곧바로 가운데로 되돌려진다.
+            w.setFrameAutosaveName("AddonWindow")
             window = w
         }
         guard let w = window else { return }
