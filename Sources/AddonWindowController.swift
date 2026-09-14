@@ -22,6 +22,11 @@ final class AddonWindowController: NSObject, NSWindowDelegate {
 
         if window == nil {
             let hosting = NSHostingController(rootView: content(sessionsProvider))
+            // **창 크기는 사람이 정한다.** 기본값(`.preferredContentSize`)은 SwiftUI 내용의
+            // 크기를 창에 그대로 전달해서, 안에서 줄이 하나 늘면 창이 그만큼 자란다 —
+            // 안내 한 줄이 떴다고 보고 있던 창이 위아래로 늘어나는 것을 실제로 봤다.
+            // 내용이 넘치는 몫은 안쪽 스크롤이 받는다.
+            hosting.sizingOptions = []
             let w = NSWindow(contentViewController: hosting)
             w.title = Addon.extraWindowLabel ?? ""
             w.styleMask = [.titled, .closable, .resizable]
