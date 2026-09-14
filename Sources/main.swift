@@ -238,6 +238,12 @@ if args.contains("--list") {
     exit(0)
 }
 
+// 아는 명령을 전부 지나왔다. 남은 것이 있으면 애드온에게 물어본다.
+//
+// **여기가 마지막이다.** 위쪽에 두면 애드온이 `--list` 같은 기존 명령을 가로챌 수 있게
+// 되고, 그러면 애드온을 넣는 것만으로 무료판의 동작이 달라진다. 애드온은 더하기만 한다.
+for handle in Addon.extraCommands where handle(args) { exit(0) }
+
 // 기본 — 메뉴바에 띄운다.
 let app = NSApplication.shared
 let controller = MenuBarController(source: source, demo: demoMode)

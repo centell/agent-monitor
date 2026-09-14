@@ -20,7 +20,7 @@ enum RowTypesetter {
 
     /// 칸이 서는 차례. 줄마다 있고 없고가 달라도 이 순서는 고정이다.
     private static let order: [RowFormatter.Field.Column] =
-        [.mark, .name, .state, .tool, .age, .flag, .metrics]
+        [.mark, .name, .state, .tool, .age, .flag, .annotation, .metrics]
 
     /// 목록 한 벌을 짠다. 돌려주는 순서는 받은 순서와 같다.
     static func rows(for sessions: [Session], formatter: RowFormatter,

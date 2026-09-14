@@ -22,7 +22,7 @@ struct RowFormatter {
     /// 일은 이것을 받아 가는 쪽이 각자 한다.
     struct Field {
         /// 칸의 종류. 줄마다 있고 없고가 달라도 **차례는 이 순서로 고정**이다.
-        enum Column: CaseIterable { case mark, name, state, tool, age, flag, metrics }
+        enum Column: CaseIterable { case mark, name, state, tool, age, flag, annotation, metrics }
         enum Align { case left, right }
 
         let column: Column
@@ -139,6 +139,12 @@ struct RowFormatter {
             // 하나 섞이면 **그 줄만** 지표가 오른쪽으로 밀렸다.
             out.append(Field(column: .flag, text: S.estimated.trimmingCharacters(in: .whitespaces),
                              cells: 0, gutter: 2, align: .left, dim: false))
+        }
+        // 애드온이 덧붙일 글이 있으면 머리 칸의 맨 뒤에 둔다. 없으면 칸 자체가 생기지 않아
+        // (`RowTypesetter` 가 목록 전체를 보고 칸을 고른다) 애드온이 없는 판은 달라지지 않는다.
+        if let note = Addon.rowAnnotation?(session), !note.isEmpty {
+            out.append(Field(column: .annotation, text: note,
+                             cells: 0, gutter: 2, align: .left, dim: true))
         }
         return out
     }
