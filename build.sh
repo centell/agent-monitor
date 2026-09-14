@@ -4,8 +4,9 @@
 # 빌드가 곧 설치다. 앱은 언제나 ~/Applications/AgentMonitor.app 에 놓이므로
 # Spotlight 로 띄울 수 있고, 「나중에 어디 둘까」를 따로 정할 필요가 없다.
 #
-#   ./build.sh            빌드 · 설치 · (돌고 있었으면) 다시 띄움
-#   ./build.sh --no-run   다시 띄우지 않음
+#   ./build.sh               빌드 · 설치 · (돌고 있었으면) 다시 띄움
+#   ./build.sh --no-run      빌드 · 설치 · 띄우지 않음 (돌고 있었으면 내려간 채로 둔다)
+#   ./build.sh --no-install  빌드만. **도는 앱을 건드리지 않는다** — 그 앱은 이전 판이다
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -54,6 +55,20 @@ if [[ ${#SLICES[@]} -eq 0 ]]; then
 else
     lipo -create "${SLICES[@]}" -output build/agent-monitor
     rm -f "${SLICES[@]}"
+fi
+
+# **도는 앱을 건드리지 않는 길.**
+#
+# 앱을 내리는 것은 번들을 통째로 갈아끼우기 때문이지(`rm -rf "$DEST"`) 빌드 자체가
+# 그것을 요구해서가 아니다. 그러니 설치를 건너뛰면 내릴 까닭도 없다.
+#
+# 고치는 사람이 「컴파일이 되는가」만 보려고 빌드하는 일이 잦은데, 그때마다 앱이 꺼지면
+# 그 앱을 쓰고 있던 사람의 창과 보던 자리가 함께 날아간다. 실제로 하루에 열몇 번 그랬다.
+if [[ "${1:-}" == "--no-install" ]]; then
+    echo "빌드 완료  ${EDITION}  ($(lipo -archs build/agent-monitor 2>/dev/null || echo native))"
+    echo "  CLI : build/agent-monitor"
+    echo "  → 앱은 그대로 둡니다 — 지금 도는 앱은 이전 판입니다"
+    exit 0
 fi
 
 # 돌고 있으면 먼저 내린다. 실행 중인 번들을 덮어쓰면 상태가 어긋난다.

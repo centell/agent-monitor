@@ -230,6 +230,8 @@ cd agent-monitor
 
 `build.sh` compiles and installs to `~/Applications/AgentMonitor.app`, then launches it. Building
 again replaces the app and relaunches it if it was running. Pass `--no-run` to skip the relaunch.
+Pass `--no-install` to compile only and leave the running app alone — your open windows stay put,
+and that app remains on the previous build.
 
 The first time you click a session row, macOS asks for permission to control Terminal. That
 permission is what moves the window; without it the jump does nothing.
