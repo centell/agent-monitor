@@ -117,6 +117,8 @@ final class Settings: ObservableObject {
     @Published var layout: RowLayout                { didSet { persist() } }
     @Published var showStateLabel: Bool             { didSet { persist() } }
     @Published var showTool: Bool                   { didSet { persist() } }
+    /// 애드온이 줄에 덧붙이는 글을 보일지. 애드온이 없으면 쓰이지 않는다.
+    @Published var showAddonNote: Bool              { didSet { persist() } }
     /// 왜 기다리는지를 줄에 적을 것인가.
     ///
     /// 끌 수 있어야 한다. 이 칸에는 기록에 적힌 명령이 그대로 나오므로, 화면을 공유하거나
@@ -248,6 +250,7 @@ final class Settings: ObservableObject {
         layout = RowLayout(rawValue: store.string(forKey: Key.layout) ?? "") ?? .single
         showStateLabel = store.object(forKey: Key.stateLabel) as? Bool ?? true
         showTool = store.object(forKey: Key.tool) as? Bool ?? true
+        showAddonNote = store.object(forKey: Key.addonNote) as? Bool ?? true
         showReason = store.object(forKey: Key.reason) as? Bool ?? true
         // 사다리였던 옛 설정에서 옮겨온다. 맞춰 두신 값이 말없이 초기값으로 돌아가면 안 된다.
         let legacy = store.string(forKey: Key.legacyMetrics)
@@ -322,6 +325,7 @@ final class Settings: ObservableObject {
         layout = .single
         showStateLabel = true
         showTool = true
+        showAddonNote = true
         showReason = true
         showMemoryBar = true
         showMemoryValue = true
@@ -358,6 +362,7 @@ final class Settings: ObservableObject {
         store.set(layout.rawValue, forKey: Key.layout)
         store.set(showStateLabel, forKey: Key.stateLabel)
         store.set(showTool, forKey: Key.tool)
+        store.set(showAddonNote, forKey: Key.addonNote)
         store.set(showReason, forKey: Key.reason)
         store.set(showMemoryBar, forKey: Key.memoryBar)
         store.set(showMemoryValue, forKey: Key.memoryValue)
@@ -402,6 +407,7 @@ final class Settings: ObservableObject {
         static let layout = "rowLayout"
         static let stateLabel = "showStateLabel"
         static let tool = "showTool"
+        static let addonNote = "showAddonNote"
         static let reason = "showReason"
         /// 사다리였던 옛 설정. 새 스위치가 아직 없을 때 여기서 옮겨온다.
         static let legacyMetrics = "metricDisplay"

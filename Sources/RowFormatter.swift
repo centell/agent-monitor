@@ -142,7 +142,7 @@ struct RowFormatter {
         }
         // 애드온이 덧붙일 글이 있으면 머리 칸의 맨 뒤에 둔다. 없으면 칸 자체가 생기지 않아
         // (`RowTypesetter` 가 목록 전체를 보고 칸을 고른다) 애드온이 없는 판은 달라지지 않는다.
-        if let note = Addon.rowAnnotation?(session), !note.isEmpty {
+        if settings.showAddonNote, let note = Addon.rowAnnotation?(session), !note.isEmpty {
             out.append(Field(column: .annotation, text: note,
                              cells: 0, gutter: 2, align: .left, dim: true))
         }

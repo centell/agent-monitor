@@ -256,6 +256,12 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // 글이 얼마나 넓은지를 알 수 없어 정지점을 못 정한다 (`RowTypesetter`).
             let texts = RowTypesetter.rows(for: sessions, formatter: formatter)
             var previousNeededAttention: Bool?
+            // 강조는 뷰의 `bounds` 를 칠하므로 **뷰의 폭이 곧 강조의 폭**이다. 뷰는 제 글자
+            // 길이에 맞춰 태어나는데(`SessionRowView`), 줄은 알맹이가 있는 마지막 칸에서
+            // 끊기므로(`SessionRowStyle.draft`) 칸을 하나 더 가진 줄만 넓어진다. 그대로 두면
+            // **강조 사각형의 길이가 줄마다 달라진다.** 상시 창은 이미 맞추고 있었다
+            // (`FloatingPanelController`) — 메뉴만 빠져 있었다.
+            var rowViews: [NSView] = []
 
             for (session, text) in zip(sessions, texts) {
                 // 손이 필요한 무리와 그렇지 않은 무리 사이에만 줄을 하나 긋는다.
@@ -269,7 +275,17 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     menu.addItem(.separator())
                 }
                 previousNeededAttention = needs
-                menu.addItem(row(for: session, text: text))
+                let item = row(for: session, text: text)
+                if let view = item.view { rowViews.append(view) }
+                menu.addItem(item)
+            }
+
+            // 가장 넓은 줄에 나머지를 맞춘다. 메뉴 전체의 폭은 어차피 그 줄이 정하므로
+            // 넓어지는 것은 없고, 좁던 줄의 강조만 제 길이를 찾는다.
+            if let width = rowViews.map(\.frame.width).max() {
+                for view in rowViews {
+                    view.setFrameSize(NSSize(width: width, height: view.frame.height))
+                }
             }
         }
 
