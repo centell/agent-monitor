@@ -313,6 +313,17 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         panelItem.target = self
         menu.addItem(panelItem)
 
+        // 애드온이 제 창을 내놓았을 때만 선다. 없는 판에는 항목 자체가 없다 — 켤 수도
+        // 없는 문을 보여 주면 그 판을 쓰는 사람이 제 앱이 모자란다는 말을 듣게 된다.
+        //
+        // **상시 창 바로 아래.** 둘 다 「창을 연다」라 한 묶음이고, 그 아래의 설정·끝내기와는
+        // 결이 다르다.
+        if Addon.extraWindowContent != nil, let label = Addon.extraWindowLabel {
+            let item = NSMenuItem(title: label, action: #selector(openAddonWindow), keyEquivalent: "")
+            item.target = self
+            menu.addItem(item)
+        }
+
         // 세션 줄이 커스텀 뷰라 단축키 칸이 그 줄들을 밀지 않는다. 그래서 단축키를 그대로 쓴다.
         let preferences = NSMenuItem(title: S.settingsItem, action: #selector(openSettings), keyEquivalent: ",")
         preferences.target = self
@@ -392,6 +403,13 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func openSettings() {
         SettingsWindowController.shared.show { [weak self] in self?.sessions ?? [] }
+    }
+
+    /// 애드온의 창을 연다. **훑는 일은 여기서 하지 않는다** — 이미 훑어 둔 것을 읽는
+    /// 손만 건넨다. 창이 스스로 훑으면 재는 값이 두 배로 들고 쓰임새 기록의 표본 간격이
+    /// 뒤틀린다 (`FloatingPanelController` 와 같은 까닭).
+    @objc private func openAddonWindow() {
+        AddonWindowController.shared.show { [weak self] in self?.sessions ?? [] }
     }
 
     @objc private func quit() { NSApp.terminate(nil) }
