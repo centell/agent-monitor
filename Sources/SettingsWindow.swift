@@ -401,12 +401,10 @@ struct MemoryView: View {
 
 // MARK: - 창
 
-/// Dock 아이콘이 없는 앱(`LSUIElement`)이라 창을 앞으로 끌어오는 처리를 직접 해야 한다.
+/// 손잡이 창.
 ///
-/// `activate(ignoringOtherApps:)` 만으로는 부족했다 — 실측에서 창은 만들어졌는데
-/// 맨 앞 앱이 그대로 Terminal 이었다. 액세서리 앱은 활성화 대상이 아니기 때문이다.
-/// 그래서 **창이 떠 있는 동안만 보통 앱으로 바꿨다가** 닫히면 되돌린다.
-/// 그동안은 Dock 과 `⌘Tab` 에도 나타나므로 창을 다시 찾기도 쉬워진다.
+/// 앞으로 끌어오는 일은 `AppActivation` 이 한다 — 창이 둘이 된 뒤로는 닫는 쪽이 저 혼자
+/// 메뉴바로 돌아가면 안 되기 때문에, 그 판단을 한 곳에 모아 두었다.
 final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     static let shared = SettingsWindowController()
@@ -423,15 +421,15 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             w.center()
             window = w
         }
-        NSApp.setActivationPolicy(.regular)
-        NSApp.activate(ignoringOtherApps: true)
-        window?.makeKeyAndOrderFront(nil)
-        window?.orderFrontRegardless()
+        guard let w = window else { return }
+        AppActivation.enter(w)
+        w.makeKeyAndOrderFront(nil)
+        w.orderFrontRegardless()
     }
 
     func windowWillClose(_ notification: Notification) {
-        // 다시 메뉴바에만 사는 앱으로 돌아간다.
-        NSApp.setActivationPolicy(.accessory)
+        guard let w = notification.object as? NSWindow else { return }
+        AppActivation.leave(w)
     }
 }
 
