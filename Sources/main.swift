@@ -22,10 +22,21 @@ let demoMode = args.contains("--demo")
 /// 어느 판을 그릴지. `--demo quiet` 로 «아무도 안 기다리는 화면» 을 찍는다.
 let demoScene = args.contains("quiet") ? DemoSource.Scene.quiet : .busy
 
+// 애드온이 있으면 여기서 스스로를 꽂는다. 없는 빌드에는 이 이름이 존재하지 않으므로
+// 컴파일 조건으로 가른다 — **`#if ADDON` 은 이 한 곳뿐이다.** 여기저기 뿌리면 이 저장소의
+// 코드가 구멍투성이가 되고, 읽는 사람에게 애드온의 윤곽이 다 드러난다. 나머지는 전부
+// 빈 등록부(`Addon`)를 거치므로 여기 있는 코드는 애드온이 있는지조차 모른다.
+#if ADDON
+AddonBootstrap.install()
+#endif
+
 // 레지스트리를 직접 읽는 출처를 앞에 둔다 — 겹치면 앞선 쪽이 남는다.
+// 애드온 출처는 **뒤에** 붙인다. 겹칠 때 남는 쪽이 앞이라, 손에 쥔 맥에서 직접 읽은 것이
+// 건너온 것보다 우선한다. 애드온이 없으면 `Addon.extraSources` 는 빈 배열이라 아무 일도 없다.
 let source: SessionSource = demoMode
     ? DemoSource(scene: demoScene)
-    : CompositeSource([claudeSource, claudeAppSource, codexSource, codexAppSource])
+    : CompositeSource([claudeSource, claudeAppSource, codexSource, codexAppSource]
+                      + Addon.extraSources)
 
 /// 한 번 실행하고 끝나는 모드용. CPU 사용률은 두 표본의 차이로만 구할 수 있으므로
 /// 잠깐 사이를 두고 두 번 잰다.

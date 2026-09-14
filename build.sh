@@ -20,12 +20,27 @@ pgrep -f "${APP_NAME}.app/Contents/MacOS/${APP_NAME}" >/dev/null 2>&1 && WAS_RUN
 
 mkdir -p build
 
+# 별도 애드온 소스가 있으면 함께 빌드한다. 없으면 그냥 없는 채로 빌드되고, clone 해 온
+# 사람에게는 그쪽이 기본이며 그것으로 온전하다. `Addon/` 은 .gitignore 라 따라오지 않는다.
+#
+# 빈 배열을 `"${ARR[@]}"` 로 펼치면 **맥 기본 bash 3.2 는 `set -u` 아래서 죽는다.**
+# 그래서 `${ARR[@]+...}` 로 «있을 때만 펼치기» 를 쓴다. 이 맥에는 Addon/ 이 있으니
+# 이 줄이 틀려도 여기서는 안 드러난다 — 안 겪는 사람이 고쳐야 하는 자리다.
+ADDON_ARGS=()
+EDITION="기본"
+if [[ -d Addon/Sources ]]; then
+    ADDON_ARGS=(-D ADDON Addon/Sources/*.swift)
+    EDITION="애드온 포함"
+    echo "  · 애드온 소스를 함께 빌드합니다"
+fi
+
 # Apple Silicon 과 Intel 양쪽에서 도는 하나의 실행 파일을 만든다.
 # 한쪽 아키텍처를 못 만드는 환경에서도 빌드가 막히지 않도록, 되는 것만 모아 합친다.
 SLICES=()
 for arch in arm64 x86_64; do
     if swiftc -O -target "${arch}-apple-macos${DEPLOYMENT_TARGET}" \
-        Sources/*.swift -o "build/slice-${arch}" 2>/dev/null; then
+        Sources/*.swift ${ADDON_ARGS[@]+"${ADDON_ARGS[@]}"} \
+        -o "build/slice-${arch}" 2>/dev/null; then
         SLICES+=("build/slice-${arch}")
     else
         echo "  · ${arch} 는 건너뜁니다 (이 환경에서 못 만듦)"
@@ -35,7 +50,7 @@ done
 if [[ ${#SLICES[@]} -eq 0 ]]; then
     # 둘 다 실패하면 대상 지정 없이 이 맥용으로만 만든다. 그래야 최소한 손에 남는다.
     echo "  · 지정한 대상으로 못 만들어 이 맥용으로만 빌드합니다"
-    swiftc -O Sources/*.swift -o build/agent-monitor
+    swiftc -O Sources/*.swift ${ADDON_ARGS[@]+"${ADDON_ARGS[@]}"} -o build/agent-monitor
 else
     lipo -create "${SLICES[@]}" -output build/agent-monitor
     rm -f "${SLICES[@]}"
@@ -91,7 +106,7 @@ cat > "$DEST/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-echo "빌드 완료  ($(lipo -archs build/agent-monitor 2>/dev/null || echo native))"
+echo "빌드 완료  ${EDITION}  ($(lipo -archs build/agent-monitor 2>/dev/null || echo native))"
 echo "  앱  : $DEST"
 echo "  CLI : build/agent-monitor   (--list · --json · --memory · --roots)"
 
