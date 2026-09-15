@@ -7,6 +7,10 @@ import Foundation
 /// 잇는 고리는 tty 다. 세션 프로세스의 tty 를 커널에서 읽고, 같은 tty 를 쓰는
 /// 터미널 창을 찾아 앞으로 가져온다.
 ///
+/// **그 고리가 한 번 끊기는 자리가 있다 — tmux.** tmux 안의 세션이 쥔 tty 는 pane 의
+/// pty 라 어느 창도 그 값을 갖고 있지 않다. 그래서 탭을 못 찾으면 거기서 끝내지 않고
+/// `Tmux` 에게 그 pane 이 보이는 창의 tty 를 물어 한 다리를 더 건넌다.
+///
 /// 지금은 macOS 기본 Terminal.app 만 다룬다. iTerm2·Ghostty 등은 각자 다른
 /// 자동화 통로를 쓰므로 나중에 이 파일에 더한다.
 enum TerminalJump {
@@ -15,6 +19,7 @@ enum TerminalJump {
         case moved
         case noTTY              // 세션에 터미널이 없다 (headless 등)
         case windowNotFound     // tty 는 있는데 그 창을 못 찾았다
+        case tmuxDetached(String) // tmux 세션 안에 있는데 그 세션에 붙어 있는 창이 없다
         case notPermitted       // 자동화 권한이 없다
         case failed(String)
 
@@ -30,6 +35,7 @@ enum TerminalJump {
             case .moved, .notPermitted: return nil
             case .noTTY:                return S.jumpNoTerminal
             case .windowNotFound:       return S.jumpNoWindow
+            case .tmuxDetached(let s):  return S.jumpTmuxDetached(s)
             case .failed(let why):      return S.jumpFailedLine(why)
             }
         }
@@ -56,10 +62,31 @@ enum TerminalJump {
 
     // MARK: 이동
 
+    /// 문을 순서대로 두드린다.
+    ///
+    ///   ① 세션의 tty 를 그대로 가진 탭 — 터미널에서 바로 띄운 세션이 여기서 끝난다.
+    ///   ② 없으면 tmux 에게 묻는다. tmux 안이면 그 세션을 보고 있는 **창의** tty 로 다시 ①.
+    ///
+    /// ②에서 창을 먼저 앞으로 가져오고 **그 다음에** pane 을 세운다. 순서를 뒤집으면,
+    /// 못 가는 창(Terminal.app 이 아닌 터미널)일 때 도착하지도 못한 채 남의 tmux 화면만
+    /// 바꿔 놓게 된다. 도착한 뒤에 바꾸면 실패가 아무것도 건드리지 않는다.
     @discardableResult
     static func jump(pid: Int32) -> Outcome {
         guard let tty = ttyPath(pid: pid) else { return .noTTY }
 
+        let direct = raise(tty: tty)
+        guard case .windowNotFound = direct else { return direct }
+
+        guard let pane = Tmux.pane(forTTY: tty) else { return .windowNotFound }
+        guard let clientTTY = pane.clientTTY else { return .tmuxDetached(pane.sessionName) }
+
+        let arrived = raise(tty: clientTTY)
+        if case .moved = arrived { Tmux.focus(pane) }
+        return arrived
+    }
+
+    /// 이 tty 를 가진 탭을 찾아 앞으로 가져온다.
+    private static func raise(tty: String) -> Outcome {
         let escaped = tty.replacingOccurrences(of: "\"", with: "\\\"")
         let script = """
         tell application "Terminal"
@@ -121,6 +148,10 @@ enum TerminalJump {
         case .windowNotFound:
             log(sessionName, S.logNoWindow)
             speak(title: S.jumpNoWindow, body: S.jumpNoWindowDetail)
+
+        case .tmuxDetached(let tmuxSession):
+            log(sessionName, S.logTmuxDetached(tmuxSession))
+            speak(title: S.jumpTmuxDetached(tmuxSession), body: S.jumpTmuxDetachedDetail(tmuxSession))
 
         case .failed(let message):
             log(sessionName, S.logFailed(message))

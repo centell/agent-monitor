@@ -221,6 +221,18 @@ public enum S {
           "The tab may be closed, or it may be a terminal other than Terminal.app — the only one this app knows so far.",
           "そのタブが閉じられたか、Terminal.app 以外のターミナルかもしれません。このアプリはまだ Terminal.app しか知りません。")
     }
+
+    /// 줄 자리에 들어가는 말이라 짧게 둔다. 붙이는 방법은 `~Detail` 이 말한다.
+    static func jumpTmuxDetached(_ name: String) -> String {
+        p("tmux \(name) 에 붙은 창이 없습니다",
+          "No window is attached to tmux \(name)",
+          "tmux \(name) に繋がる窓がありません")
+    }
+    static func jumpTmuxDetachedDetail(_ name: String) -> String {
+        p("이 세션은 tmux 세션 \(name) 안에서 돌고 있는데, 지금 그것을 보고 있는 창이 없습니다. 터미널에서 tmux attach -t \(name) 으로 붙이면 갈 수 있습니다.",
+          "This session runs inside tmux session \(name), and no window is showing it right now. Run tmux attach -t \(name) in a terminal and it becomes reachable.",
+          "このセッションは tmux セッション \(name) の中で動いていますが、今それを映している窓がありません。ターミナルで tmux attach -t \(name) を実行すると行けるようになります。")
+    }
     static var jumpNoTerminal: String {
         p("터미널 없이 도는 세션입니다", "This session runs without a terminal",
           "ターミナル無しで動くセッションです")
@@ -562,6 +574,11 @@ public enum S {
     }
     static func logFailed(_ message: String) -> String {
         p("이동 실패 — \(message)", "jump failed — \(message)", "移動失敗 — \(message)")
+    }
+    static func logTmuxDetached(_ name: String) -> String {
+        p("tmux 세션 \(name) 에 붙어 있는 창이 없습니다",
+          "no client is attached to tmux session \(name)",
+          "tmux セッション \(name) に繋がっている窓がありません")
     }
 
     // MARK: 명령줄
