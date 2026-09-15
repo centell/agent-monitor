@@ -96,6 +96,7 @@ public enum S {
         p("꽂힌 애드온이 없습니다", "No add-ons installed", "アドオンはありません")
     }
     static var addonFolder: String { p("애드온 폴더 열기", "Open add-ons folder", "アドオンフォルダを開く") }
+    static var addonSettings: String { p("설정", "Settings", "設定") }
     static var addonRemove: String { p("삭제", "Remove", "削除") }
     static var addonLoaded: String { p("꽂힘", "Loaded", "有効") }
     static var addonNoExecutable: String {

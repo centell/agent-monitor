@@ -294,19 +294,17 @@ struct SettingsWindowView: View {
                 .tabItem { Label(S.tabMemory, systemImage: "memorychip") }
             StatsView()
                 .tabItem { Label(S.tabStats, systemImage: "chart.bar") }
-            // 애드온이 제 탭을 내놓았을 때만 선다. 없는 판은 탭 다섯 그대로다 —
-            // 켤 수도 없는 방을 보여 주면 그것 자체가 무언가를 알리는 셈이다.
+            // 애드온 칸. **애드온이 없어도 선다** — 「없다」를 말하고 「넣는 길」을 여는
+            // 자리라, 비었을 때가 오히려 쓸모 있다.
+            //
+            // **애드온의 설정은 이 안으로 들어간다.** 전에는 애드온마다 최상위 탭을 하나씩
+            // 내줬는데, 그러면 탭 줄이 애드온 수만큼 자란다 — 여섯에서 이미 빠듯했다.
+            // 탭 줄은 앱이 정하는 것이지 남이 늘리는 것이 아니다.
             //
             // **「정보」 앞에 둔다.** 「정보」는 앱이 무엇인지를 적는 자리라 관례상 맨 뒤고,
             // 그 뒤에 손잡이가 붙으면 거기서 끝인 줄 알았던 사람이 한 칸을 더 보게 된다.
-            // 애드온 관리 칸. **애드온이 없어도 선다** — 다른 애드온 탭들과 달리 여기는
-            // 「없다」를 말하고 「넣는 길」을 여는 자리라, 비었을 때가 오히려 쓸모 있다.
             AddonsView()
                 .tabItem { Label(S.tabAddons, systemImage: "puzzlepiece.extension") }
-            ForEach(Array(Addon.settingsTabs.enumerated()), id: \.offset) { _, tab in
-                tab.content()
-                    .tabItem { Label(tab.label, systemImage: "puzzlepiece.extension") }
-            }
             AboutView()
                 .tabItem { Label(S.tabAbout, systemImage: "info.circle") }
         }

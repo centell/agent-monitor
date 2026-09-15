@@ -50,6 +50,16 @@ enum AddonLoader {
         let version: String?
         let url: URL
         let state: State
+
+        /// 이 애드온이 낸 설정 화면들.
+        ///
+        /// **등록부는 익명이다** — `Addon.settingsTabs` 는 그냥 배열이라 「이 탭이 누구
+        /// 것인가」가 안 적혀 있다. 그래서 꽂는 쪽(여기)이 `plugin_install()` 앞뒤로 길이를
+        /// 재서, 그 사이에 늘어난 몫을 이 번들 것으로 적는다.
+        ///
+        /// 애드온 쪽 규약을 안 바꾸는 길이라 **계약 판을 안 올려도 된다.** 물어볼 자리를
+        /// 하나 더 만들었다면 이미 판 애드온이 전부 그 자리를 비운 채가 됐을 것이다.
+        var settingsTabs: [Addon.SettingsTab] = []
     }
 
     /// 읽어 본 것 전부. 꽂힌 것도 못 꽂은 것도 함께 있다 —
@@ -143,8 +153,16 @@ enum AddonLoader {
             return entry(.notAnAddon)
         }
         typealias InstallFn = @convention(c) () -> Void
+        let tabsBefore = Addon.settingsTabs.count
         unsafeBitCast(installSymbol, to: InstallFn.self)()
-        return entry(.loaded)
+
+        var loaded = entry(.loaded)
+        // 이 부름 사이에 늘어난 것이 이 번들 몫이다. **순서에 기대는 셈이라** 번들을
+        // 한 번에 하나씩 꽂는 동안에만 맞는다 — `loadAll` 이 차례로 도는 것이 그 전제다.
+        if Addon.settingsTabs.count > tabsBefore {
+            loaded.settingsTabs = Array(Addon.settingsTabs[tabsBefore...])
+        }
+        return loaded
     }
 
     /// `dlerror` 가 내놓는 글을 사람이 읽을 크기로 줄인다.

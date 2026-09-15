@@ -17,7 +17,62 @@ struct AddonsView: View {
     @State private var entries: [AddonLoader.Entry] = AddonLoader.entries
     @State private var notice: String?
 
+    /// 지금 들여다보고 있는 애드온. `nil` 이면 목록이다.
+    ///
+    /// 애드온이 낸 화면을 **탭이 아니라 이 안에서** 편다. 최상위 탭으로 내주면 탭 줄이
+    /// 애드온 수만큼 자라는데, 탭 줄은 앱이 정하는 것이지 남이 늘리는 것이 아니다.
+    @State private var opened: AddonLoader.Entry?
+
+    /// **뿌리를 하나로 둔다.** `if` 를 그대로 `body` 에 두면 목록과 상세가 서로 다른
+    /// 타입이 되어, 안으로 들어가고 나올 때마다 탭 내용의 «정체» 가 바뀐다. 선택을 따로
+    /// 안 묶어 둔 `TabView` 는 그때 첫 탭으로 되돌아간다 — 실제로 「설정」을 눌러도,
+    /// 돌아오는 단추를 눌러도 Display 탭으로 튕겼다.
+    ///
+    /// 겉을 `ZStack` 하나로 감싸면 타입이 늘 같아 그 일이 안 일어난다.
     var body: some View {
+        ZStack {
+            if let opened {
+                detail(opened)
+            } else {
+                list
+            }
+        }
+    }
+
+    // MARK: 들여다보기
+
+    @ViewBuilder
+    private func detail(_ entry: AddonLoader.Entry) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                // 돌아오는 길. **여기 말고는 없다** — 탭으로 빠져나갈 수 없으므로
+                // 이 단추가 막히면 설정창을 닫았다 여는 수밖에 없다.
+                Button {
+                    opened = nil
+                } label: {
+                    Label(S.tabAddons, systemImage: "chevron.left")
+                }
+                .buttonStyle(.link)
+                Text(entry.name).foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            Divider()
+
+            // 애드온이 낸 화면 그대로. 이 저장소는 안에 무엇이 그려지는지 모른다.
+            //
+            // 애드온이 설정을 여럿 냈으면 **이어서 편다.** 하나가 흔한 경우이고,
+            // 여럿일 때 또 한 겹을 파는 것보다 이어 붙이는 쪽이 읽기 쉽다.
+            ForEach(Array(entry.settingsTabs.enumerated()), id: \.offset) { _, tab in
+                tab.content()
+            }
+        }
+    }
+
+    // MARK: 목록
+
+    private var list: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
 
@@ -76,6 +131,11 @@ struct AddonsView: View {
                     .foregroundStyle(isLoaded(entry.state) ? .secondary : Color.orange)
             }
             Spacer()
+            // 설정을 안 낸 애드온에는 안 생긴다. 눌러도 빈 화면인 단추를 두면
+            // 그 애드온이 무언가를 숨기고 있는 것처럼 보인다.
+            if !entry.settingsTabs.isEmpty {
+                Button(S.addonSettings) { opened = entry }
+            }
             Button(S.addonRemove) { remove(entry) }
         }
     }
@@ -128,6 +188,9 @@ struct AddonsView: View {
         if AddonLoader.remove(entry.id) {
             notice = "\(entry.name) — \(S.addonRestartNeeded)"
         }
+        // 지운 것을 들여다보고 있었으면 목록으로 나온다. 안 그러면 없는 애드온의
+        // 설정 화면을 계속 보고 있게 된다.
+        if opened?.id == entry.id { opened = nil }
         refresh()
     }
 
