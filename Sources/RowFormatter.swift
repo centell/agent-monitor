@@ -22,7 +22,9 @@ struct RowFormatter {
     /// 일은 이것을 받아 가는 쪽이 각자 한다.
     struct Field {
         /// 칸의 종류. 줄마다 있고 없고가 달라도 **차례는 이 순서로 고정**이다.
-        enum Column: CaseIterable { case mark, name, state, tool, age, flag, annotation, metrics }
+        enum Column: CaseIterable {
+            case mark, name, state, run, tool, age, flag, annotation, metrics
+        }
         enum Align { case left, right }
 
         let column: Column
@@ -123,6 +125,21 @@ struct RowFormatter {
         if settings.showStateLabel {
             out.append(Field(column: .state, text: session.state.label.truncatedDisplay(to: 10),
                              cells: 10, gutter: 2, align: .left, dim: false))
+        }
+        // **지금 도구를 돌리는 중**이라는 표식.
+        //
+        // 이 표식이 하는 일은 「올려 볼 값이 있다」를 알리는 것이다. 무엇을 돌리는지는
+        // 툴팁에만 있는데, 툴팁은 올려야 뜨므로 **어느 줄에 올릴지**를 모르면 헛손질이
+        // 된다 — 실제로 세 번 빗나갔다. 그래서 조건이 툴팁과 **똑같다** (`session.running`).
+        // 찍혔는데 올려도 빈 것이 가장 나쁘다.
+        //
+        // **폭을 안 잡는다** (`cells: 0`). 잡아 두면 도구를 안 돌리는 줄까지 그만큼
+        // 벌어져, 열에 한둘만 찍히는 표식이 나머지 아홉 줄을 밀어낸다.
+        // 칸을 따로 받는 것은 조판기가 칸 하나에 필드 하나를 전제하기 때문이다 —
+        // 「추정」 표식과 같은 칸을 쓰면 둘 중 하나가 조용히 사라진다.
+        if session.running != nil {
+            out.append(Field(column: .run, text: "▸",
+                             cells: 0, gutter: 1, align: .left, dim: false))
         }
         if settings.showTool {
             out.append(Field(column: .tool,

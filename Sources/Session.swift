@@ -180,8 +180,13 @@ public struct Session {
     ///
     /// 셸만 붙이는 것은 그것이 오래 도는 쪽이기 때문이다. 몇 초 만에 끝나는 읽기·찾기에
     /// 이름을 붙여 봐야 올려 보기 전에 이미 다른 것이 되어 있다.
-    /// 셸을 돌리는 도구들. 이 이름들이 곧 «셸이 돈다»는 뜻이다.
-    static let shellTools: Set<String> = ["Bash", "BashOutput", "KillShell"]
+    /// 기록이 이보다 낡았으면 「지금 돌고 있다」고 말하지 않는다.
+    ///
+    /// **낡음이 진짜 위험이었다.** 처음에는 도구 이름으로 막았는데(셸 도구가 아니면 침묵),
+    /// 그것은 대리물일 뿐이었다 — 상태가 `shell` 인데 도구가 `SendMessage` 이던 그 세션의
+    /// 진짜 문제는 이름이 아니라 **마지막 활동이 12분 전**이라는 것이었다. 이름으로 막으면
+    /// 멀쩡한 세션의 `Read`·`Grep` 까지 함께 막히고, 정작 낡은 기록은 이름만 맞으면 통과한다.
+    static let freshEnough: TimeInterval = 120
 
     var running: String? {
         // **상태가 아니라 도구로 가른다.**
@@ -199,7 +204,9 @@ public struct Session {
         // 같은 글이 두 번 나온다.
         default: return nil
         }
-        guard let tool = currentTool, Self.shellTools.contains(tool) else { return nil }
+        // 기록이 낡았으면 침묵한다. 「지금」이라 말하려면 그 「지금」이 최근이어야 한다.
+        guard let seen = lastActivity,
+              Date().timeIntervalSince(seen) < Self.freshEnough else { return nil }
         return pendingCall
     }
 
