@@ -177,6 +177,14 @@ enum SessionRowStyle {
         if settings.showReason, let why = session.reason, !why.isEmpty {
             tip += folded(why) + "\n\n"
         }
+        // 셸이 도는 줄에는 **무엇을 돌리는 중인지** 적는다. 줄에는 안 적는다 —
+        // 여기는 올려야 뜨는 자리라 시끄러워질 일이 없다.
+        //
+        // `showReason` 을 함께 본다. 그 설정은 「왜 그러고 있는지 툴팁에 적어라」는 뜻이고,
+        // 이것도 같은 물음의 답이다. 하나만 꺼지면 끈 사람은 왜 반만 사라졌는지 모른다.
+        if settings.showReason, let running = session.running, !running.isEmpty {
+            tip += S.runningNow + "\n" + folded(running) + "\n\n"
+        }
         // 애드온이 보탤 글이 있으면 **앞쪽에** 둔다. 아래의 경로와 안내는 「이 줄을 어떻게
         // 다루나」인데, 애드온이 보태는 것은 「이 줄이 무엇을 하고 있나」라 먼저 읽혀야 한다.
         if let extra = Addon.detail(for: session), !extra.isEmpty {

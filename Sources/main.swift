@@ -198,6 +198,9 @@ if args.contains("--json") {
         row["currentTool"] = s.currentTool
         // 표시 설정과 무관하게 낸다. 기계가 읽는 값이 사람의 손잡이에 따라 흔들리면 안 된다.
         row["reason"] = s.reason
+        // **재는 자를 함께 낸다.** 이 값은 툴팁에만 뜨는데, 툴팁은 마우스를 올려야 보이므로
+        // 맞는지 틀린지 확인할 길이 없다. 여기 내면 글로 볼 수 있다.
+        row["running"] = s.running
         row["deepLink"] = s.deepLink?.absoluteString
         row["startedAt"] = s.startedAt.map { iso.string(from: $0) }
         row["statusUpdatedAt"] = s.statusUpdatedAt.map { iso.string(from: $0) }

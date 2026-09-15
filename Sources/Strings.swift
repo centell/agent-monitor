@@ -47,6 +47,7 @@ public enum S {
     static var stateWaiting: String { p("승인 대기", "Approval", "承認待ち") }
     static var stateIdle: String    { p("입력 대기", "Idle", "入力待ち") }
     static var stateBusy: String    { p("작업 중", "Working", "実行中") }
+    static var runningNow: String { p("돌리는 중", "Running", "実行中") }
     static var stateShell: String   { p("셸 실행 중", "Shell", "シェル実行") }
     static func stateUnknown(_ raw: String) -> String {
         p("알 수 없음(\(raw))", "Unknown(\(raw))", "不明(\(raw))")
