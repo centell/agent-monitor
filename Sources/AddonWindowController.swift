@@ -37,16 +37,28 @@ final class AddonWindowController: NSObject, NSWindowDelegate {
             w.setContentSize(NSSize(width: 760, height: 560))
             w.isReleasedWhenClosed = false
             w.delegate = self
-            w.center()
+
             // 앉혀 둔 자리를 기억한다. 켜 두고 보는 창이라 매번 가운데로 돌아오면
             // 매번 다시 옮겨야 한다.
             //
-            // **`center()` 보다 뒤에 둔다** — 저장된 자리가 있으면 그쪽이 이겨야 하는데,
-            // 앞에 두면 곧바로 가운데로 되돌려진다.
-            //
             // **이름에 `key` 를 섞는다.** 안 섞으면 애드온 둘의 창이 같은 자리를 물고
             // 서로를 덮어쓴다.
-            w.setFrameAutosaveName("AddonWindow-\(spec.key)")
+            let name = "AddonWindow-\(spec.key)"
+
+            // **두 손이 따로 있다.**
+            //
+            // `setFrameAutosaveName` 은 *적어 두기* 만 시작한다. 그것만 걸어 두면 자리는
+            // 꼬박꼬박 저장되는데 다시 열 때 아무도 안 읽어, 창은 늘 `center()` 가 놓은
+            // 데서 뜬다 — 저장된 값이 멀쩡히 있는데도.
+            //
+            // 실측: 창을 (333, 244) 에 놓고 앱을 내렸다 올렸더니 `defaults` 에는
+            // `NSWindow Frame AddonWindow-Work = "333 22 760 592 …"` 가 적혀 있었는데
+            // 창은 (2131, 520) 에 떴다. *읽는 손*(`setFrameUsingName`)이 빠져 있었다.
+            w.setFrameAutosaveName(name)
+
+            // 읽어서 못 앉히면 그때만 가운데로. **순서가 거꾸로면 안 된다** —
+            // `center()` 를 나중에 부르면 읽어 온 자리를 바로 덮는다.
+            if !w.setFrameUsingName(name) { w.center() }
             windows[spec.key] = w
         }
         guard let w = windows[spec.key] else { return }
