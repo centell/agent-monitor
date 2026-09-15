@@ -22,13 +22,17 @@ let demoMode = args.contains("--demo")
 /// 어느 판을 그릴지. `--demo quiet` 로 «아무도 안 기다리는 화면» 을 찍는다.
 let demoScene = args.contains("quiet") ? DemoSource.Scene.quiet : .busy
 
-// 애드온이 있으면 여기서 스스로를 꽂는다. 없는 빌드에는 이 이름이 존재하지 않으므로
-// 컴파일 조건으로 가른다 — **`#if ADDON` 은 이 한 곳뿐이다.** 여기저기 뿌리면 이 저장소의
-// 코드가 구멍투성이가 되고, 읽는 사람에게 애드온의 윤곽이 다 드러난다. 나머지는 전부
-// 빈 등록부(`Addon`)를 거치므로 여기 있는 코드는 애드온이 있는지조차 모른다.
-#if ADDON
-AddonBootstrap.install()
-#endif
+// 애드온 번들을 찾아 꽂는다. **판이 맞는 것만 부른다** — 어긋난 번들을 부르면 앱이
+// 아무 말 없이 죽는다 (`AddonLoader`).
+//
+// 전에는 애드온 소스를 실행 파일에 함께 컴파일하고 `#if ADDON` 한 곳으로 갈랐다. 애드온이
+// 여럿이 되면 조합마다 다른 판을 지어야 해서 그 셈이 뒤집힌다. 이제 가르는 자리는 컴파일이
+// 아니라 폴더이고, 이 저장소의 코드는 여전히 애드온이 무엇을 하는지 모른다 — 전부
+// 빈 등록부(`Addon`)를 거친다.
+//
+// **명령줄로 한 번 훑고 죽는 실행에서도 부른다.** 애드온이 제 명령을 가로채는 자리가
+// 있으므로 (`Addon.extraCommands`), 여기서 안 꽂으면 그 명령이 통째로 사라진다.
+AddonLoader.loadAll()
 
 // 레지스트리를 직접 읽는 출처를 앞에 둔다 — 겹치면 앞선 쪽이 남는다.
 // 애드온 출처는 **뒤에** 붙인다. 겹칠 때 남는 쪽이 앞이라, 손에 쥔 맥에서 직접 읽은 것이
@@ -236,6 +240,65 @@ if args.contains("--list") {
         print("\n" + MetricFormat.systemSummary(memory, agentBytes: agentBytes))
     }
     exit(0)
+}
+
+// 애드온을 다루는 명령. **애드온보다 먼저 본다** — 판이 안 맞아 안 꽂힌 애드온을 지우려면
+// 그 애드온이 없는 채로도 이 명령이 서 있어야 한다. 애드온이 제 삭제 명령을 들고 있으면
+// 고장난 애드온은 영영 못 지운다.
+if args.first == "addon" {
+    let rest = Array(args.dropFirst())
+    switch rest.first {
+    case nil, "list":
+        if AddonLoader.entries.isEmpty {
+            print(S.addonNone)
+            print("  " + AddonLoader.directory.path)
+        }
+        for e in AddonLoader.entries {
+            let mark: String
+            switch e.state {
+            case .loaded:                    mark = "✓ " + S.addonLoaded
+            case .contractMismatch(let v):   mark = "✗ " + S.addonContractMismatch(v, Addon.contractVersion)
+            case .notAnAddon:                mark = "✗ " + S.addonNotAnAddon
+            case .unreadable(let why):       mark = "✗ " + why
+            case .pendingRestart:            mark = "· " + S.addonPendingRestart
+            }
+            print("\(e.id)  \(e.name)\(e.version.map { " " + $0 } ?? "")  — \(mark)")
+        }
+        exit(0)
+
+    case "install":
+        guard let path = rest.dropFirst().first else {
+            FileHandle.standardError.write(Data((S.addonInstallUsage + "\n").utf8))
+            exit(2)
+        }
+        do {
+            let id = try AddonLoader.install(from: URL(fileURLWithPath: (path as NSString).expandingTildeInPath))
+            print("\(id) — \(S.addonRestartNeeded)")
+            exit(0)
+        } catch {
+            FileHandle.standardError.write(Data((S.addonInstallFailed(path) + "\n").utf8))
+            exit(1)
+        }
+
+    case "remove":
+        guard let id = rest.dropFirst().first else {
+            FileHandle.standardError.write(Data((S.addonRemoveUsage + "\n").utf8))
+            exit(2)
+        }
+        guard AddonLoader.remove(id) else {
+            FileHandle.standardError.write(Data((S.addonNotInstalled(id) + "\n").utf8))
+            exit(1)
+        }
+        print("\(id) — \(S.addonRestartNeeded)")
+        // **지우지 않은 것을 말한다.** 말 안 하면 지웠다고 여기고, 다시 깔았을 때
+        // 판이 그대로 있는 것을 보고 놀란다.
+        print("  " + S.addonDataKept)
+        exit(0)
+
+    default:
+        FileHandle.standardError.write(Data((S.addonUsage + "\n").utf8))
+        exit(2)
+    }
 }
 
 // 아는 명령을 전부 지나왔다. 남은 것이 있으면 애드온에게 물어본다.

@@ -179,7 +179,7 @@ enum SessionRowStyle {
         }
         // 애드온이 보탤 글이 있으면 **앞쪽에** 둔다. 아래의 경로와 안내는 「이 줄을 어떻게
         // 다루나」인데, 애드온이 보태는 것은 「이 줄이 무엇을 하고 있나」라 먼저 읽혀야 한다.
-        if let extra = Addon.rowDetail?(session), !extra.isEmpty {
+        if let extra = Addon.detail(for: session), !extra.isEmpty {
             tip += extra + "\n\n"
         }
         tip += session.cwd

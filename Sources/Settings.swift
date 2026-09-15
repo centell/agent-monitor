@@ -105,9 +105,9 @@ enum PanelSkin: String, CaseIterable, Identifiable {
 }
 
 /// 화면 배치 설정. `UserDefaults` 에 남아 다음 실행에도 유지된다.
-final class Settings: ObservableObject {
+public final class Settings: ObservableObject {
 
-    static let shared = Settings()
+    public static let shared = Settings()
 
     /// 설정이 바뀌었음을 알린다. 폴링 주기처럼 즉시 반영이 필요한 것이 있다.
     static let didChange = Notification.Name("me.centell.agent-monitor.settingsDidChange")
@@ -118,7 +118,9 @@ final class Settings: ObservableObject {
     @Published var showStateLabel: Bool             { didSet { persist() } }
     @Published var showTool: Bool                   { didSet { persist() } }
     /// 애드온이 줄에 덧붙이는 글을 보일지. 애드온이 없으면 쓰이지 않는다.
-    @Published var showAddonNote: Bool              { didSet { persist() } }
+    /// 애드온이 줄에 붙이는 글을 보일지. **애드온이 제 설정 탭에서 이걸 켜고 끈다** —
+    /// 모듈 밖에서 보여야 하는 까닭이다.
+    @Published public var showAddonNote: Bool       { didSet { persist() } }
     /// 왜 기다리는지를 줄에 적을 것인가.
     ///
     /// 끌 수 있어야 한다. 이 칸에는 기록에 적힌 명령이 그대로 나오므로, 화면을 공유하거나

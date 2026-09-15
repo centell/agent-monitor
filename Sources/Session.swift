@@ -85,8 +85,8 @@ enum SessionState: Equatable {
 
 // MARK: - 세션
 
-struct Session {
-    let id: String                  // sessionId (UUID)
+public struct Session {
+    public let id: String                  // sessionId (UUID)
     let pid: Int32
     let name: String                // 레지스트리가 붙인 이름 (예: tools-91)
     let source: String              // 어느 CLI 인가 (claude · codex)
@@ -94,7 +94,7 @@ struct Session {
     let cwd: String
     let state: SessionState
     let kind: String?               // interactive · bg 등
-    let startedAt: Date?
+    public let startedAt: Date?
     let statusUpdatedAt: Date?
     let accountRoot: URL            // 이 세션이 등록된 계정 루트
 
@@ -200,7 +200,7 @@ struct Session {
 ///
 /// Claude Code 와 codex 구현체가 있고, `CompositeSource` 가 둘을 묶는다.
 /// 다른 CLI 가 더 붙어도 위쪽(화면·알림)을 건드리지 않게 여기서 끊는다.
-protocol SessionSource {
+public protocol SessionSource {
     /// 화면에 보일 출처 이름.
     var sourceName: String { get }
     func scan() -> [Session]

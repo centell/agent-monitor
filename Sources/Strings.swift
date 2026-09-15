@@ -27,14 +27,14 @@ enum Language: String, CaseIterable, Identifiable {
 ///
 /// 짝을 한 줄에 붙여 두면 한쪽만 고치고 다른 쪽을 빠뜨리는 일이 눈에 띈다.
 /// 언어가 셋이 된 뒤에도 같은 이유로 나란히 둔다 — 인자를 하나 빠뜨리면 컴파일이 막는다.
-enum S {
+public enum S {
 
     static var lang: Language { Settings.shared.resolvedLanguage }
 
     /// 세 말 중 하나를 고른다.
     ///
     /// `resolvedLanguage` 는 `.system` 을 돌려주지 않으므로 남는 갈래는 영어뿐이다.
-    static func p(_ korean: String, _ english: String, _ japanese: String) -> String {
+    public static func p(_ korean: String, _ english: String, _ japanese: String) -> String {
         switch lang {
         case .korean:   return korean
         case .japanese: return japanese
@@ -89,6 +89,72 @@ enum S {
     static func updateFound(_ version: String) -> String {
         p("새 버전 \(version) 이 나왔습니다", "Version \(version) is out", "新しい版 \(version) が出ています")
     }
+    // MARK: 애드온
+
+    static var tabAddons: String { p("애드온", "Add-ons", "アドオン") }
+    static var addonNone: String {
+        p("꽂힌 애드온이 없습니다", "No add-ons installed", "アドオンはありません")
+    }
+    static var addonFolder: String { p("애드온 폴더 열기", "Open add-ons folder", "アドオンフォルダを開く") }
+    static var addonRemove: String { p("삭제", "Remove", "削除") }
+    static var addonLoaded: String { p("꽂힘", "Loaded", "有効") }
+    static var addonNoExecutable: String {
+        p("실행할 것이 없습니다", "No executable inside", "実行ファイルがありません")
+    }
+    static var addonUnknownError: String { p("까닭을 모릅니다", "Unknown reason", "原因不明") }
+    static var addonNotAnAddon: String {
+        p("이 앱의 애드온이 아닙니다", "Not an add-on for this app", "このアプリのアドオンではありません")
+    }
+    /// 판이 어긋났을 때. **어느 쪽이 오래됐는지까지 말한다** — 「안 맞는다」만으로는
+    /// 앱을 올려야 하는지 애드온을 올려야 하는지 알 수가 없다.
+    static func addonContractMismatch(_ theirs: Int32, _ ours: Int32) -> String {
+        theirs < ours
+            ? p("애드온이 옛 판입니다 (\(theirs) → \(ours))",
+                "Add-on is older than this app (\(theirs) → \(ours))",
+                "アドオンが古い版です (\(theirs) → \(ours))")
+            : p("앱이 옛 판입니다 (앱 \(ours) · 애드온 \(theirs))",
+                "This app is older than the add-on (app \(ours) · add-on \(theirs))",
+                "アプリが古い版です (アプリ \(ours) · アドオン \(theirs))")
+    }
+    /// 다시 켜야 반영된다는 안내. 번들은 한 번 꽂으면 못 뽑는다.
+    static var addonRestartNeeded: String {
+        p("다시 켜야 반영됩니다", "Restart to apply", "再起動すると反映されます")
+    }
+    static var addonUsage: String {
+        p("쓰임: agent-monitor addon [list | install <경로> | remove <이름>]",
+          "Usage: agent-monitor addon [list | install <path> | remove <name>]",
+          "使い方: agent-monitor addon [list | install <パス> | remove <名前>]")
+    }
+    static var addonInstallUsage: String {
+        p("쓰임: agent-monitor addon install <.bundle 또는 .zip 경로>",
+          "Usage: agent-monitor addon install <path to .bundle or .zip>",
+          "使い方: agent-monitor addon install <.bundle か .zip のパス>")
+    }
+    static var addonRemoveUsage: String {
+        p("쓰임: agent-monitor addon remove <이름>   (이름은 `addon list` 에 나옵니다)",
+          "Usage: agent-monitor addon remove <name>   (names come from `addon list`)",
+          "使い方: agent-monitor addon remove <名前>   (名前は `addon list` に出ます)")
+    }
+    static func addonInstallFailed(_ path: String) -> String {
+        p("\(path) 를 꽂지 못했습니다", "Could not install \(path)", "\(path) を入れられませんでした")
+    }
+    static func addonNotInstalled(_ id: String) -> String {
+        p("\(id) 는 꽂혀 있지 않습니다", "\(id) is not installed", "\(id) は入っていません")
+    }
+    static var addonInstallButton: String { p("넣기…", "Install…", "入れる…") }
+    static var addonCancel: String { p("취소", "Cancel", "キャンセル") }
+    static func addonRemoveConfirm(_ name: String) -> String {
+        p("\(name) 을(를) 지울까요?", "Remove \(name)?", "\(name) を削除しますか?")
+    }
+    static var addonPendingRestart: String {
+        p("다시 켜면 꽂힙니다", "Will load after restart", "再起動すると有効になります")
+    }
+    static var addonDataKept: String {
+        p("애드온이 남긴 자료는 지우지 않았습니다",
+          "The add-on's data was left in place",
+          "アドオンが残した資料は消していません")
+    }
+
     static var aboutRepository: String { p("저장소", "Repository", "リポジトリ") }
     static var aboutLicense: String { p("라이선스", "License", "ライセンス") }
     static var updateChecking: String { p("확인하는 중…", "Checking…", "確認中…") }

@@ -318,9 +318,13 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         //
         // **상시 창 바로 아래.** 둘 다 「창을 연다」라 한 묶음이고, 그 아래의 설정·끝내기와는
         // 결이 다르다.
-        if Addon.extraWindowContent != nil, let label = Addon.extraWindowLabel {
-            let item = NSMenuItem(title: label, action: #selector(openAddonWindow), keyEquivalent: "")
+        for (index, window) in Addon.windows.enumerated() {
+            let item = NSMenuItem(title: window.label,
+                                  action: #selector(openAddonWindow(_:)), keyEquivalent: "")
             item.target = self
+            // 어느 창인지를 항목에 붙여 둔다. 제목으로 되찾으면 이름이 같은 애드온 둘이
+            // 서로의 창을 연다.
+            item.tag = index
             menu.addItem(item)
         }
 
@@ -408,8 +412,12 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// 애드온의 창을 연다. **훑는 일은 여기서 하지 않는다** — 이미 훑어 둔 것을 읽는
     /// 손만 건넨다. 창이 스스로 훑으면 재는 값이 두 배로 들고 쓰임새 기록의 표본 간격이
     /// 뒤틀린다 (`FloatingPanelController` 와 같은 까닭).
-    @objc private func openAddonWindow() {
-        AddonWindowController.shared.show { [weak self] in self?.sessions ?? [] }
+    @objc private func openAddonWindow(_ sender: NSMenuItem) {
+        // 메뉴를 세운 뒤에 애드온이 바뀔 일은 없지만, 없는 자리를 집으면 창 대신 죽는다.
+        guard Addon.windows.indices.contains(sender.tag) else { return }
+        AddonWindowController.shared.show(Addon.windows[sender.tag]) { [weak self] in
+            self?.sessions ?? []
+        }
     }
 
     @objc private func quit() { NSApp.terminate(nil) }

@@ -299,9 +299,13 @@ struct SettingsWindowView: View {
             //
             // **「정보」 앞에 둔다.** 「정보」는 앱이 무엇인지를 적는 자리라 관례상 맨 뒤고,
             // 그 뒤에 손잡이가 붙으면 거기서 끝인 줄 알았던 사람이 한 칸을 더 보게 된다.
-            if let tab = Addon.settingsTab, let label = Addon.settingsTabLabel {
-                tab()
-                    .tabItem { Label(label, systemImage: "puzzlepiece.extension") }
+            // 애드온 관리 칸. **애드온이 없어도 선다** — 다른 애드온 탭들과 달리 여기는
+            // 「없다」를 말하고 「넣는 길」을 여는 자리라, 비었을 때가 오히려 쓸모 있다.
+            AddonsView()
+                .tabItem { Label(S.tabAddons, systemImage: "puzzlepiece.extension") }
+            ForEach(Array(Addon.settingsTabs.enumerated()), id: \.offset) { _, tab in
+                tab.content()
+                    .tabItem { Label(tab.label, systemImage: "puzzlepiece.extension") }
             }
             AboutView()
                 .tabItem { Label(S.tabAbout, systemImage: "info.circle") }

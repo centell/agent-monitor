@@ -21,40 +21,65 @@ pgrep -f "${APP_NAME}.app/Contents/MacOS/${APP_NAME}" >/dev/null 2>&1 && WAS_RUN
 
 mkdir -p build
 
-# 별도 애드온 소스가 있으면 함께 빌드한다. 없으면 그냥 없는 채로 빌드되고, clone 해 온
-# 사람에게는 그쪽이 기본이며 그것으로 온전하다. `Addon/` 은 .gitignore 라 따라오지 않는다.
+# 애드온은 **더 이상 여기서 함께 컴파일하지 않는다.** 따로 지은 번들이 되어 앱이 켤 때
+# 찾아 읽는다 (`Sources/AddonLoader.swift`). 애드온이 여럿이 되면 조합마다 다른 판을 지어야
+# 하는데, 셋이면 여덟 판이라 그 셈이 안 선다.
 #
-# 빈 배열을 `"${ARR[@]}"` 로 펼치면 **맥 기본 bash 3.2 는 `set -u` 아래서 죽는다.**
-# 그래서 `${ARR[@]+...}` 로 «있을 때만 펼치기» 를 쓴다. 이 맥에는 Addon/ 이 있으니
-# 이 줄이 틀려도 여기서는 안 드러난다 — 안 겪는 사람이 고쳐야 하는 자리다.
-ADDON_ARGS=()
+# 대신 여기서 **애드온이 대고 지을 것**을 함께 내놓는다 (아래 build/sdk). 애드온은 이 앱의
+# 타입에 직접 대고 지어지므로, 모듈(무엇이 있는지)과 실행 파일(어디 있는지) 둘 다 필요하다.
 EDITION="기본"
-if [[ -d Addon/Sources ]]; then
-    ADDON_ARGS=(-D ADDON Addon/Sources/*.swift)
-    EDITION="애드온 포함"
-    echo "  · 애드온 소스를 함께 빌드합니다"
-fi
+MODULE_NAME="AgentMonitor"
+
+rm -rf build/sdk
 
 # Apple Silicon 과 Intel 양쪽에서 도는 하나의 실행 파일을 만든다.
 # 한쪽 아키텍처를 못 만드는 환경에서도 빌드가 막히지 않도록, 되는 것만 모아 합친다.
+#
+# 슬라이스를 **안 지운다.** 애드온을 지을 때 `-bundle_loader` 가 제 아키텍처의 실행 파일을
+# 가리켜야 하고, 모듈도 아키텍처마다 따로 나온다.
 SLICES=()
 for arch in arm64 x86_64; do
+    mkdir -p "build/sdk/${arch}"
     if swiftc -O -target "${arch}-apple-macos${DEPLOYMENT_TARGET}" \
-        Sources/*.swift ${ADDON_ARGS[@]+"${ADDON_ARGS[@]}"} \
-        -o "build/slice-${arch}" 2>/dev/null; then
-        SLICES+=("build/slice-${arch}")
+        -module-name "$MODULE_NAME" \
+        -emit-module -emit-module-path "build/sdk/${arch}/${MODULE_NAME}.swiftmodule" \
+        -emit-executable \
+        Sources/*.swift \
+        -o "build/sdk/${arch}/host" 2>"build/sdk/${arch}.log"; then
+        SLICES+=("build/sdk/${arch}/host")
     else
-        echo "  · ${arch} 는 건너뜁니다 (이 환경에서 못 만듦)"
+        # **까닭을 함께 내놓는다.** 전에는 stderr 를 통째로 버려서, 정말 못 만드는
+        # 아키텍처인지 내가 코드를 틀린 것인지 구분할 수가 없었다 (실제로 걸렸다).
+        echo "  · ${arch} 는 건너뜁니다 — build/sdk/${arch}.log"
+        grep -m3 "error:" "build/sdk/${arch}.log" 2>/dev/null || true
+        rm -rf "build/sdk/${arch}"
     fi
 done
 
 if [[ ${#SLICES[@]} -eq 0 ]]; then
     # 둘 다 실패하면 대상 지정 없이 이 맥용으로만 만든다. 그래야 최소한 손에 남는다.
     echo "  · 지정한 대상으로 못 만들어 이 맥용으로만 빌드합니다"
-    swiftc -O Sources/*.swift ${ADDON_ARGS[@]+"${ADDON_ARGS[@]}"} -o build/agent-monitor
+    mkdir -p build/sdk/native
+    swiftc -O -module-name "$MODULE_NAME" \
+        -emit-module -emit-module-path "build/sdk/native/${MODULE_NAME}.swiftmodule" \
+        -emit-executable Sources/*.swift -o build/sdk/native/host
+    cp build/sdk/native/host build/agent-monitor
 else
     lipo -create "${SLICES[@]}" -output build/agent-monitor
-    rm -f "${SLICES[@]}"
+fi
+
+# 애드온 소스가 옆에 있으면 이어서 번들로 짓는다. 없으면 그냥 없는 채로 끝나고, clone 해 온
+# 사람에게는 그쪽이 기본이며 그것으로 온전하다. `Addon/` 은 .gitignore 라 따라오지 않는다.
+if [[ -d Addon/Sources && -x Addon/build.sh ]]; then
+    echo "  · 애드온을 번들로 짓습니다"
+    # `--no-install` 을 그대로 넘긴다. 도는 앱을 안 건드리겠다고 한 사람에게 애드온만
+    # 몰래 갈아 끼우면 그 말이 반만 지켜진다.
+    if Addon/build.sh ${1:+"$1"}; then
+        EDITION="애드온 포함"
+    else
+        # **여기서 멈추지 않는다.** 애드온이 안 지어져도 앱은 온전하다.
+        echo "  · 애드온을 못 지었습니다 — 앱은 그대로 이어서 만듭니다"
+    fi
 fi
 
 # **도는 앱을 건드리지 않는 길.**
