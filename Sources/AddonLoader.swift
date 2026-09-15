@@ -135,7 +135,7 @@ enum AddonLoader {
         }
         guard let handle = dlopen(executable.path, RTLD_NOW | RTLD_LOCAL) else {
             let why = dlerror().map { String(cString: $0) } ?? S.addonUnknownError
-            return entry(.unreadable(shorten(why)))
+            return entry(.unreadable(hostTooOld(why) ? S.addonHostTooOld : shorten(why)))
         }
 
         // **판부터.** 이 심볼이 없으면 우리 규약을 안 지키는 것이므로 더 건드리지 않는다.
@@ -173,6 +173,17 @@ enum AddonLoader {
     ///
     /// 못 알아볼 모양이면 **자르지 않고 그대로 둔다.** 줄이려다 까닭까지 지우면
     /// 고치려는 사람이 아무 실마리도 못 받는다.
+    /// `dlopen` 이 «심볼 없음» 으로 거절했으면 그 뜻을 사람 말로 옮긴다.
+    ///
+    /// **판 검사로는 이걸 못 잡는다.** 판을 물어보려면 먼저 열어야 하는데, 이 경우는
+    /// 여는 그 자리에서 막힌다. 그래서 잡는 자리가 «묻기 전» 이 아니라 «못 연 뒤» 다.
+    ///
+    /// 뜻은 하나뿐이다 — **번들이 이 앱에 없는 자리를 찾고 있다.** 즉 애드온이 더 새것이고
+    /// 앱이 옛것이다. 날것의 dyld 글에는 그 말이 한 마디도 안 적혀 있다.
+    private static func hostTooOld(_ message: String) -> Bool {
+        message.contains("Symbol not found") && message.contains("AgentMonitor")
+    }
+
     private static func shorten(_ message: String) -> String {
         guard let triedAt = message.range(of: " tried:") else { return message }
         let head = String(message[message.startIndex..<triedAt.lowerBound])

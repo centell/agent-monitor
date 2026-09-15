@@ -102,6 +102,11 @@ public enum S {
     static var addonNoExecutable: String {
         p("실행할 것이 없습니다", "No executable inside", "実行ファイルがありません")
     }
+    static var addonHostTooOld: String {
+        p("이 앱이 애드온보다 옛 판입니다 — 앱을 먼저 올려 주세요",
+          "This app is older than the add-on — update the app first",
+          "アプリがアドオンより古い版です — 先にアプリを更新してください")
+    }
     static var addonUnknownError: String { p("까닭을 모릅니다", "Unknown reason", "原因不明") }
     static var addonNotAnAddon: String {
         p("이 앱의 애드온이 아닙니다", "Not an add-on for this app", "このアプリのアドオンではありません")
