@@ -155,6 +155,24 @@ public enum Addon {
     /// `contractVersion` 도 안 올라간다.
     public static var claudeAccountRoots: [URL] { ClaudeCodeSource().accountRoots() }
 
+    /// 지금 살아 있는 세션을 **한 번** 훑는다.
+    ///
+    /// 애드온이 「이 일감을 쥔 세션이 아직 있나」를 물을 수 있게 내준다. 그 답은 잴 수 있는
+    /// 값이므로 어디에도 저장하면 안 된다 — 저장하는 순간 썩기 시작하고, 죽은 세션이
+    /// 살아 있는 것처럼 보이는 바로 그 거짓말이 다시 생긴다.
+    ///
+    /// ⚠️ **한 번 훑고 끝나는 자리에서만 쓴다.** 켜 두고 도는 화면은 이 함수 대신 이미
+    /// 건네받은 손을 써야 한다 (`Addon.Window` 의 `sessionsProvider`). 도는 앱이 한 번 더
+    /// 훑으면 재는 값이 두 배로 들 뿐 아니라, 쓰임새 기록이 **표본 사이 간격을 시간의
+    /// 단위로 쓰기 때문에** 그 단위가 뒤틀린다 (`StatsRecorder`).
+    ///
+    /// ⚠️ **빈 배열은 「아무도 없다」가 아니라 「못 쟀다」일 수 있다.** 이걸로 유령을
+    /// 가리는 쪽은 빈 결과를 판단 근거로 쓰지 말아야 한다.
+    public static var scanSessionsOnce: [Session] {
+        CompositeSource([ClaudeCodeSource(), ClaudeAppSource(),
+                         CodexSource(), CodexAppSource()] + extraSources).scan()
+    }
+
     // MARK: 여럿을 하나로
 
     /// 줄에 붙일 글을 모아 한 조각으로 만든다. 붙일 것이 없으면 `nil`.
