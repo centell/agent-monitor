@@ -180,9 +180,11 @@ enum SessionRowStyle {
         // 셸이 도는 줄에는 **무엇을 돌리는 중인지** 적는다. 줄에는 안 적는다 —
         // 여기는 올려야 뜨는 자리라 시끄러워질 일이 없다.
         //
-        // `showReason` 을 함께 본다. 그 설정은 「왜 그러고 있는지 툴팁에 적어라」는 뜻이고,
-        // 이것도 같은 물음의 답이다. 하나만 꺼지면 끈 사람은 왜 반만 사라졌는지 모른다.
-        if settings.showReason, let running = session.running, !running.isEmpty {
+        // **`showReason` 에 묶지 않는다.** 처음엔 「같은 물음의 답」이라 여겨 묶었는데,
+        // 그 설정의 뜻은 「왜 **기다리는지**」다. 「무엇을 **돌리는지**」는 다른 물음이고,
+        // 기다림 쪽 글이 싫어 끈 사람이 이것까지 잃을 까닭이 없다. 실제로 그 설정을 끈
+        // 판에서 이 줄이 통째로 안 보였다.
+        if let running = session.running, !running.isEmpty {
             tip += S.runningNow + "\n" + folded(running) + "\n\n"
         }
         // 애드온이 보탤 글이 있으면 **앞쪽에** 둔다. 아래의 경로와 안내는 「이 줄을 어떻게
