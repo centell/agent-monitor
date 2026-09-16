@@ -3,10 +3,11 @@ import Foundation
 
 let args = Array(CommandLine.arguments.dropFirst())
 
-if args.contains("-h") || args.contains("--help") {
-    print(S.helpText)
-    exit(0)
-}
+/// 도움말을 물었는가. **찍는 것은 여기가 아니라 애드온을 꽂은 뒤다.**
+///
+/// 먼저 찍으면 애드온이 가로채는 명령이 도움말에서 통째로 빠진다. 그러면 그 명령을
+/// 찾으러 온 쪽이 「없다」고 읽고 돌아가는데, 정작 명령은 있다.
+let wantsHelp = args.contains("-h") || args.contains("--help")
 
 let claudeSource = ClaudeCodeSource()
 let claudeAppSource = ClaudeAppSource()
@@ -33,6 +34,13 @@ let demoScene = args.contains("quiet") ? DemoSource.Scene.quiet : .busy
 // **명령줄로 한 번 훑고 죽는 실행에서도 부른다.** 애드온이 제 명령을 가로채는 자리가
 // 있으므로 (`Addon.extraCommands`), 여기서 안 꽂으면 그 명령이 통째로 사라진다.
 AddonLoader.loadAll()
+
+// 이제 꽂힌 것까지 합쳐 도움말을 찍는다. 꽂힌 게 없으면 `Addon.extraHelp` 가 빈 배열이라
+// 예전과 같은 글이 나온다.
+if wantsHelp {
+    print(([S.helpText] + Addon.extraHelp).joined(separator: "\n\n"))
+    exit(0)
+}
 
 // 레지스트리를 직접 읽는 출처를 앞에 둔다 — 겹치면 앞선 쪽이 남는다.
 // 애드온 출처는 **뒤에** 붙인다. 겹칠 때 남는 쪽이 앞이라, 손에 쥔 맥에서 직접 읽은 것이
