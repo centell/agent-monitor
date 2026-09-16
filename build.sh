@@ -146,9 +146,27 @@ cat > "$DEST/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
+# 이름을 PATH 에 건다.
+#
+# 훅도 README 도 `agent-monitor` 를 치라고 적는데, **여기서 걸어 주지 않으면 그 이름은
+# 어디에도 없다.** 실제로 그랬다 — 훅을 읽고 그대로 친 세션이 command not found 를 맞았고,
+# 판이 비어 있던 것이 「안 쓴 것」이 아니라 「못 쓴 것」이었다. 앱만 놓고 이름을 안 걸면
+# 도구는 설치된 것처럼 보이면서 손에는 안 잡힌다.
+#
+# sudo 가 필요한 /usr/local/bin 대신 ~/.local/bin 에 건다 — 빌드가 암호를 묻지 않아야 한다.
+BIN_DIR="$HOME/.local/bin"
+mkdir -p "$BIN_DIR"
+ln -sf "$DEST/Contents/MacOS/${APP_NAME}" "$BIN_DIR/agent-monitor"
+
 echo "빌드 완료  ${EDITION}  ($(lipo -archs build/agent-monitor 2>/dev/null || echo native))"
 echo "  앱  : $DEST"
-echo "  CLI : build/agent-monitor   (--list · --json · --memory · --roots)"
+echo "  CLI : $BIN_DIR/agent-monitor   (--list · --json · --memory · --roots · ticket · plan · step · board)"
+
+# 건 이름이 **잡히는지**까지 본다. 안 잡히면 조용히 실패해 이 버그가 그대로 돌아온다.
+case ":$PATH:" in
+    *":$BIN_DIR:"*) ;;
+    *) echo "  ⚠ $BIN_DIR 이 PATH 에 없습니다 — 셸 설정에 넣어야 이 이름이 잡힙니다" ;;
+esac
 
 if [[ "${1:-}" == "--no-run" ]]; then
     [[ $WAS_RUNNING -eq 1 ]] && echo "  → 내려둔 채로 두었습니다 (--no-run)"
