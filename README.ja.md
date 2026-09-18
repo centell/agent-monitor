@@ -2,6 +2,8 @@
 
 [English](README.md) | [한국어](README.ko.md) | **日本語**
 
+**ウェブサイト**: [rlidea.app/en/products/agent-monitor](https://rlidea.app/en/products/agent-monitor/)
+
 **どのセッションが自分を待っているのか。**
 
 エージェントのセッションをいくつも開いたまま使う人のための macOS メニューバーアプリです。

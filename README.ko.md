@@ -2,6 +2,8 @@
 
 [English](README.md) | **한국어** | [日本語](README.ja.md)
 
+**웹사이트**: [rlidea.app/ko/products/agent-monitor](https://rlidea.app/ko/products/agent-monitor/)
+
 **어느 세션이 나를 기다리고 있나.**
 
 에이전트 세션을 여러 개 띄워두고 쓰는 사람을 위한 macOS 메뉴바 앱입니다 — Claude Code 든

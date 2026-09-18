@@ -2,6 +2,8 @@
 
 **English** | [한국어](README.ko.md) | [日本語](README.ja.md)
 
+**Website**: [rlidea.app/en/products/agent-monitor](https://rlidea.app/en/products/agent-monitor/)
+
 **Which of your agent sessions is waiting for you?**
 
 A macOS menu bar app for people who keep several agent sessions open at once — Claude Code or
