@@ -55,7 +55,8 @@ enum SessionRowStyle {
                       columns: [RowFormatter.Field.Column],
                       size: CGFloat = 12,
                       skin: PanelSkin = .simple,
-                      stopping: Bool = false) -> Draft {
+                      stopping: Bool = false,
+                      sourcePrefix: String? = nil) -> Draft {
         let byColumn = Dictionary(row.fields.map { ($0.column, $0) }, uniquingKeysWith: { a, _ in a })
         let text = NSMutableAttributedString()
         var spans: [(column: RowFormatter.Field.Column, range: NSRange)] = []
@@ -108,6 +109,18 @@ enum SessionRowStyle {
             dress(text, skin: skin, session: session, size: size,
                   nameRange: spans.first { $0.column == .name }?.range,
                   markRange: markRange, dimRanges: dimRanges)
+        }
+        // 엔진 색은 **스킨 다음에** 칠한다. 스킨이 이름 칸 전체의 색을 다시 정하므로, 먼저
+        // 칠하면 덮인다. 굵기와 크기는 스킨 것을 그대로 두고 색만 바꾼다.
+        // 고요 스킨에서 물러난 줄은 색도 같이 물러나야 한다 — 가라앉힌 줄에서 앞머리만
+        // 선명하면 「기다리는 줄만 산다」는 그 스킨의 말이 깨진다.
+        if let sourcePrefix, let engine = RowTint.engineColor(for: session.source),
+           let nameRange = spans.first(where: { $0.column == .name })?.range {
+            let length = min((sourcePrefix as NSString).length, nameRange.length)
+            let faded = skin == .quiet && !session.state.needsAttention
+            text.addAttribute(.foregroundColor,
+                              value: faded ? engine.withAlphaComponent(0.45) : engine,
+                              range: NSRange(location: nameRange.location, length: length))
         }
         // **맨 마지막에 얹는다.** 스킨은 지표를 배경으로 내리는 일을 하므로, 먼저 칠하면
         // 그 위에 덮인다. 지금 무슨 일이 일어나는지는 어느 스킨에서도 가장 잘 보여야 한다.

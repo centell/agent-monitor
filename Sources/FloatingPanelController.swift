@@ -134,6 +134,8 @@ final class FloatingPanelController: NSObject {
                                            size: settings.panelFontSize,
                                            skin: settings.panelSkin,
                                            stopping: stopping)
+            // 띠는 보이는 줄끼리 세고, 색은 전체를 보고 정한다 — 메뉴와 같은 색이 나오게 (`RowTint`).
+            let groups = settings.tintRepo ? RowTint.groupColors(for: shown, among: sessions) : [:]
             var previousNeededAttention: Bool?
             for (session, text) in zip(shown, texts) {
                 let needs = session.state.needsAttention
@@ -142,7 +144,7 @@ final class FloatingPanelController: NSObject {
                 }
                 previousNeededAttention = needs
 
-                let row = makeRow(session, text: text)
+                let row = makeRow(session, text: text, groupColor: groups[session.id])
                 if let notice, notice.sessionID == session.id {
                     pieces.append(replacing(row, rowText: text,
                                             text: "⚠  " + notice.text, emphasised: true))
@@ -206,11 +208,15 @@ final class FloatingPanelController: NSObject {
     }
 
     /// 다 짜인 글을 받는다. 여기서 만들면 그 줄 하나만 보게 되어 칸이 안 맞는다.
-    private func makeRow(_ session: Session, text: NSAttributedString) -> SessionRowView {
+    private func makeRow(_ session: Session, text: NSAttributedString,
+                         groupColor: NSColor?) -> SessionRowView {
+        // 고요 스킨에서 물러난 줄은 띠도 물러난다 — 엔진 색과 같은 까닭 (`SessionRowStyle`).
+        let faded = settings.panelSkin == .quiet && !session.state.needsAttention
         let view = SessionRowView(
             text: text,
             enabled: SessionJump.canJump(session),
             pinned: session.isPinned,
+            groupColor: faded ? groupColor?.withAlphaComponent(0.45) : groupColor,
             insetY: settings.panelDensity,
             onClick: { [weak self] in self?.jump(to: session) },
             onRightClick: { [weak self] event in

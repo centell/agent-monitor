@@ -45,9 +45,11 @@ enum RowTypesetter {
         let columns = order.filter { sample[$0] != nil }
 
         // 1. 칸을 꾸민다 — 탭으로만 잇고 아직 벌리지 않는다.
+        let tintEngine = formatter.settings.tintEngine
         let drafts = zip(sessions, rows).map { session, row in
             SessionRowStyle.draft(for: session, row: row, columns: columns,
-                                  size: size, skin: skin, stopping: stopping.contains(session.id))
+                                  size: size, skin: skin, stopping: stopping.contains(session.id),
+                                  sourcePrefix: tintEngine ? formatter.sourcePrefix(for: session) : nil)
         }
 
         // 2. 칸마다 **제 속성 그대로** 폭을 잰다.

@@ -239,18 +239,25 @@ struct RowFormatter {
     /// 출처가 하나뿐일 때도 붙인다 — 있다 없다 하면 열 폭이 흔들린다.
     /// 어떤 모양으로 붙일지는 설정을 따른다 (`SourceStyle`).
     func displayName(for session: Session) -> String {
+        "\(sourcePrefix(for: session))/\(session.name)"
+    }
+
+    /// 이름 앞에 붙는 출처 (`/` 앞까지). 엔진 색은 이 구간에만 칠한다 (`RowTint`).
+    ///
+    /// 칠할 자리를 글자 수로 셈하지 않고 **여기서 받아 쓴다** — 모양이 셋이라, 셈으로 두면
+    /// 모양이 하나 늘 때 칠이 조용히 어긋난다.
+    func sourcePrefix(for session: Session) -> String {
         switch settings.sourceStyle {
         case .short:
-            return "\(session.sourceTag)/\(session.name)"
+            return session.sourceTag
         case .symmetric:
             // 넷이 다 자기가 뭔지 말한다. 「표시 없는 것이 터미널」이라는 암묵을 없앤다.
-            let tag = session.runsInApp ? "\(session.source)-app" : "\(session.source)-cli"
-            return "\(tag)/\(session.name)"
+            return session.runsInApp ? "\(session.source)-app" : "\(session.source)-cli"
         case .symbol:
             // 이름은 짧게 두고 한 칸짜리 표식으로 가른다.
             // 폭이 고른 글자만 쓴다 — 상태 표식(◆○●◐)과 같은 이유다.
             let mark = session.runsInApp ? "□" : ">"
-            return "\(mark) \(session.sourceTag)/\(session.name)"
+            return "\(mark) \(session.sourceTag)"
         }
     }
 

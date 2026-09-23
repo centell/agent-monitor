@@ -15,6 +15,8 @@ final class SessionRowView: NSView {
     private let onClick: (() -> Void)?
     private let onRightClick: ((NSEvent) -> Void)?
     private let isPinned: Bool
+    /// 같은 저장소에서 도는 줄끼리 나눠 갖는 띠 색 (`RowTint`). 혼자인 줄은 없다.
+    private let groupColor: NSColor?
     private var isHighlighted = false
     private var tracking: NSTrackingArea?
 
@@ -39,11 +41,13 @@ final class SessionRowView: NSView {
     /// 우클릭은 `enabled` 와 무관하게 늘 산다. 갈 수 없는 줄이라고 고정까지 막을
     /// 이유는 없다 — 오히려 못 가는 줄일수록 눈에 띄게 두고 싶을 수 있다.
     init(text: NSAttributedString, enabled: Bool, pinned: Bool = false,
+         groupColor: NSColor? = nil,
          insetX: CGFloat = 20, insetY: CGFloat = 3,
          onClick: (() -> Void)?, onRightClick: ((NSEvent) -> Void)? = nil) {
         self.onClick = enabled ? onClick : nil
         self.onRightClick = onRightClick
         self.isPinned = pinned
+        self.groupColor = groupColor
         self.insetX = insetX
         self.insetY = insetY
 
@@ -99,6 +103,15 @@ final class SessionRowView: NSView {
             NSColor.selectedContentBackgroundColor.setFill()
             // 네이티브 메뉴처럼 좌우를 살짝 들여 둥근 사각형으로 칠한다.
             NSBezierPath(roundedRect: bounds.insetBy(dx: 5, dy: 0), xRadius: 4, yRadius: 4).fill()
+        }
+        // 같은 저장소의 띠. **바탕이 아니라 왼쪽 끝의 가는 띠**인 이유: 바탕은 이미 고정과
+        // 강조가 쓰고 있어서, 겹치면 「꽂은 줄인가 같은 무리인가」를 못 가린다.
+        // 강조 **위에** 그린다 — 가리키는 동안에도 어느 무리인지는 남아야 한다.
+        // 위아래를 1pt 씩 비워, 이웃한 형제 줄의 띠가 한 줄기로 붙지 않고 줄마다 끊겨 보이게 한다.
+        if let groupColor {
+            groupColor.setFill()
+            let stripe = NSRect(x: 8, y: 1, width: 3, height: max(0, bounds.height - 2))
+            NSBezierPath(roundedRect: stripe, xRadius: 1.5, yRadius: 1.5).fill()
         }
         (isHighlighted ? highlightedText : normalText)
             .draw(at: NSPoint(x: insetX, y: insetY))

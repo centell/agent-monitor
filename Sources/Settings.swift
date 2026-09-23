@@ -170,6 +170,14 @@ public final class Settings: ObservableObject {
     /// 줄에 출처를 어떻게 적을지.
     @Published var sourceStyle: SourceStyle         { didSet { persist() } }
 
+    /// 이름 앞머리(출처)를 엔진 색으로 칠할 것인가 — claude · codex (`RowTint`).
+    @Published var tintEngine: Bool                 { didSet { persist() } }
+    /// 같은 저장소에서 도는 줄에 같은 색 띠를 달 것인가 (`RowTint`).
+    ///
+    /// 둘을 한 손잡이로 묶지 않는다. 엔진은 늘 둘 중 하나라 색이 모든 줄에 붙고,
+    /// 띠는 형제가 있는 줄에만 붙는다 — 하나만 거슬릴 수 있다.
+    @Published var tintRepo: Bool                   { didSet { persist() } }
+
     /// 메뉴바 숫자에 마우스를 올리기만 해도 목록을 열 것인가.
     ///
     /// **기본은 끔이다.** 메뉴바는 다른 앱 메뉴를 쓰러 지나가는 복도라, 켜져 있는 것이
@@ -270,6 +278,8 @@ public final class Settings: ObservableObject {
         refreshInterval = store.object(forKey: Key.interval) as? Double ?? 2
         codexAppWindow = store.object(forKey: Key.codexAppWindow) as? Double ?? 30
         sourceStyle = SourceStyle(rawValue: store.string(forKey: Key.sourceStyle) ?? "") ?? .short
+        tintEngine = store.object(forKey: Key.tintEngine) as? Bool ?? true
+        tintRepo = store.object(forKey: Key.tintRepo) as? Bool ?? true
         pinnedSessions = Set(store.stringArray(forKey: Key.pinned) ?? [])
         panelOpen = store.object(forKey: Key.panelOpen) as? Bool ?? false
         panelAlwaysOnTop = store.object(forKey: Key.panelAlwaysOnTop) as? Bool ?? true
@@ -340,6 +350,8 @@ public final class Settings: ObservableObject {
         refreshInterval = 2
         codexAppWindow = 30
         sourceStyle = .short
+        tintEngine = true
+        tintRepo = true
         panelAlwaysOnTop = true
         panelWaitingOnly = false
         panelBackdropStyle = .blur
@@ -377,6 +389,8 @@ public final class Settings: ObservableObject {
         store.set(refreshInterval, forKey: Key.interval)
         store.set(codexAppWindow, forKey: Key.codexAppWindow)
         store.set(sourceStyle.rawValue, forKey: Key.sourceStyle)
+        store.set(tintEngine, forKey: Key.tintEngine)
+        store.set(tintRepo, forKey: Key.tintRepo)
         store.set(pinnedSessions.sorted(), forKey: Key.pinned)
         store.set(panelOpen, forKey: Key.panelOpen)
         store.set(panelAlwaysOnTop, forKey: Key.panelAlwaysOnTop)
@@ -424,6 +438,8 @@ public final class Settings: ObservableObject {
         static let interval = "refreshInterval"
         static let codexAppWindow = "codexAppWindow"
         static let sourceStyle = "sourceStyle"
+        static let tintEngine = "tintEngine"
+        static let tintRepo = "tintRepo"
         static let pinned = "pinnedSessions"
         static let panelOpen = "panelOpen"
         static let panelAlwaysOnTop = "panelAlwaysOnTop"

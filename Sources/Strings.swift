@@ -480,6 +480,9 @@ public enum S {
     static var styleShort: String    { p("앱만", "App only", "アプリのみ") }
     static var styleSymmetric: String { p("양쪽 다", "Both", "両方") }
     static var styleSymbol: String   { p("표식", "Mark", "印") }
+    static var tintLabel: String     { p("색으로 가르기", "Color by", "色で分ける") }
+    static var tintEngine: String    { p("엔진", "Engine", "エンジン") }
+    static var tintRepo: String      { p("같은 저장소", "Same repo", "同じリポジトリ") }
     static var codexAppWindow: String { p("codex 앱 스레드", "codex app threads", "codex アプリのスレッド") }
     static var windowOff: String     { p("안 보임", "Hidden", "非表示") }
     static func minutes(_ n: Int) -> String { p("\(n)분", "\(n)m", "\(n)分") }

@@ -255,6 +255,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // 칸은 **목록을 통째로 보고** 세운다. 한 줄씩 그리면 그 칸에서 가장 넓은
             // 글이 얼마나 넓은지를 알 수 없어 정지점을 못 정한다 (`RowTypesetter`).
             let texts = RowTypesetter.rows(for: sessions, formatter: formatter)
+            let groups = settings.tintRepo ? RowTint.groupColors(for: sessions, among: sessions) : [:]
             var previousNeededAttention: Bool?
             // 강조는 뷰의 `bounds` 를 칠하므로 **뷰의 폭이 곧 강조의 폭**이다. 뷰는 제 글자
             // 길이에 맞춰 태어나는데(`SessionRowView`), 줄은 알맹이가 있는 마지막 칸에서
@@ -275,7 +276,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     menu.addItem(.separator())
                 }
                 previousNeededAttention = needs
-                let item = row(for: session, text: text)
+                let item = row(for: session, text: text, groupColor: groups[session.id])
                 if let view = item.view { rowViews.append(view) }
                 menu.addItem(item)
             }
@@ -339,7 +340,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// 줄의 생김새(굵기·색·툴팁)는 상시 창과 한 벌을 쓴다 — `SessionRowStyle`.
     /// 다 짜인 글을 받는다. 여기서 만들면 그 줄 하나만 보게 되어 칸이 안 맞는다.
-    private func row(for session: Session, text: NSAttributedString) -> NSMenuItem {
+    private func row(for session: Session, text: NSAttributedString,
+                     groupColor: NSColor?) -> NSMenuItem {
         // 누르면 그 세션이 사는 곳으로 간다 — 터미널 창이거나, 앱이거나.
         let canJump = SessionJump.canJump(session)
         let item = NSMenuItem()
@@ -347,6 +349,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             text: text,
             enabled: canJump,
             pinned: session.isPinned,
+            groupColor: groupColor,
             onClick: { [weak self] in self?.jump(to: session) },
             onRightClick: { [weak self] _ in self?.togglePin(for: session) }
         )
