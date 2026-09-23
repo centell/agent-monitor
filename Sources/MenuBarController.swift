@@ -49,6 +49,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         menu.autoenablesItems = false
         statusItem.menu = menu
+        // 메뉴가 생긴 뒤에 한 번 더 건다 — 위에서 걸 때는 걸 메뉴가 아직 없었다.
+        applyAppearance()
 
         refresh()
         restartTimer()
@@ -75,8 +77,13 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// 걸면 새 창이 생길 때마다 거는 것을 잊는 자리가 하나씩 는다.
     /// 「시스템 따름」은 `nil` 이다 — 지금 시스템이 어느 쪽인지 읽어다 박으면 그 뒤에
     /// 시스템이 뒤집혀도 안 따라간다.
+    ///
+    /// **메뉴만은 앱 전체를 안 따른다.** 메뉴바에서 떨어지는 메뉴는 `NSApp.appearance` 가
+    /// 아니라 **메뉴바의 모양**(= 시스템)을 따른다. 시스템은 밝은데 앱을 어둡게 두면
+    /// 상시 창만 어두워지고 메뉴는 밝게 남았다. 그래서 메뉴에는 따로 한 번 더 건다.
     private func applyAppearance() {
         NSApp.appearance = settings.appearance.nsAppearance
+        statusItem?.menu?.appearance = settings.appearance.nsAppearance
     }
 
     // MARK: 올리면 열기
