@@ -7,12 +7,16 @@
 #   ./build.sh               빌드 · 설치 · (돌고 있었으면) 다시 띄움
 #   ./build.sh --no-run      빌드 · 설치 · 띄우지 않음 (돌고 있었으면 내려간 채로 둔다)
 #   ./build.sh --no-install  빌드만. **도는 앱을 건드리지 않는다** — 그 앱은 이전 판이다
+#   ./build.sh --release     올릴 판. 애드온 자리를 빼고 build/release 에 짓고 zip 으로 묶는다.
+#                            도는 앱도 ~/Applications 도 건드리지 않는다
 set -euo pipefail
 cd "$(dirname "$0")"
 
 VERSION="0.6.1"
 APP_NAME="AgentMonitor"
 DEST="$HOME/Applications/${APP_NAME}.app"
+RELEASE=0
+[[ "${1:-}" == "--release" ]] && RELEASE=1 && DEST="build/release/${APP_NAME}.app"
 DEPLOYMENT_TARGET="13.0"
 
 # 돌고 있었는지 먼저 기억해 둔다. 빌드 때문에 조용히 꺼져 있으면 안 된다.
@@ -30,6 +34,14 @@ mkdir -p build
 EDITION="기본"
 MODULE_NAME="AgentMonitor"
 
+# 애드온을 **받는 자리**(로더·설정창 칸·`addon` 명령)를 켤지. 애드온 소스가 옆에 있는
+# 맥에서만 켜고, clone 해 온 판과 릴리즈판에서는 끈다 — 아직 남에게 내놓을 자리가 아니다.
+# 애드온마다 가르는 것이 아니라 자리 전체 하나라, 판은 켬·끔 둘뿐이다.
+SWIFT_FLAGS=()
+if [[ $RELEASE -eq 0 && -d Addon/Sources && -x Addon/build.sh ]]; then
+    SWIFT_FLAGS=(-D ADDONS)
+fi
+
 rm -rf build/sdk
 
 # Apple Silicon 과 Intel 양쪽에서 도는 하나의 실행 파일을 만든다.
@@ -41,6 +53,7 @@ SLICES=()
 for arch in arm64 x86_64; do
     mkdir -p "build/sdk/${arch}"
     if swiftc -O -target "${arch}-apple-macos${DEPLOYMENT_TARGET}" \
+        ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} \
         -module-name "$MODULE_NAME" \
         -emit-module -emit-module-path "build/sdk/${arch}/${MODULE_NAME}.swiftmodule" \
         -emit-executable \
@@ -60,7 +73,7 @@ if [[ ${#SLICES[@]} -eq 0 ]]; then
     # 둘 다 실패하면 대상 지정 없이 이 맥용으로만 만든다. 그래야 최소한 손에 남는다.
     echo "  · 지정한 대상으로 못 만들어 이 맥용으로만 빌드합니다"
     mkdir -p build/sdk/native
-    swiftc -O -module-name "$MODULE_NAME" \
+    swiftc -O ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} -module-name "$MODULE_NAME" \
         -emit-module -emit-module-path "build/sdk/native/${MODULE_NAME}.swiftmodule" \
         -emit-executable Sources/*.swift -o build/sdk/native/host
     cp build/sdk/native/host build/agent-monitor
@@ -70,7 +83,7 @@ fi
 
 # 애드온 소스가 옆에 있으면 이어서 번들로 짓는다. 없으면 그냥 없는 채로 끝나고, clone 해 온
 # 사람에게는 그쪽이 기본이며 그것으로 온전하다. `Addon/` 은 .gitignore 라 따라오지 않는다.
-if [[ -d Addon/Sources && -x Addon/build.sh ]]; then
+if [[ ${#SWIFT_FLAGS[@]} -gt 0 ]]; then
     echo "  · 애드온을 번들로 짓습니다"
     # `--no-install` 을 그대로 넘긴다. 도는 앱을 안 건드리겠다고 한 사람에게 애드온만
     # 몰래 갈아 끼우면 그 말이 반만 지켜진다.
@@ -97,12 +110,13 @@ if [[ "${1:-}" == "--no-install" ]]; then
 fi
 
 # 돌고 있으면 먼저 내린다. 실행 중인 번들을 덮어쓰면 상태가 어긋난다.
-if [[ $WAS_RUNNING -eq 1 ]]; then
+# 릴리즈판은 build/ 안에 지으므로 도는 앱과 부딪히지 않는다.
+if [[ $WAS_RUNNING -eq 1 && $RELEASE -eq 0 ]]; then
     pkill -f "${APP_NAME}.app/Contents/MacOS/${APP_NAME}" 2>/dev/null || true
     sleep 0.4
 fi
 
-mkdir -p "$HOME/Applications"
+mkdir -p "$(dirname "$DEST")"
 rm -rf "$DEST"
 mkdir -p "$DEST/Contents/MacOS"
 cp build/agent-monitor "$DEST/Contents/MacOS/${APP_NAME}"
@@ -145,6 +159,18 @@ cat > "$DEST/Contents/Info.plist" <<PLIST
 </dict>
 </plist>
 PLIST
+
+# 릴리즈판은 여기서 묶고 끝낸다. 앱의 업데이트가 릴리즈에 붙은 .zip 을 받아 풀므로,
+# 번들 하나를 맨 위에 둔 채로 묶는다 (`--keepParent`).
+if [[ $RELEASE -eq 1 ]]; then
+    ZIP="build/${APP_NAME}-v${VERSION}.zip"
+    rm -f "$ZIP"
+    ditto -c -k --keepParent "$DEST" "$ZIP"
+    echo "빌드 완료  릴리즈판 ${VERSION}  ($(lipo -archs build/agent-monitor 2>/dev/null || echo native))"
+    echo "  앱  : $DEST"
+    echo "  zip : $ZIP"
+    exit 0
+fi
 
 # 이름을 PATH 에 건다.
 #

@@ -33,7 +33,13 @@ let demoScene = args.contains("quiet") ? DemoSource.Scene.quiet : .busy
 //
 // **명령줄로 한 번 훑고 죽는 실행에서도 부른다.** 애드온이 제 명령을 가로채는 자리가
 // 있으므로 (`Addon.extraCommands`), 여기서 안 꽂으면 그 명령이 통째로 사라진다.
+//
+// **릴리즈판에는 이 자리가 없다** (`ADDONS`, `build.sh`). 애드온마다 가르던 옛 `#if ADDON`
+// 과 달리 이것은 «받는 자리 전체»를 한 번에 켜고 끈다 — 판은 여전히 둘뿐이다. 안 꽂으면
+// 등록부가 비므로 행·툴팁·메뉴·도움말은 애드온이 없을 때와 같다.
+#if ADDONS
 AddonLoader.loadAll()
+#endif
 
 // 이제 꽂힌 것까지 합쳐 도움말을 찍는다. 꽂힌 게 없으면 `Addon.extraHelp` 가 빈 배열이라
 // 예전과 같은 글이 나온다.
@@ -256,6 +262,7 @@ if args.contains("--list") {
 // 애드온을 다루는 명령. **애드온보다 먼저 본다** — 판이 안 맞아 안 꽂힌 애드온을 지우려면
 // 그 애드온이 없는 채로도 이 명령이 서 있어야 한다. 애드온이 제 삭제 명령을 들고 있으면
 // 고장난 애드온은 영영 못 지운다.
+#if ADDONS
 if args.first == "addon" {
     let rest = Array(args.dropFirst())
     switch rest.first {
@@ -311,6 +318,7 @@ if args.first == "addon" {
         exit(2)
     }
 }
+#endif
 
 // 아는 명령을 전부 지나왔다. 남은 것이 있으면 애드온에게 물어본다.
 //

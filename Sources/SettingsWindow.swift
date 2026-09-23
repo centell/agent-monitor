@@ -310,8 +310,11 @@ struct SettingsWindowView: View {
             //
             // **「정보」 앞에 둔다.** 「정보」는 앱이 무엇인지를 적는 자리라 관례상 맨 뒤고,
             // 그 뒤에 손잡이가 붙으면 거기서 끝인 줄 알았던 사람이 한 칸을 더 보게 된다.
+            // 릴리즈판에는 이 칸이 없다 (`ADDONS`, `build.sh`).
+            #if ADDONS
             AddonsView()
                 .tabItem { Label(S.tabAddons, systemImage: "puzzlepiece.extension") }
+            #endif
             AboutView()
                 .tabItem { Label(S.tabAbout, systemImage: "info.circle") }
         }
