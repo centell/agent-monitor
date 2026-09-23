@@ -110,12 +110,11 @@ struct LayoutSettingsView: View {
                 .pickerStyle(.segmented)
 
                 // 출처 표시 바로 밑에 둔다 — 엔진 색이 칠하는 곳이 바로 그 출처라서.
-                LabeledContent(S.tintLabel) {
-                    HStack(spacing: 14) {
-                        Toggle(S.tintEngine, isOn: $settings.tintEngine)
-                        Toggle(S.tintRepo, isOn: $settings.tintRepo)
-                    }
+                Picker(S.engineTint, selection: $settings.engineTint) {
+                    ForEach(EngineTint.allCases) { Text($0.label).tag($0) }
                 }
+                .pickerStyle(.segmented)
+                Toggle(S.tintRepo, isOn: $settings.tintRepo)
 
                 Picker(S.codexAppWindow, selection: $settings.codexAppWindow) {
                     Text(S.windowOff).tag(0.0)

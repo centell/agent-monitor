@@ -26,15 +26,21 @@ enum RowTint {
     /// claude 는 상태 색(승인 대기의 주황)과 **계열이 겹친다.** 알고 고른 것이다 — 채도가
     /// 달라 나란히 두면 갈리고, 상태는 표식의 **모양**(◆○●◐)으로도 읽힌다.
     ///
-    /// **원색 그대로는 글자로 안 읽힌다.** 로고용 색이라 옅어서, 상시 창의 밝은 회색 바탕
-    /// (`#D6D8D8` 즈음) 위에서 테라코타의 명암비가 2.2:1 이었다 — 글자에는 4.5:1 이 필요하다.
-    /// 그래서 색조는 두고 **밝기만 바탕에 맞춘다** — 밝은 바탕에서는 진하게(≈4.5:1),
-    /// 어두운 바탕에서는 밝게.
-    static func engineColor(for source: String) -> NSColor? {
-        switch source {
-        case "claude": return adaptive(light: 0x9C4526, dark: 0xE8967A)   // 원색 #D97757
-        case "codex":  return adaptive(light: 0x1F5FB0, dark: 0x6FA8F0)
-        default:       return nil
+    /// 브랜드 초록을 쓰고 싶은 사람을 위해 벌을 둘 둔다 (`EngineTint`).
+    ///
+    /// **원색 그대로는 어느 바탕에서도 글자로 안 읽힌다.** 로고용 색이라 중간 밝기인데,
+    /// 상시 창은 반투명이라 바탕이 늘 중간 쪽으로 끌려온다. 실측: 밝은 모드 `#D3D5D5` 위에서
+    /// 2.2:1, 어두운 모드는 `#808181` 위에서 1.2:1. 한때 「어두운 바탕 `#2A2A2C` 면 원색이
+    /// 4.6:1」이라 셈하고 원색을 썼다가 화면에서 안 보였다 — 가정한 바탕이 틀렸다.
+    /// 그래서 색조는 두고 밝기만 민다 — 밝은 모드는 진하게(≈4.5:1), 어두운 모드는 파스텔로.
+    /// 어두운 모드의 그 회색 위에서는 흰 본문도 3.9:1 이 한계라 4.5:1 은 못 닿는다.
+    static func engineColor(for source: String, tint: EngineTint) -> NSColor? {
+        switch (source, tint) {
+        case (_, .off):                 return nil
+        case ("claude", _):             return adaptive(light: 0x9C4526, dark: 0xF4A98F)   // 원색 #D97757
+        case ("codex", .brand):         return adaptive(light: 0x086B53, dark: 0x7FDDBE)   // 원색 #10A37F
+        case ("codex", .accessible):    return adaptive(light: 0x1F5FB0, dark: 0x9CC3F5)
+        default:                        return nil
         }
     }
 
@@ -51,11 +57,11 @@ enum RowTint {
     // MARK: 저장소
 
     /// 띠 색 넷. 상태 색 계열을 뺐고, **엔진 색과 닮은 것도 뺐다** (테라코타 곁의 갈색·빨강,
-    /// codex 파랑 곁의 파랑·남색). 실제 화면에서 vcrm 무리의 띠가 claude 앞머리와 같은 색으로
+    /// codex 파랑 곁의 파랑). 회색도 뺐다 — 어두운 모드 창의 회색 바탕에서 띠가 사라졌다. 실제 화면에서 vcrm 무리의 띠가 claude 앞머리와 같은 색으로
     /// 떠서 「이 색은 엔진인가 저장소인가」가 안 갈린 적이 있다. 자리가 달라도 같은 색이면
     /// 같은 뜻으로 읽힌다. 넷을 넘는 무리는 색을 나눠 쓴다.
     static let palette: [NSColor] = [
-        .systemPurple, .systemPink, .systemCyan, .systemGray,
+        .systemPurple, .systemPink, .systemCyan, .systemIndigo,
     ]
 
     /// 목록 전체를 보고 **둘 이상 모인 저장소에만** 색을 매긴다 (세션 id → 색).

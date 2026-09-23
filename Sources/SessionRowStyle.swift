@@ -56,7 +56,8 @@ enum SessionRowStyle {
                       size: CGFloat = 12,
                       skin: PanelSkin = .simple,
                       stopping: Bool = false,
-                      sourcePrefix: String? = nil) -> Draft {
+                      sourcePrefix: String? = nil,
+                      engineTint: EngineTint = .accessible) -> Draft {
         let byColumn = Dictionary(row.fields.map { ($0.column, $0) }, uniquingKeysWith: { a, _ in a })
         let text = NSMutableAttributedString()
         var spans: [(column: RowFormatter.Field.Column, range: NSRange)] = []
@@ -114,7 +115,7 @@ enum SessionRowStyle {
         // 칠하면 덮인다. 굵기와 크기는 스킨 것을 그대로 두고 색만 바꾼다.
         // 고요 스킨에서 물러난 줄은 색도 같이 물러나야 한다 — 가라앉힌 줄에서 앞머리만
         // 선명하면 「기다리는 줄만 산다」는 그 스킨의 말이 깨진다.
-        if let sourcePrefix, let engine = RowTint.engineColor(for: session.source),
+        if let sourcePrefix, let engine = RowTint.engineColor(for: session.source, tint: engineTint),
            let nameRange = spans.first(where: { $0.column == .name })?.range {
             let length = min((sourcePrefix as NSString).length, nameRange.length)
             let faded = skin == .quiet && !session.state.needsAttention

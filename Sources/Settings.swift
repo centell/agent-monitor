@@ -34,6 +34,28 @@ enum SourceStyle: String, CaseIterable, Identifiable {
     }
 }
 
+/// 이름 앞머리(출처)를 어떤 색 벌로 칠할지 (`RowTint`).
+///
+/// 벌이 둘인 것은 **브랜드 색이 적록색약에서 안 갈리기 때문**이다 — claude 테라코타와
+/// ChatGPT 초록이 같은 올리브 갈색이 된다. 브랜드를 알아보는 것과 둘을 가르는 것 중
+/// 무엇이 중한지는 보는 사람이 정한다.
+enum EngineTint: String, CaseIterable, Identifiable {
+    case off
+    /// claude 테라코타 · codex ChatGPT 초록.
+    case brand
+    /// claude 테라코타 · codex 파랑. 주황↔파랑은 어느 색약에서도 갈린다.
+    case accessible
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .off:        return S.engineTintOff
+        case .brand:      return S.engineTintBrand
+        case .accessible: return S.engineTintAccessible
+        }
+    }
+}
+
 /// 상시 창 바탕의 **결**. 진하기는 따로 잰다.
 ///
 /// 둘로 가른 이유가 있다. 처음에는 「흐릿·보통·또렷·없음」 네 이름이었는데, 그것들은
@@ -170,8 +192,8 @@ public final class Settings: ObservableObject {
     /// 줄에 출처를 어떻게 적을지.
     @Published var sourceStyle: SourceStyle         { didSet { persist() } }
 
-    /// 이름 앞머리(출처)를 엔진 색으로 칠할 것인가 — claude · codex (`RowTint`).
-    @Published var tintEngine: Bool                 { didSet { persist() } }
+    /// 이름 앞머리(출처)를 어느 색 벌로 칠할 것인가 — claude · codex (`RowTint`).
+    @Published var engineTint: EngineTint           { didSet { persist() } }
     /// 같은 저장소에서 도는 줄에 같은 색 띠를 달 것인가 (`RowTint`).
     ///
     /// 둘을 한 손잡이로 묶지 않는다. 엔진은 늘 둘 중 하나라 색이 모든 줄에 붙고,
@@ -278,7 +300,9 @@ public final class Settings: ObservableObject {
         refreshInterval = store.object(forKey: Key.interval) as? Double ?? 2
         codexAppWindow = store.object(forKey: Key.codexAppWindow) as? Double ?? 30
         sourceStyle = SourceStyle(rawValue: store.string(forKey: Key.sourceStyle) ?? "") ?? .short
-        tintEngine = store.object(forKey: Key.tintEngine) as? Bool ?? true
+        // 켬/끔이었던 옛 설정에서 옮겨온다. 꺼 두셨으면 끈 채로 둔다.
+        engineTint = EngineTint(rawValue: store.string(forKey: Key.engineTint) ?? "")
+            ?? (store.object(forKey: Key.legacyTintEngine) as? Bool == false ? .off : .accessible)
         tintRepo = store.object(forKey: Key.tintRepo) as? Bool ?? true
         pinnedSessions = Set(store.stringArray(forKey: Key.pinned) ?? [])
         panelOpen = store.object(forKey: Key.panelOpen) as? Bool ?? false
@@ -350,7 +374,7 @@ public final class Settings: ObservableObject {
         refreshInterval = 2
         codexAppWindow = 30
         sourceStyle = .short
-        tintEngine = true
+        engineTint = .accessible
         tintRepo = true
         panelAlwaysOnTop = true
         panelWaitingOnly = false
@@ -389,7 +413,7 @@ public final class Settings: ObservableObject {
         store.set(refreshInterval, forKey: Key.interval)
         store.set(codexAppWindow, forKey: Key.codexAppWindow)
         store.set(sourceStyle.rawValue, forKey: Key.sourceStyle)
-        store.set(tintEngine, forKey: Key.tintEngine)
+        store.set(engineTint.rawValue, forKey: Key.engineTint)
         store.set(tintRepo, forKey: Key.tintRepo)
         store.set(pinnedSessions.sorted(), forKey: Key.pinned)
         store.set(panelOpen, forKey: Key.panelOpen)
@@ -438,7 +462,9 @@ public final class Settings: ObservableObject {
         static let interval = "refreshInterval"
         static let codexAppWindow = "codexAppWindow"
         static let sourceStyle = "sourceStyle"
-        static let tintEngine = "tintEngine"
+        /// 켬/끔이던 옛 설정. 새 값이 아직 없을 때 여기서 옮겨온다.
+        static let legacyTintEngine = "tintEngine"
+        static let engineTint = "engineTint"
         static let tintRepo = "tintRepo"
         static let pinned = "pinnedSessions"
         static let panelOpen = "panelOpen"
