@@ -12,9 +12,6 @@ struct LayoutSettingsView: View {
     @ObservedObject private var settings = Settings.shared
     let sessionsProvider: () -> [Session]
 
-    @State private var sessions: [Session] = []
-    private let tick = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
-
     var body: some View {
         // 손잡이가 하나 늘 때마다 높이 상수를 올리는 것은 깨지기 쉽다. 넘치면 스크롤한다.
         ScrollView {
@@ -144,7 +141,7 @@ struct LayoutSettingsView: View {
                 // 참인데, 그 폭이 창보다 넓을 수 있다. 굽히면 거짓이 되고, 안 굽히면
                 // 창을 밀어내 좌우가 잘린다 — 실측에서 640pt 창의 양옆이 날아갔다.
                 ScrollView(.horizontal) {
-                    RowPreview(text: previewRows)
+                    LivePreview(sessionsProvider: sessionsProvider)
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -166,8 +163,26 @@ struct LayoutSettingsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .onAppear { sessions = sessionsProvider() }
-        .onReceive(tick) { _ in sessions = sessionsProvider() }
+    }
+}
+
+/// 미리보기 — **2초마다 새로 그리는 것은 이 칸뿐이다.**
+///
+/// 전에는 세션 목록이 손잡이 화면 전체의 상태라, 2초마다 위의 grouped `Form` 까지 통째로
+/// 다시 계산됐다. 창을 열어 둔 판에서 CPU 가 10분에 14초 → 450초로 불어났고, 그때 표본에
+/// 잡힌 것이 `GroupedFormRowLayout` 과 Observation 추적 등록이었다 (2026-09-28 실측).
+/// 바뀌는 것은 미리보기뿐이니 그 칸만 제 상태를 들고 다시 그린다.
+struct LivePreview: View {
+
+    @ObservedObject private var settings = Settings.shared
+    let sessionsProvider: () -> [Session]
+
+    @State private var sessions: [Session] = []
+
+    var body: some View {
+        RowPreview(text: previewRows)
+            .onAppear { sessions = sessionsProvider() }
+            .every(2) { sessions = sessionsProvider() }
     }
 
     /// 미리보기의 알맹이 — **메뉴가 쓰는 그 코드**로 짠다.
@@ -218,7 +233,6 @@ struct AboutView: View {
     @ObservedObject private var updates = UpdateCheck.shared
 
     /// 「마지막 확인 …분 전」이 멈춰 있지 않게 30초마다 다시 센다.
-    private let tick = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
     @State private var now = Date()
 
     private static let repository = URL(string: "https://github.com/centell/agent-monitor")!
@@ -282,7 +296,9 @@ struct AboutView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .onReceive(tick) { now = $0 }
+        // 다른 탭에 있다 돌아오면 그동안 멈춰 있던 「…분 전」부터 바로잡는다.
+        .onAppear { now = Date() }
+        .every(30) { now = Date() }
     }
 }
 
@@ -334,7 +350,6 @@ struct MemoryView: View {
 
     let sessionsProvider: () -> [Session]
     @State private var report: MemoryReport?
-    private let tick = Timer.publish(every: 3, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ScrollView {
@@ -395,7 +410,7 @@ struct MemoryView: View {
             .padding(20)
         }
         .onAppear { refresh() }
-        .onReceive(tick) { _ in refresh() }
+        .every(3) { refresh() }
     }
 
     private func refresh() { report = MemoryReport.build(sessions: sessionsProvider()) }
@@ -422,10 +437,19 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     static let shared = SettingsWindowController()
     private var window: NSWindow?
 
+    /// **창 틀은 남기고, 안에 든 화면은 닫을 때 버린다.**
+    ///
+    /// 틀을 남기는 까닭은 `AppActivation` 이 창을 자취로 담기 때문이다(그쪽 주석 참고).
+    /// 화면을 버리는 까닭은 실측이다 — 전에는 화면째 남아, 닫은 뒤에도 SwiftUI 트리와
+    /// 그 안의 타이머·관찰 추적이 그대로 돌았다. 창을 닫고 나서도 CPU 가 10분에 120초씩
+    /// 들었고(열기 전은 9초), 앱을 다시 켜야만 돌아왔다 (2026-09-28).
+    /// 다시 열 때 새로 짓는다. 고르던 탭이 처음으로 돌아가는 것은 그 값이다.
     func show(sessionsProvider: @escaping () -> [Session]) {
-        if window == nil {
-            let hosting = NSHostingController(rootView: SettingsWindowView(sessionsProvider: sessionsProvider))
-            let w = NSWindow(contentViewController: hosting)
+        let w: NSWindow
+        if let existing = window {
+            w = existing
+        } else {
+            w = NSWindow(contentViewController: Self.content(sessionsProvider))
             w.title = S.windowTitle
             w.styleMask = [.titled, .closable, .resizable]
             w.isReleasedWhenClosed = false
@@ -433,15 +457,46 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             w.center()
             window = w
         }
-        guard let w = window else { return }
+        if w.contentViewController == nil {
+            // 새 화면을 끼우면 창이 제 크기로 다시 맞춰진다. 사람이 옮기고 늘려 둔 자리를 지킨다.
+            let frame = w.frame
+            w.contentViewController = Self.content(sessionsProvider)
+            w.setFrame(frame, display: false)
+        }
         AppActivation.enter(w)
         w.makeKeyAndOrderFront(nil)
         w.orderFrontRegardless()
     }
 
+    private static func content(_ sessionsProvider: @escaping () -> [Session]) -> NSViewController {
+        NSHostingController(rootView: SettingsWindowView(sessionsProvider: sessionsProvider))
+    }
+
     func windowWillClose(_ notification: Notification) {
         guard let w = notification.object as? NSWindow else { return }
         AppActivation.leave(w)
+        w.contentViewController = nil
+    }
+}
+
+// MARK: - 되풀이
+
+extension View {
+
+    /// 이 뷰가 **보이는 동안만** `seconds` 마다 `action` 을 부른다.
+    ///
+    /// `Timer.publish(...).autoconnect()` 를 뷰의 속성으로 두면 부모가 다시 그려질 때마다
+    /// 타이머가 새로 서고, 탭을 옮기거나 창을 닫아도 그 수명이 뷰가 아니라 붙든 쪽을 따른다.
+    /// `.task` 는 뷰가 나타날 때 서고 사라질 때 취소된다 — 안 보이는 탭은 돌지 않는다.
+    /// 애드온도 쓴다 — 설정창의 애드온 칸이 같은 창 안에 서므로 같은 수명을 따라야 한다.
+    public func every(_ seconds: Double, perform action: @escaping () -> Void) -> some View {
+        task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                guard !Task.isCancelled else { break }
+                action()
+            }
+        }
     }
 }
 

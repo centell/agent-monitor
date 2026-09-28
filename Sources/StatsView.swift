@@ -16,8 +16,6 @@ struct StatsView: View {
     @State private var liveness = StatsReport.Liveness(minutesToday: 0, lastRecord: nil)
     @State private var now = Date()
 
-    /// 기록은 1분에 한 줄이므로 그보다 자주 읽을 이유가 없다.
-    private let tick = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ScrollView {
@@ -49,7 +47,8 @@ struct StatsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .onAppear { refresh() }
-        .onReceive(tick) { _ in refresh() }
+        // 기록은 1분에 한 줄이므로 그보다 자주 읽을 이유가 없다.
+        .every(30) { refresh() }
     }
 
     // MARK: 기록 상태
