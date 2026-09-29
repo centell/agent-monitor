@@ -339,6 +339,33 @@ if let unknown = args.first(where: { !reachesMenuBar.contains($0) }) {
     exit(2)
 }
 
+// **셸에서 인자 없이 부르면 메뉴바를 띄우지 않는다.**
+//
+// 이름이 CLI 와 같아서, 판을 보려던 쪽(대개 에이전트)이 `agent-monitor | grep …` 을 친다.
+// 그러면 메뉴바 앱이 하나 더 떠서 셸을 붙잡고, 도구가 기다리다 못해 백그라운드로 넘기면
+// 두 번째 앱이 세션이 끝날 때까지 산다. 둘이 같은 세션을 따로 훑고 같은 기록에 쓴다.
+// 실제로 9월에만 여러 번 그랬다.
+//
+// Finder·로그인 항목·`open`(빌드와 업데이트도 이 길로 띄운다)은 launchd 가 띄우므로
+// 부모가 1 이다. 셸에서 친 것만 부모가 셸이다. `--demo` 는 띄우겠다는 뜻이 분명하니 둔다.
+if args.isEmpty && getppid() != 1 {
+    FileHandle.standardError.write(Data((S.errBareFromShell + "\n").utf8))
+    exit(2)
+}
+
+// **하나만 돈다.** 위 길을 비켜 온 두 번째 실행(두 번 누른 로그인 항목, 다른 자리의 판)도
+// 여기서 물러난다. 먼저 뜬 쪽이 이미 세션을 훑고 기록을 쓰고 있다.
+if !demoMode {
+    let me = ProcessInfo.processInfo.processIdentifier
+    let others = NSRunningApplication.runningApplications(
+        withBundleIdentifier: Bundle.main.bundleIdentifier ?? "me.centell.agent-monitor")
+        .filter { $0.processIdentifier != me && !$0.isTerminated }
+    if !others.isEmpty {
+        FileHandle.standardError.write(Data((S.errAlreadyRunning + "\n").utf8))
+        exit(0)
+    }
+}
+
 // 기본 — 메뉴바에 띄운다.
 let app = NSApplication.shared
 let controller = MenuBarController(source: source, demo: demoMode)

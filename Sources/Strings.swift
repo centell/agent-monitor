@@ -567,6 +567,16 @@ public enum S {
                  "unknown command: \(list)\nRun `agent-monitor --help` to see what it takes.",
                  "知らないコマンドです: \(list)\n`agent-monitor --help` で使えるものを見られます。")
     }
+    /// 셸에서 인자 없이 불렀을 때. 판을 보려던 사람에게 **어디로 가면 되는지**를 준다.
+    static var errBareFromShell: String {
+        p("셸에서는 메뉴바를 띄우지 않습니다. 앱은 `open -a AgentMonitor` 로 띄웁니다.\n세션 목록은 `agent-monitor --list`, 쓸 수 있는 것은 `agent-monitor --help` 로 봅니다.",
+          "The shell does not open the menu bar. Open the app with `open -a AgentMonitor`.\nList sessions with `agent-monitor --list`; see everything with `agent-monitor --help`.",
+          "シェルからはメニューバーを開きません。アプリは `open -a AgentMonitor` で開きます。\nセッション一覧は `agent-monitor --list`、使えるものは `agent-monitor --help` で見られます。")
+    }
+    static var errAlreadyRunning: String {
+        p("이미 떠 있습니다 — 새로 띄우지 않습니다.", "Already running — not opening another.",
+          "もう動いています — もう一つは開きません。")
+    }
 
     static func errUnknown(_ code: Int) -> String {
         p("알 수 없는 오류(\(code))", "unknown error (\(code))", "不明なエラー(\(code))")
