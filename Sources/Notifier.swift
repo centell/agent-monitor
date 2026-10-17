@@ -12,8 +12,9 @@ import UserNotifications
 /// 견줘 바뀐 순간에만 한 번 알린다.
 ///
 /// 한계: 들여다보는 간격(갱신 주기) 사이에 끝나고 다시 일을 시작한 턴은 못 본다.
-/// 훅은 그 순간에 불리지만 이 앱은 보러 갈 때만 안다. 세션이 이어지는 판에도 하나를
-/// 놓친다 — 줄의 id 가 새 세션 것으로 바뀌어 그 판은 «처음 본 세션» 이 된다.
+/// 훅은 그 순간에 불리지만 이 앱은 보러 갈 때만 안다. 그렇게 놓친 상태는 한 판도 머물지
+/// 않은 것이라 이미 누가(사람이든 자동 이어가기든) 넘긴 것이다 — 사람을 부를 일이 아니었다.
+/// 예외 하나: 승인을 연달아 묻는 사이의 busy 를 못 보면 두 번째 승인은 울리지 않는다.
 /// 승인을 거절해 턴이 끝난 것(waiting → idle)은 «일을 마침» 으로 치지 않는다 —
 /// 거절한 사람은 이미 거기 있다.
 final class Notifier: NSObject, UNUserNotificationCenterDelegate {
@@ -30,6 +31,10 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     /// 직전 판의 상태. 처음 본 세션은 여기 없으므로 알리지 않는다 —
     /// 앱을 켜는 순간 기다리던 세션 전부가 한꺼번에 울리면 안 된다.
     private var previous: [String: SessionState] = [:]
+    /// 같은 상태를 창을 쥔 pid 로도 쥔다. 세션이 이어지면 줄의 id 는 바뀌지만 `hostPid` 는
+    /// 그대로라, id 로 못 찾은 줄을 «처음 본 세션» 으로 치지 않고 여기서 찾는다.
+    /// 한 pid 를 여러 줄이 나눠 쓰면(앱 세션) 어느 줄의 것인지 모르므로 담지 않는다.
+    private var previousByHost: [Int32: SessionState] = [:]
     /// `UNUserNotificationCenter` 는 번들 안에서만 쓸 수 있다. `--list` 처럼 번들 밖에서
     /// 도는 실행에서 건드리면 그 자리에서 죽는다.
     private var available: Bool { Bundle.main.bundleIdentifier != nil }
@@ -51,11 +56,16 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
 
     /// 매 갱신마다 부른다.
     func observe(_ sessions: [Session]) {
-        defer { previous = Dictionary(sessions.map { ($0.id, $0.state) }, uniquingKeysWith: { a, _ in a }) }
+        defer {
+            previous = Dictionary(sessions.map { ($0.id, $0.state) }, uniquingKeysWith: { a, _ in a })
+            let byHost = Dictionary(grouping: sessions, by: \.hostPid)
+            previousByHost = byHost.compactMapValues { $0.count == 1 ? $0[0].state : nil }
+        }
         guard available, settings.notifyDone || settings.notifyWaiting else { return }
 
         for session in sessions {
-            guard let before = previous[session.id], before != session.state else { continue }
+            guard let before = previous[session.id] ?? previousByHost[session.hostPid],
+                  before != session.state else { continue }
             switch (before, session.state) {
             case (.busy, .idle), (.shell, .idle):
                 if settings.notifyDone { post(session, title: S.notifyDoneTitle) }
