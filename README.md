@@ -250,6 +250,9 @@ settings.
   (RAM bar, RAM GB, CPU %, and the two token columns — each on its own switch), whether recording
   is on, whether pointing at the menu bar count opens the list without a click, refresh interval,
   how the source is written into the name, and how long a finished codex app thread stays listed.
+  **Notify** posts a Mac notification when a session finishes or starts waiting for approval
+  (off by default). Clicking it goes to that session; it stays quiet while you are looking at that
+  session's tab, which it can tell in Terminal.app only — elsewhere it always notifies.
   A live preview renders real sessions through the same code the menu uses, so what you see is
   what you get.
 
