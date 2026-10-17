@@ -160,6 +160,13 @@ cat > "$DEST/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
+# 번들째로 ad-hoc 서명한다.
+#
+# 링커가 실행 파일에 붙여 주는 서명은 식별자가 `host`(빌드 때 파일 이름)라 번들 id 와
+# 맞지 않는다. 그 상태로는 macOS 가 알림 권한을 묻지도 않고 조용히 거절한다 (실측:
+# 서명 전 두 번 띄워 무반응 → 번들째 서명 뒤 첫 실행에 권한 상자가 떴다).
+codesign --force --sign - "$DEST" >/dev/null 2>&1 || echo "  ⚠ 서명하지 못했습니다 — 맥 알림 권한이 붙지 않을 수 있습니다"
+
 # 릴리즈판은 여기서 묶고 끝낸다. 앱의 업데이트가 릴리즈에 붙은 .zip 을 받아 풀므로,
 # 번들 하나를 맨 위에 둔 채로 묶는다 (`--keepParent`).
 if [[ $RELEASE -eq 1 ]]; then

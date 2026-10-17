@@ -52,6 +52,13 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // 메뉴가 생긴 뒤에 한 번 더 건다 — 위에서 걸 때는 걸 메뉴가 아직 없었다.
         applyAppearance()
 
+        // 알림을 누르면 **지금** 목록에서 찾는다. 알린 때의 세션을 들고 있으면 그새 이어진
+        // 세션의 창을 못 찾는다.
+        Notifier.shared.sessionLookup = { [weak self] id, hostPid in
+            self?.sessions.first { $0.id == id } ?? self?.sessions.first { $0.hostPid == hostPid }
+        }
+        if !demo { Notifier.shared.start() }
+
         refresh()
         restartTimer()
         restartHoverWatch()
@@ -67,6 +74,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.restartTimer()
             self?.restartHoverWatch()
             FloatingPanelController.shared.sync()
+            if self?.demo == false { Notifier.shared.requestIfWanted() }  // 방금 켰으면 권한을 이때 묻는다
             self?.refresh()
         }
     }
@@ -157,6 +165,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         sessions = scanned()
         // 지어낸 세션은 기록에 남기지 않는다. 한 번 섞이면 그 통계는 영영 못 믿는다.
         if settings.recordStats && !demo { stats.record(sessions: sessions, memory: systemMemory) }
+        // 지어낸 세션으로는 울리지 않는다.
+        if !demo { Notifier.shared.observe(sessions) }
         // 새 판이 나왔는지는 하루에 한 번만 본다. 여기서 불려도 대개 그 자리에서 돌아선다 —
         // 그래서 타이머를 하나 더 두지 않는다.
         if !demo { UpdateCheck.shared.check() }

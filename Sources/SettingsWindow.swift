@@ -73,6 +73,18 @@ struct LayoutSettingsView: View {
                         .foregroundStyle(.tertiary)
                 }
 
+                VStack(alignment: .leading, spacing: 2) {
+                    LabeledContent(S.notify) {
+                        HStack(spacing: 14) {
+                            Toggle(S.notifyDoneToggle, isOn: $settings.notifyDone)
+                            Toggle(S.notifyWaitingToggle, isOn: $settings.notifyWaiting)
+                        }
+                    }
+                    if settings.notifyDone || settings.notifyWaiting {
+                        Text(S.notifyNote).font(.caption).foregroundStyle(.tertiary)
+                    }
+                }
+
                 Picker(S.refresh, selection: $settings.refreshInterval) {
                     Text(S.seconds(1)).tag(1.0)
                     Text(S.seconds(2)).tag(2.0)

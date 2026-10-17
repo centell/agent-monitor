@@ -462,6 +462,16 @@ public enum S {
           "Keeps session counts, waiting times and memory per minute. No conversation content.",
           "セッション数・待ち時間・メモリを1分ごとに残します。会話の中身は残しません。")
     }
+    static var notify: String        { p("맥 알림", "Notify", "Mac 通知") }
+    static var notifyDoneToggle: String    { p("일을 마치면", "When done", "作業が終わったら") }
+    static var notifyWaitingToggle: String { p("승인을 기다리면", "When awaiting approval", "承認待ちになったら") }
+    static var notifyNote: String {
+        p("알림을 누르면 그 세션으로 갑니다. 그 세션의 탭을 보고 계시면 울리지 않습니다.",
+          "Click a notification to go to that session. It stays quiet while you are looking at that tab.",
+          "通知を押すとそのセッションへ移ります。そのタブを見ている間は鳴りません。")
+    }
+    static var notifyDoneTitle: String    { p("일을 마쳤습니다", "Finished", "作業が終わりました") }
+    static var notifyWaitingTitle: String { p("승인을 기다립니다", "Awaiting approval", "承認を待っています") }
     static var refresh: String       { p("갱신 주기", "Refresh", "更新間隔") }
     static func seconds(_ n: Int) -> String { p("\(n)초", "\(n)s", "\(n)秒") }
     static var hoverOpen: String     { p("올리면 열기", "Open on hover", "載せたら開く") }

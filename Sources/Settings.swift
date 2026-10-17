@@ -180,6 +180,15 @@ public final class Settings: ObservableObject {
     /// **새 판이 나온 줄을 알 길이 없다.** 다만 켜 두어도 받는 일은 시작되지 않는다 —
     /// 알리기만 하고, 받는 것은 누르셔야 한다.
     @Published var checkForUpdates: Bool            { didSet { persist() } }
+
+    /// 일을 마친 세션(busy → idle)을 맥 알림으로 알릴 것인가 (`Notifier`).
+    ///
+    /// **기본은 끔이다.** 켜는 순간 macOS 가 권한을 묻는데, 쓰지도 않을 사람에게 첫 실행부터
+    /// 그 상자를 띄우면 안 된다. 승인 대기와 나눠 두는 것은 급한 정도가 달라서다 —
+    /// 승인 대기는 사람이 안 오면 일이 멈추고, 끝난 일은 기다려 줄 수 있다.
+    @Published var notifyDone: Bool                 { didSet { persist() } }
+    /// 승인을 기다리기 시작한 세션(→ waiting)을 알릴 것인가.
+    @Published var notifyWaiting: Bool              { didSet { persist() } }
     @Published var refreshInterval: Double          { didSet { persist() } }
 
     /// codex 앱 스레드를 최근 몇 분까지 보일지. `0` 이면 아예 보이지 않는다.
@@ -297,6 +306,8 @@ public final class Settings: ObservableObject {
         showSummary = store.object(forKey: Key.summary) as? Bool ?? true
         recordStats = store.object(forKey: Key.recordStats) as? Bool ?? true
         checkForUpdates = store.object(forKey: Key.checkUpdates) as? Bool ?? true
+        notifyDone = store.object(forKey: Key.notifyDone) as? Bool ?? false
+        notifyWaiting = store.object(forKey: Key.notifyWaiting) as? Bool ?? false
         refreshInterval = store.object(forKey: Key.interval) as? Double ?? 2
         codexAppWindow = store.object(forKey: Key.codexAppWindow) as? Double ?? 30
         sourceStyle = SourceStyle(rawValue: store.string(forKey: Key.sourceStyle) ?? "") ?? .short
@@ -386,6 +397,7 @@ public final class Settings: ObservableObject {
         panelSkin = .simple
         hoverOpensMenu = false
         hoverDelay = 0.4
+        // 알림 두 스위치도 되돌리지 않는다 — 표시가 아니라 «언제 불러 달라» 는 부탁이다.
         // 핀과 «상시 창이 떠 있는가»는 되돌리지 않는다. 이 단추는 «표시 손잡이»를 처음으로
         // 돌리는 문이지, 주인이 직접 꽂아 두거나 직접 띄워 둔 것을 치우는 문이 아니다.
         // 창 안의 손잡이(항상 위로·기다리는 것만)는 표시 손잡이라 되돌린다.
@@ -410,6 +422,8 @@ public final class Settings: ObservableObject {
         store.set(showSummary, forKey: Key.summary)
         store.set(recordStats, forKey: Key.recordStats)
         store.set(checkForUpdates, forKey: Key.checkUpdates)
+        store.set(notifyDone, forKey: Key.notifyDone)
+        store.set(notifyWaiting, forKey: Key.notifyWaiting)
         store.set(refreshInterval, forKey: Key.interval)
         store.set(codexAppWindow, forKey: Key.codexAppWindow)
         store.set(sourceStyle.rawValue, forKey: Key.sourceStyle)
@@ -459,6 +473,8 @@ public final class Settings: ObservableObject {
         static let summary = "showSummary"
         static let recordStats = "recordStats"
         static let checkUpdates = "checkForUpdates"
+        static let notifyDone = "notifyDone"
+        static let notifyWaiting = "notifyWaiting"
         static let interval = "refreshInterval"
         static let codexAppWindow = "codexAppWindow"
         static let sourceStyle = "sourceStyle"
