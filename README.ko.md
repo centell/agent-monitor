@@ -4,11 +4,11 @@
 
 **웹사이트**: [agent-monitor.rlidea.app/ko](https://agent-monitor.rlidea.app/ko/)
 
-**어느 세션이 나를 기다리고 있나.**
+**어떤 세션이 내 답을 기다리고 있을까.**
 
 에이전트 세션을 여러 개 띄워두고 쓰는 사람을 위한 macOS 메뉴바 앱입니다 — Claude Code 든
-codex 든, 터미널이든 데스크탑 앱이든. 어려운 물음은 *무엇을 하고 있나* 가 아니라
-**무엇이 끝나서 나를 기다리나** 입니다.
+codex 든, 터미널이든 데스크탑 앱이든. 궁금한 건 *지금 무엇을 하나* 가 아니라
+**무엇이 끝나서 내 답을 기다리나** 입니다.
 
 <p align="center">
   <img src="docs/images/en/desktop.png" width="441"
