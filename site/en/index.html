@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>agent-monitor — the waiting AI session, from the menu bar</title>
+  <meta name="description" content="With several Claude Code or codex sessions open at once, see which one has finished and is waiting for you — from the macOS menu bar. Open source (MIT).">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f5f8f6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e1319" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://agent-monitor.rlidea.app/en/">
+  <link rel="alternate" hreflang="ko" href="https://agent-monitor.rlidea.app/ko/">
+  <link rel="alternate" hreflang="en" href="https://agent-monitor.rlidea.app/en/">
+  <link rel="alternate" hreflang="ja" href="https://agent-monitor.rlidea.app/ja/">
+  <link rel="alternate" hreflang="x-default" href="https://agent-monitor.rlidea.app/">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="/icon.png" sizes="224x224" type="image/png">
+  <link rel="apple-touch-icon" href="/icon.png">
+  <link rel="stylesheet" href="/style.css">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="agent-monitor">
+  <meta property="og:title" content="agent-monitor — the waiting AI session, from the menu bar">
+  <meta property="og:description" content="With several Claude Code or codex sessions open at once, see which one has finished and is waiting for you — from the macOS menu bar. Open source (MIT).">
+  <meta property="og:url" content="https://agent-monitor.rlidea.app/en/">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:image" content="https://agent-monitor.rlidea.app/screenshots/desktop-en.png">
+  <meta property="og:image:width" content="882">
+  <meta property="og:image:height" content="732">
+  <meta property="og:image:alt" content="The menu bar reads 3/5. Below it the list is open: an approval row and two idle ones on top, a shell row and a working one under a rule.">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top">
+    <div class="wrap top-in">
+      <a class="brand" href="/en/"><img src="/icon.png" width="32" height="32" alt=""> agent-monitor</a>
+      <nav aria-label="Choose language">
+        <ul class="langs">
+        <li><a href="/ko/" hreflang="ko" lang="ko">한국어</a></li>
+        <li><a href="/en/" hreflang="en" lang="en" aria-current="page">English</a></li>
+        <li><a href="/ja/" hreflang="ja" lang="ja">日本語</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero wrap">
+      <div class="hero-text">
+        <p class="eyebrow"><img src="/icon.png" width="56" height="56" alt=""> <span>agent-monitor · A macOS menu bar app</span></p>
+        <h1>Which session is waiting for you?</h1>
+        <p class="lead">With several sessions open, the hard question is not what they are doing — it is which one has finished and is waiting for you.</p>
+        <p class="actions">
+          <a class="btn primary" href="https://github.com/centell/agent-monitor/releases/latest">Get it from Releases ↓</a>
+          <a class="btn ghost" href="https://github.com/centell/agent-monitor">Source on GitHub</a>
+        </p>
+        <p class="note">macOS only · universal · MIT licence · free</p>
+      </div>
+      <figure class="hero-shot">
+        <img src="/screenshots/desktop-en.png" width="882" height="732" alt="The menu bar reads 3/5. Below it the list is open: an approval row and two idle ones on top, a shell row and a working one under a rule." fetchpriority="high" decoding="async">
+      </figure>
+    </section>
+
+    <section class="wrap prose" aria-labelledby="why">
+      <h2 id="why">Why we built it</h2>
+      <p>Run several AI coding sessions and the one left idle is you. Finding which window wants an approval means clicking through them one at a time.</p>
+      <p>Guess from when a file last changed and a session waiting on approval looks exactly like a shell command that takes a while — both just look quiet.</p>
+      <p>So it reads the file each session keeps for itself. Nothing is guessed at; what is written down is what you see.</p>
+    </section>
+
+    <section class="wrap" aria-labelledby="what">
+      <h2 id="what">What it does</h2>
+      <ul class="cards">
+        <li class="card"><h3>One number in the menu bar</h3><p>“2/5” — two waiting, five alive. It never grows with the session count, and when nothing is waiting the number goes quiet on its own.</p></li>
+        <li class="card"><h3>Four states, told apart</h3><p>Waiting on approval, waiting on input, working, running a shell command. The first two are the ones that need you, and they rise to the top.</p></li>
+        <li class="card"><h3>Four sources, one list</h3><p>Claude Code in a terminal, the Claude desktop app, codex in a terminal, and codex threads in the ChatGPT app. Each row carries where it came from.</p></li>
+        <li class="card"><h3>Why it is waiting</h3><p>Hover a row and it says what it wants approved, or the last thing it said to you.</p></li>
+        <li class="card"><h3>Click through to the window</h3><p>Click a row and the terminal window running that session comes to the front (Terminal.app). Right-click to pin the ones you watch most.</p></li>
+        <li class="card"><h3>A panel to park in a corner</h3><p>With screen space to spare, park the list in a corner of the desktop. It stays visible without a click, can keep only the rows that need you or stay on top, and lets you pick its backdrop, opacity and text size.</p></li>
+        <li class="card"><h3>Mac notifications (off by default)</h3><p>A notification when a session finishes or starts waiting for approval. Clicking it takes you to that session, and it stays quiet while you are looking at that session’s tab — something only Terminal.app can tell it, so elsewhere it always notifies.</p></li>
+        <li class="card"><h3>How many sessions can you feed?</h3><p>It records how long the queue of waiting sessions was, counting only the time you were at the keyboard (--stats). Counts, durations and memory only — never conversation content — and it can be switched off.</p></li>
+        <li class="card"><h3>Token counters (off by default)</h3><p>Turn them on to see how full a session is right now and how much it has burned since it started. Subagents are counted in.</p></li>
+      </ul>
+    </section>
+
+    <section class="wrap" aria-labelledby="shots">
+      <h2 id="shots">Screenshots</h2>
+      <div class="shots">
+        <figure>
+          <img src="/screenshots/panel-en.png" width="1040" height="658" alt="The panel parked on the desktop: 3/5 in the header with the on-top arrow, an approval row and two idle ones above the rule, a shell row and a working one below it." loading="lazy" decoding="async">
+          <figcaption>The panel, parked in a corner</figcaption>
+        </figure>
+        <figure class="tall">
+          <img src="/screenshots/settings-display-en.png" width="1280" height="1304" alt="The Display tab of Settings, with rows for language, appearance, row layout, metrics, tokens, recording, refresh, open on hover, source label and codex app threads." loading="lazy" decoding="async">
+          <figcaption>Settings — the Display tab</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="wrap prose" aria-labelledby="start">
+      <h2 id="start">Getting started</h2>
+      <ol class="steps">
+        <li>Download it from Releases, unzip it, and move it to where you keep applications.</li>
+        <li>Right-click the app and choose Open. It is unsigned, so macOS refuses the first launch. Once is enough.</li>
+        <li>The number appears in the menu bar. The first time you click a session row, allow the Terminal control prompt.</li>
+      </ol>
+    </section>
+
+    <section class="wrap prose" aria-labelledby="data">
+      <h2 id="data">Where your data goes</h2>
+      <div class="callout">
+      <p>It stays on your machine. The app reads the files sessions already keep locally and sends what it reads nowhere. There is no account and no server.</p>
+      </div>
+    </section>
+
+    <section class="wrap prose" aria-labelledby="know">
+      <h2 id="know">Good to know</h2>
+      <ul class="plain">
+        <li>It is neither signed nor notarised. Signing a release needs a paid Apple Developer account, which this project does not have, so macOS blocks the first launch — right-click and open gets you past it.</li>
+        <li>macOS only, universal (Apple Silicon and Intel). It is built against the macOS 13 SDK, but macOS 26 is the only version it has actually been run on.</li>
+        <li>Clicking through to the window works in Terminal.app only. In iTerm2, Ghostty, WezTerm or kitty the click moves nothing and says why. Inside tmux it reaches the window but not the pane.</li>
+        <li>The Claude desktop app and codex in a terminal write no status down, so theirs is estimated from the tail of the transcript. Those rows say they are estimates rather than passing as measured.</li>
+      </ul>
+    </section>
+
+    <section class="wrap prose" aria-labelledby="faq">
+      <h2 id="faq">FAQ</h2>
+      <div class="faq">
+        <details><summary>Is the source available?</summary><p>Yes. It is open under the MIT licence.</p></details>
+        <details><summary>It will not open — macOS says it cannot verify the app.</summary><p>That is the missing signature. Right-click the app and choose Open once. If it still refuses, go to System Settings → Privacy &amp; Security and use “Open Anyway” near the bottom.</p></details>
+        <details><summary>Can I build it myself?</summary><p>Yes. With a Swift compiler, cloning it and running build.sh is the whole thing. There are no other dependencies.</p></details>
+        <details><summary>Windows or Linux?</summary><p>macOS only, for now.</p></details>
+      </div>
+    </section>
+
+    <section class="wrap cta" aria-labelledby="get">
+      <img src="/icon.png" width="80" height="80" alt="">
+      <h2 id="get">Put one number in your menu bar</h2>
+      <p class="actions">
+        <a class="btn primary" href="https://github.com/centell/agent-monitor/releases/latest">Get it from Releases ↓</a>
+        <a class="btn ghost" href="https://github.com/centell/agent-monitor">Source on GitHub</a>
+      </p>
+      <p class="note">macOS only · MIT licence</p>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-in">
+      <p>A tool made by RLidea. <a href="https://rlidea.app/">More tools at rlidea.app →</a></p>
+      <p><a href="https://github.com/centell/agent-monitor">GitHub</a> · <a href="https://github.com/centell/agent-monitor/blob/main/LICENSE">MIT licence</a></p>
+    </div>
+  </footer>
+</body>
+</html>

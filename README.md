@@ -2,7 +2,7 @@
 
 **English** | [한국어](README.ko.md) | [日本語](README.ja.md)
 
-**Website**: [rlidea.app/en/products/agent-monitor](https://rlidea.app/en/products/agent-monitor/)
+**Website**: [agent-monitor.rlidea.app/en](https://agent-monitor.rlidea.app/en/)
 
 **Which of your agent sessions is waiting for you?**
 
