@@ -2,7 +2,7 @@
 
 [English](README.md) | [한국어](README.ko.md) | **日本語**
 
-**ウェブサイト**: [rlidea.app/en/products/agent-monitor](https://rlidea.app/en/products/agent-monitor/)
+**ウェブサイト**: [agent-monitor.rlidea.app/ja](https://agent-monitor.rlidea.app/ja/)
 
 **どのセッションが自分を待っているのか。**
 

@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>agent-monitor — 待っている AI セッションをメニューバーで</title>
+  <meta name="description" content="Claude Code や codex のセッションをいくつも開いているとき、どれが終わって自分を待っているかを macOS のメニューバーで確かめられます。オープンソース（MIT）。">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f5f8f6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e1319" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://agent-monitor.rlidea.app/ja/">
+  <link rel="alternate" hreflang="ko" href="https://agent-monitor.rlidea.app/ko/">
+  <link rel="alternate" hreflang="en" href="https://agent-monitor.rlidea.app/en/">
+  <link rel="alternate" hreflang="ja" href="https://agent-monitor.rlidea.app/ja/">
+  <link rel="alternate" hreflang="x-default" href="https://agent-monitor.rlidea.app/">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="/icon.png" sizes="224x224" type="image/png">
+  <link rel="apple-touch-icon" href="/icon.png">
+  <link rel="stylesheet" href="/style.css">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="agent-monitor">
+  <meta property="og:title" content="agent-monitor — 待っている AI セッションをメニューバーで">
+  <meta property="og:description" content="Claude Code や codex のセッションをいくつも開いているとき、どれが終わって自分を待っているかを macOS のメニューバーで確かめられます。オープンソース（MIT）。">
+  <meta property="og:url" content="https://agent-monitor.rlidea.app/ja/">
+  <meta property="og:locale" content="ja_JP">
+  <meta property="og:image" content="https://agent-monitor.rlidea.app/screenshots/desktop-ja.png">
+  <meta property="og:image:width" content="864">
+  <meta property="og:image:height" content="724">
+  <meta property="og:image:alt" content="メニューバーに 3/5 が表示され、その下にリストが開いている。承認待ち一つと入力待ち二つが一番上、シェル実行と実行中が区切り線の下にある。">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+  <a class="skip" href="#main">本文へスキップ</a>
+  <header class="top">
+    <div class="wrap top-in">
+      <a class="brand" href="/ja/"><img src="/icon.png" width="32" height="32" alt=""> agent-monitor</a>
+      <nav aria-label="言語を選択">
+        <ul class="langs">
+        <li><a href="/ko/" hreflang="ko" lang="ko">한국어</a></li>
+        <li><a href="/en/" hreflang="en" lang="en">English</a></li>
+        <li><a href="/ja/" hreflang="ja" lang="ja" aria-current="page">日本語</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero wrap">
+      <div class="hero-text">
+        <p class="eyebrow"><img src="/icon.png" width="56" height="56" alt=""> <span>agent-monitor · macOS メニューバーアプリ</span></p>
+        <h1>どのセッションが自分を待っているのか</h1>
+        <p class="lead">セッションをいくつも開いていると、難しいのは「何をしているか」ではなく「どれが終わって自分を待っているか」です。</p>
+        <p class="actions">
+          <a class="btn primary" href="https://github.com/centell/agent-monitor/releases/latest">Releases からダウンロード ↓</a>
+          <a class="btn ghost" href="https://github.com/centell/agent-monitor">GitHub でソースを見る</a>
+        </p>
+        <p class="note">macOS 専用 · ユニバーサル · MIT ライセンス · 無料</p>
+      </div>
+      <figure class="hero-shot">
+        <img src="/screenshots/desktop-ja.png" width="864" height="724" alt="メニューバーに 3/5 が表示され、その下にリストが開いている。承認待ち一つと入力待ち二つが一番上、シェル実行と実行中が区切り線の下にある。" fetchpriority="high" decoding="async">
+      </figure>
+    </section>
+
+    <section class="wrap prose" aria-labelledby="why">
+      <h2 id="why">なぜ作ったのか</h2>
+      <p>AI のコーディングセッションをいくつも回すと、手が空いて待たされるのは人のほうです。承認を待っているのがどの窓なのか、一つずつ切り替えて確かめることになります。</p>
+      <p>ファイルの更新時刻から推測すると、承認を待っているセッションも、時間のかかるシェルコマンドも、どちらも同じようにただ静かに見えてしまいます。</p>
+      <p>だから、各セッションが自分のために書き残しているファイルを読みます。推測はせず、書かれていることをそのまま見せます。</p>
+    </section>
+
+    <section class="wrap" aria-labelledby="what">
+      <h2 id="what">できること</h2>
+      <ul class="cards">
+        <li class="card"><h3>メニューバーに数字ひとつ</h3><p>「2/5」— 待っているのが二つ、生きているのが五つ。セッションがいくつ増えても幅は伸びません。待っているものが無くなると、数字が静かに淡くなります。</p></li>
+        <li class="card"><h3>四つの状態を見分ける</h3><p>承認待ち・入力待ち・実行中・シェル実行。手が要る前の二つが、リストの上に上がってきます。</p></li>
+        <li class="card"><h3>四か所を一つのリストに</h3><p>ターミナルの Claude Code、Claude デスクトップアプリ、ターミナルの codex、ChatGPT アプリの codex スレッド。どこから来た行かは、名前を見れば分かります。</p></li>
+        <li class="card"><h3>なぜ待っているのか</h3><p>行にマウスを載せると、何の承認を求めているのか、あるいは最後に何と言ったのかが表示されます。</p></li>
+        <li class="card"><h3>クリックでその窓へ</h3><p>行をクリックすると、そのセッションが動いているターミナルの窓が前面に出ます（Terminal.app）。よく見る行は右クリックで上に固定できます。</p></li>
+        <li class="card"><h3>隅に置いておくパネル</h3><p>画面に余裕があれば、リストをデスクトップの隅に置いておけます。クリックしなくても見え、待っているものだけに絞ったり、最前面に置いたりできます。背景と濃さ、文字の大きさも選べます。</p></li>
+        <li class="card"><h3>Mac 通知（既定はオフ）</h3><p>セッションが作業を終えたときと、承認を待ち始めたときに知らせます。通知を押すとそのセッションへ移り、そのタブを見ている間は鳴りません。見ているかどうかは Terminal.app でしか分からないので、ほかのターミナルでは常に鳴ります。</p></li>
+        <li class="card"><h3>いくつのセッションまで回せるか</h3><p>待ちの列がどれだけ長かったかを、キーボードの前にいた時間だけ数えて記録します（--stats）。会話の内容は残さず、件数・時間・メモリだけを数えます。設定でオフにできます。</p></li>
+        <li class="card"><h3>トークンの集計（既定はオフ）</h3><p>オンにすると、いまどれだけ埋まっているかと、始めてからどれだけ使ったかが見られます。サブエージェントの分も数えます。</p></li>
+      </ul>
+    </section>
+
+    <section class="wrap" aria-labelledby="shots">
+      <h2 id="shots">画面</h2>
+      <div class="shots">
+        <figure>
+          <img src="/screenshots/panel-ja.png" width="1018" height="658" alt="デスクトップの隅に置いたパネル。ヘッダに 3/5 と最前面の印、区切り線の上に承認待ち一つと入力待ち二つ、下にシェル実行と実行中。" loading="lazy" decoding="async">
+          <figcaption>隅に置いておくパネル</figcaption>
+        </figure>
+        <figure class="tall">
+          <img src="/screenshots/settings-display-ja.png" width="1280" height="1304" alt="設定の「表示」タブ。言語・外観・行レイアウト・指標・トークン・記録・更新間隔・ホバーで開く・出所の表記・codex アプリのスレッドの項目が並ぶ。" loading="lazy" decoding="async">
+          <figcaption>設定 —「表示」タブ</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="wrap prose" aria-labelledby="start">
+      <h2 id="start">入手して開くまで</h2>
+      <ol class="steps">
+        <li>Releases からダウンロードして解凍し、アプリを置いている場所へ移します。</li>
+        <li>アプリを右クリックして「開く」を選びます。署名が無いため、初回だけ macOS が起動を止めます。一度で済みます。</li>
+        <li>メニューバーに数字が出ます。セッションの行を初めてクリックしたときにターミナルの操作許可を求められたら、許可してください。</li>
+      </ol>
+    </section>
+
+    <section class="wrap prose" aria-labelledby="data">
+      <h2 id="data">情報はどこへ行くのか</h2>
+      <div class="callout">
+      <p>この Mac から出ません。セッションが手元に書き残しているファイルを読むだけで、読んだものをどこにも送りません。アカウントもサーバーもありません。</p>
+      </div>
+    </section>
+
+    <section class="wrap prose" aria-labelledby="know">
+      <h2 id="know">知っておいてほしいこと</h2>
+      <ul class="plain">
+        <li>署名も公証もありません。配布用の署名には有料の Apple Developer アカウントが必要ですが、このプロジェクトにはありません。そのため初回だけ macOS が起動を止めます — 右クリックして開けば通れます。</li>
+        <li>macOS 専用で、ユニバーサル（Apple Silicon・Intel）です。macOS 13 SDK でビルドしていますが、実際に動かして確かめたのは macOS 26 だけです。</li>
+        <li>クリックでその窓へ行けるのは Terminal.app だけです。iTerm2・Ghostty・WezTerm・kitty では窓は動かず、その理由を表示します。tmux の中では窓までは行けますが、ペインまでは行けません。</li>
+        <li>Claude デスクトップアプリとターミナルの codex は状態を書き残さないため、記録の末尾から推定します。その行は測った値のふりをせず、推定だと告げます。</li>
+      </ul>
+    </section>
+
+    <section class="wrap prose" aria-labelledby="faq">
+      <h2 id="faq">よくある質問</h2>
+      <div class="faq">
+        <details><summary>ソースは公開されていますか？</summary><p>はい。MIT ライセンスで公開しています。</p></details>
+        <details><summary>「開けません」「確認できません」と表示されます。</summary><p>署名が無いためです。アプリを右クリックして「開く」を一度選んでください。それでも止められる場合は、システム設定 →「プライバシーとセキュリティ」の下のほうにある「このまま開く」を押してください。</p></details>
+        <details><summary>ソースから自分でビルドできますか？</summary><p>できます。Swift コンパイラがあれば、クローンして build.sh を実行するだけです。ほかの依存はありません。</p></details>
+        <details><summary>Windows や Linux は？</summary><p>いまは macOS 専用です。</p></details>
+      </div>
+    </section>
+
+    <section class="wrap cta" aria-labelledby="get">
+      <img src="/icon.png" width="80" height="80" alt="">
+      <h2 id="get">メニューバーに数字をひとつ</h2>
+      <p class="actions">
+        <a class="btn primary" href="https://github.com/centell/agent-monitor/releases/latest">Releases からダウンロード ↓</a>
+        <a class="btn ghost" href="https://github.com/centell/agent-monitor">GitHub でソースを見る</a>
+      </p>
+      <p class="note">macOS 専用 · MIT ライセンス</p>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-in">
+      <p>RLidea が作ったツールです。 <a href="https://rlidea.app/">rlidea.app のほかのツール →</a></p>
+      <p><a href="https://github.com/centell/agent-monitor">GitHub</a> · <a href="https://github.com/centell/agent-monitor/blob/main/LICENSE">MIT ライセンス</a></p>
+    </div>
+  </footer>
+</body>
+</html>

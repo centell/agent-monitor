@@ -1,0 +1,19 @@
+# Cloudflare Workers — 정적 에셋 전용 배포 (서버 코드 없음)
+#
+# agent-monitor 소개 페이지. 손으로 쓴 HTML/CSS 라 빌드 단계가 없고, site/ 를 그대로 올린다.
+# 앱처럼 이 쪽도 받을 서버가 없다 — 정적 에셋 요청은 워커 스크립트를 거치지 않아 하루 요청 한도에 걸리지 않는다.
+#
+#   배포:  npx wrangler login    (최초 1회 · 브라우저가 열린다)
+#          npx wrangler deploy
+name = "agent-monitor-rlidea-app"
+compatibility_date = "2026-10-01"
+
+# site/_headers 가 이 디렉터리 안에 그대로 실려 보안 헤더와 캐시 정책이 된다.
+[assets]
+directory = "./site"
+
+# 커스텀 도메인. rlidea.app 존이 같은 계정에 있으므로 wrangler 가 배포할 때
+# DNS 레코드와 인증서까지 함께 만든다 — 대시보드를 따로 만질 일이 없다.
+[[routes]]
+pattern = "agent-monitor.rlidea.app"
+custom_domain = true
