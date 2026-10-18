@@ -1,17 +1,17 @@
-/* agent-monitor 소개 페이지 — 색은 앱 아이콘에서 왔다(어두운 남색 바탕 + 신호등 초록). */
+/* agent-monitor 소개 페이지 — 색은 Tokyo Night 테마에서 왔다(개발자용 도구라 개발자에게 익숙한 팔레트). */
 
 :root {
-  --bg: #f5f8f6;
+  --bg: #f5f6fa;
   --surface: #ffffff;
-  --surface-2: #eaf1ed;
-  --text: #0f1a17;
-  --muted: #4f5f59;
-  --border: #d6e2dc;
-  --accent: #44eea4;          /* 아이콘의 초록 그대로 — 버튼 바탕 */
-  --accent-ink: #0b6e44;      /* 밝은 바탕 위 글자로 쓸 때(대비 4.5:1 이상) */
-  --on-accent: #062b1b;
-  --hero-bg: #101620;         /* 아이콘 바탕색 */
-  --shadow: 0 1px 2px rgb(16 22 32 / .06), 0 8px 24px rgb(16 22 32 / .08);
+  --surface-2: #e9edf8;
+  --text: #1a1b26;
+  --muted: #4f5672;
+  --border: #d7deef;
+  --accent: #7aa2f7;          /* Tokyo Night 파랑 — 개발자가 에디터에서 매일 보는 색. 앱의 상태 색(초록·주황·노랑·청록)과 겹치지 않는다 */
+  --accent-ink: #2e5bc4;      /* 밝은 바탕 위 글자로 쓸 때(대비 4.5:1 이상) */
+  --on-accent: #0f1630;
+  --hero-bg: #1a1b26;         /* Tokyo Night 바탕 */
+  --shadow: 0 1px 2px rgb(26 27 38 / .06), 0 8px 24px rgb(26 27 38 / .08);
   --radius: 14px;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   color-scheme: light dark;
@@ -19,13 +19,13 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0e1319;
-    --surface: #151c25;
-    --surface-2: #1b2430;
-    --text: #e7eef0;
-    --muted: #9aa9b1;
-    --border: #273240;
-    --accent-ink: #5af2b0;
+    --bg: #1a1b26;            /* Tokyo Night: bg · bg_dark · bg_highlight · 테두리 · fg · comment 계열 */
+    --surface: #1f2335;
+    --surface-2: #24283b;
+    --text: #c0caf5;
+    --muted: #8a92b8;
+    --border: #2f344d;
+    --accent-ink: #9cbcff;
     --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 8px 24px rgb(0 0 0 / .35);
   }
 }
@@ -73,7 +73,7 @@ h1 { font-size: clamp(30px, 6vw, 50px); line-height: 1.2; letter-spacing: -0.02e
 .lead { font-size: clamp(18px, 2.2vw, 21px); color: var(--muted); margin: 0 0 24px; max-width: 38em; }
 .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 12px; }
 .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 10px 22px; border-radius: 12px; font-weight: 650; text-decoration: none; }
-.btn.primary { background: var(--accent); color: var(--on-accent); box-shadow: 0 6px 20px rgb(68 238 164 / .3); }
+.btn.primary { background: var(--accent); color: var(--on-accent); box-shadow: 0 6px 20px rgb(122 162 247 / .3); }
 .btn.primary:hover { filter: brightness(1.05); }
 .btn.ghost { border: 1px solid var(--border); color: var(--text); background: var(--surface); }
 .btn.ghost:hover { border-color: var(--muted); }
