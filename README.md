@@ -215,6 +215,8 @@ you click it. When you do, the app fetches that release, checks that what arrive
 app at that version, steps aside while a small helper swaps the bundle, and comes back. The
 previous version is kept next to it until the new one is seen running, so a failed update puts the
 old one back rather than leaving you with nothing. Turn the whole thing off in **Settings → About**.
+The update comes from its own copy of the release zip, `…-update.zip`, so that GitHub's download
+count for that file tells how many updates happened. Nothing is sent from your Mac.
 
 > Because the app is unsigned, an update is only as trustworthy as the HTTPS connection to GitHub
 > — the same trust you already extend when you download the zip by hand. The difference is that a

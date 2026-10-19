@@ -173,9 +173,14 @@ if [[ $RELEASE -eq 1 ]]; then
     ZIP="build/${APP_NAME}-v${VERSION}.zip"
     rm -f "$ZIP"
     ditto -c -k --keepParent "$DEST" "$ZIP"
+    # 앱 안 업데이트가 받는 짝. 내용은 같고 이름만 다르다 — 이 파일의 다운로드 수가 곧
+    # 앱 안에서 업데이트한 횟수다 (`Sources/UpdateCheck.swift` 의 parse).
+    UPDATE_ZIP="build/${APP_NAME}-v${VERSION}-update.zip"
+    cp "$ZIP" "$UPDATE_ZIP"
     echo "빌드 완료  릴리즈판 ${VERSION}  ($(lipo -archs build/agent-monitor 2>/dev/null || echo native))"
     echo "  앱  : $DEST"
     echo "  zip : $ZIP"
+    echo "        $UPDATE_ZIP   ← 둘 다 릴리즈에 올린다"
     exit 0
 fi
 
