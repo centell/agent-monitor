@@ -287,7 +287,11 @@ final class UpdateCheck: ObservableObject {
               let assets = obj["assets"] as? [[String: Any]]
         else { return nil }
 
-        let archive = assets.first { ($0["name"] as? String)?.hasSuffix(".zip") == true }
+        // 업데이트 전용 zip 을 먼저 받는다. 손으로 받는 zip 과 내용은 같고, 따로 두는 것은
+        // GitHub 의 다운로드 수로 «앱 안에서 업데이트한 횟수» 만 가려 세기 위해서다.
+        // 없는 릴리즈(0.8.1 이전)에서는 예전처럼 아무 zip 이나 받는다.
+        let zips = assets.filter { ($0["name"] as? String)?.hasSuffix(".zip") == true }
+        let archive = zips.first { ($0["name"] as? String)?.hasSuffix("-update.zip") == true } ?? zips.first
         guard let text = archive?["browser_download_url"] as? String,
               let url = Self.resolve(text) else { return nil }
         return Release(version: Self.number(from: tag), pageURL: page, archiveURL: url)
