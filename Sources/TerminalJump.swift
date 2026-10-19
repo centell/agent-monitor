@@ -86,21 +86,28 @@ enum TerminalJump {
     }
 
     /// 이 tty 를 가진 탭을 찾아 앞으로 가져온다.
+    ///
+    /// 창마다 `try` 를 한 겹 더 두른다. Terminal 의 창 목록에는 id 도 이름도 없는 `item`
+    /// 이 섞여 들 때가 있고, 그 창의 `tabs` 를 읽으면 -1728 로 스크립트 전체가 죽는다.
+    /// 그러면 그 창 **뒤에** 있는 세션은 모두 못 가고 앞에 있는 세션만 가서, 「어떤 줄은
+    /// 되고 어떤 줄은 안 된다」로 보인다.
     private static func raise(tty: String) -> Outcome {
         let escaped = tty.replacingOccurrences(of: "\"", with: "\\\"")
         let script = """
         tell application "Terminal"
             repeat with w in windows
-                repeat with t in tabs of w
-                    try
-                        if (tty of t) is "\(escaped)" then
-                            set selected of t to true
-                            set index of w to 1
-                            activate
-                            return "moved"
-                        end if
-                    end try
-                end repeat
+                try
+                    repeat with t in tabs of w
+                        try
+                            if (tty of t) is "\(escaped)" then
+                                set selected of t to true
+                                set index of w to 1
+                                activate
+                                return "moved"
+                            end if
+                        end try
+                    end repeat
+                end try
             end repeat
         end tell
         return "notfound"
