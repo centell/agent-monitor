@@ -26,6 +26,8 @@ final class UpdateCheck: ObservableObject {
         let version: String
         let pageURL: URL
         let archiveURL: URL
+        /// 릴리즈 본문에서 지금 언어의 칸만 뽑은 것. 비었으면 없다.
+        let notes: String?
     }
 
     /// 메뉴에 내걸 새 판. 없으면 메뉴에 아무 줄도 늘지 않는다.
@@ -91,6 +93,71 @@ final class UpdateCheck: ObservableObject {
             self.found = release
             self.status = nil
         }
+    }
+
+    /// 메뉴에서 눌렀을 때. **무엇을 받는지 먼저 보여 준다** — 사람이 손으로 받을 땐
+    /// 릴리즈 페이지를 거치는데, 메뉴의 한 줄은 그 눈을 건너뛴다. 본문이 없으면 보여 줄 게
+    /// 없으니 예전처럼 곧장 받는다.
+    func offer(_ release: Release) {
+        guard let notes = release.notes else { return install(release) }
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = S.updateNotesTitle(release.version)
+        alert.accessoryView = Self.notesView(notes)
+        alert.addButton(withTitle: S.installNow)
+        alert.addButton(withTitle: S.updateOpenPage)
+        alert.addButton(withTitle: S.updateLater)
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:  install(release)
+        case .alertSecondButtonReturn: NSWorkspace.shared.open(release.pageURL)
+        default: break
+        }
+    }
+
+    /// 본문을 담는 칸. 길면 스크롤한다 — 상자가 화면보다 커지면 버튼이 밖으로 밀려난다.
+    private static func notesView(_ notes: String) -> NSView {
+        let width: CGFloat = 420
+        let text = NSTextView(frame: NSRect(x: 0, y: 0, width: width, height: 0))
+        text.isEditable = false
+        text.drawsBackground = false
+        text.textContainerInset = NSSize(width: 0, height: 4)
+        text.textStorage?.setAttributedString(rendered(notes))
+        text.layoutManager?.ensureLayout(for: text.textContainer!)
+        let used = text.layoutManager?.usedRect(for: text.textContainer!).height ?? 0
+        let height = min(max(used + 8, 40), 280)
+
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: width, height: height))
+        scroll.hasVerticalScroller = used + 8 > height
+        scroll.drawsBackground = false
+        scroll.documentView = text
+        text.autoresizingMask = [.width]
+        return scroll
+    }
+
+    /// 마크다운은 글줄 안의 것(굵게·코드·링크)만 살린다. 제목 줄의 `#` 은 굵게로 바꾼다 —
+    /// 상자 안에서 제목 크기까지 흉내 내면 버튼보다 커진다.
+    private static func rendered(_ notes: String) -> NSAttributedString {
+        let lines = notes.split(separator: "\n", omittingEmptySubsequences: false).map { line -> String in
+            let trimmed = line.drop { $0 == "#" }
+            guard trimmed.count < line.count else { return String(line) }
+            return "**" + trimmed.trimmingCharacters(in: .whitespaces) + "**"
+        }
+        let source = lines.joined(separator: "\n")
+        let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        let styled = (try? AttributedString(markdown: source, options: options)) ?? AttributedString(source)
+        let out = NSMutableAttributedString(styled)
+        let whole = NSRange(location: 0, length: out.length)
+        out.addAttribute(.foregroundColor, value: NSColor.labelColor, range: whole)
+        // 굵게는 글꼴 특성으로만 와서, 바탕 글꼴을 깔고 그 특성을 다시 입힌다.
+        let base = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        out.enumerateAttribute(.inlinePresentationIntent, in: whole) { value, range, _ in
+            let intent = (value as? UInt).map(InlinePresentationIntent.init(rawValue:)) ?? []
+            var font = base
+            if intent.contains(.stronglyEmphasized) { font = NSFont.boldSystemFont(ofSize: base.pointSize) }
+            if intent.contains(.code) { font = NSFont.monospacedSystemFont(ofSize: base.pointSize, weight: .regular) }
+            out.addAttribute(.font, value: font, range: range)
+        }
+        return out
     }
 
     /// 받아서 갈아 끼운다. 주인이 눌렀을 때만 불린다.
@@ -294,7 +361,46 @@ final class UpdateCheck: ObservableObject {
         let archive = zips.first { ($0["name"] as? String)?.hasSuffix("-update.zip") == true } ?? zips.first
         guard let text = archive?["browser_download_url"] as? String,
               let url = Self.resolve(text) else { return nil }
-        return Release(version: Self.number(from: tag), pageURL: page, archiveURL: url)
+        return Release(version: Self.number(from: tag), pageURL: page, archiveURL: url,
+                       notes: notes(from: obj["body"] as? String, language: S.lang))
+    }
+
+    /// 릴리즈 본문에서 이 언어의 칸을 고른다.
+    ///
+    /// 본문은 `<!-- ko -->` · `<!-- en -->` · `<!-- ja -->` 줄로 칸을 나눠 쓴다. 칸이 없는
+    /// 본문(0.8.2 까지)은 통째로 보여 준다. 이 언어의 칸이 없으면 영어 칸, 그것도 없으면
+    /// 첫 칸 — **다른 말로라도 보여 주는 게 아무것도 안 보여 주는 것보다 낫다.**
+    static func notes(from body: String?, language: Language) -> String? {
+        guard let raw = body else { return nil }
+        let codes: [Language: String] = [.korean: "ko", .english: "en", .japanese: "ja"]
+        // 본문이 `\r\n` 으로 와도 잘라야 한다. 지금 릴리즈들은 `\n` 이지만 손으로 고친
+        // 본문까지 그렇다고 장담할 수 없다. Swift 는 `\r\n` 을 한 글자로 쳐서 `"\n"` 으로
+        // 자르면 그 자리에서 안 잘린다 (실측: 칸 표시가 윗줄에 붙어 다른 말 칸까지 섞여 나왔다).
+        let body = raw.replacingOccurrences(of: "\r\n", with: "\n")
+        var sections: [(code: String, text: String)] = []
+        var lines: [Substring] = []
+        func close(_ code: String) {
+            let text = lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+            sections.append((code, text))
+            lines = []
+        }
+        var current = ""
+        for line in body.split(separator: "\n", omittingEmptySubsequences: false) {
+            let mark = line.trimmingCharacters(in: .whitespaces)
+            if mark.hasPrefix("<!--"), mark.hasSuffix("-->") {
+                let code = mark.dropFirst(4).dropLast(3).trimmingCharacters(in: .whitespaces)
+                if codes.values.contains(code) { close(current); current = code; continue }
+            }
+            lines.append(line)
+        }
+        close(current)
+        // 빈 칸은 없는 칸이다 — 한국어 칸만 비워 두고 올려도 영어로라도 보인다.
+        let filled = sections.filter { !$0.text.isEmpty }
+        guard filled.contains(where: { !$0.code.isEmpty }) else { return filled.first?.text }
+        let named = filled.filter { !$0.code.isEmpty }
+        return (named.first { $0.code == codes[language] }
+                ?? named.first { $0.code == "en" }
+                ?? named.first)?.text
     }
 
     /// 갈아 끼우지 못했을 때. **조용히 지나가지 않는다** — 대신 손으로 받을 길을 연다.
