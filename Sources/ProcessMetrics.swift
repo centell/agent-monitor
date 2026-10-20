@@ -186,15 +186,20 @@ enum MetricFormat {
         return out
     }
 
+    /// 메모리는 애플처럼 1024 단위로 나눈다 — 활성 상태 보기가 24GB 맥을 `24.00 GB` 로
+    /// 적는데, 10⁹ 로 나누면 같은 맥이 `25.8GB` 가 되어 두 화면이 어긋난다.
+    static let gib = Double(1 << 30)
+    static let mib = Double(1 << 20)
+
     /// 크기에 맞춰 단위를 고른다. 1GB 미만을 `0.0GB` 로 적으면 아무 뜻도 없다.
     static func size(_ bytes: UInt64) -> String {
-        let gb = Double(bytes) / 1_000_000_000
+        let gb = Double(bytes) / gib
         if gb >= 1 { return String(format: "%.1fGB", gb) }
-        return String(format: "%.0fMB", Double(bytes) / 1_000_000)
+        return String(format: "%.0fMB", Double(bytes) / mib)
     }
 
     static func gigabytes(_ bytes: UInt64) -> String {
-        String(format: "%.1fG", Double(bytes) / 1_000_000_000)
+        String(format: "%.1fG", Double(bytes) / gib)
     }
 
     /// 토큰 수. **어떤 값이 와도 네 칸을 넘지 않는다.**
@@ -230,7 +235,7 @@ enum MetricFormat {
 
     /// 시스템 요약 한 줄.
     static func systemSummary(_ memory: SystemMemory, agentBytes: UInt64) -> String {
-        let gb = { (v: UInt64) in Double(v) / 1_000_000_000 }
+        let gb = { (v: UInt64) in Double(v) / gib }
         return S.systemSummary(used: gb(memory.usedBytes), total: gb(memory.totalBytes),
                                swap: gb(memory.swapUsedBytes), agent: gb(agentBytes))
     }
