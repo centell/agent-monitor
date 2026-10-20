@@ -193,6 +193,9 @@ public enum S {
     }
     static var updateOpenPage: String { p("릴리즈 페이지 열기", "Open releases", "リリースページを開く") }
     static var updateLater: String { p("나중에", "Later", "あとで") }
+    static func updateNotesTitle(_ version: String) -> String {
+        p("\(version)에서 바뀐 점", "What changes in \(version)", "\(version) で変わること")
+    }
     static var quitItem: String     { p("종료", "Quit", "終了") }
     static var estimated: String    { p("  (추정)", "  (est.)", "  (推定)") }
 

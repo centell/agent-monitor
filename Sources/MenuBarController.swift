@@ -422,7 +422,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// 누르셨을 때만 받기 시작한다. 여기까지 오기 전에는 한 바이트도 안 받는다.
     @objc private func installUpdate() {
         guard let update = UpdateCheck.shared.found else { return }
-        UpdateCheck.shared.install(update)
+        UpdateCheck.shared.offer(update)
     }
 
     @objc private func openSettings() {
