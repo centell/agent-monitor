@@ -99,6 +99,8 @@ final class UpdateCheck: ObservableObject {
     /// 릴리즈 페이지를 거치는데, 메뉴의 한 줄은 그 눈을 건너뛴다. 본문이 없으면 보여 줄 게
     /// 없으니 예전처럼 곧장 받는다.
     func offer(_ release: Release) {
+        // 받는 중에 또 누르면 [지금 설치] 가 아무 일도 안 하는 상자가 뜬다.
+        guard !busy else { return }
         guard let notes = release.notes else { return install(release) }
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
@@ -116,30 +118,36 @@ final class UpdateCheck: ObservableObject {
 
     /// 본문을 담는 칸. 길면 스크롤한다 — 상자가 화면보다 커지면 버튼이 밖으로 밀려난다.
     private static func notesView(_ notes: String) -> NSView {
-        let width: CGFloat = 420
-        let text = NSTextView(frame: NSRect(x: 0, y: 0, width: width, height: 0))
+        // 세로로 자라고 폭은 칸을 따라가는 글상자는 AppKit 이 짜 주는 것을 쓴다 — 손으로
+        // 짜면 스크롤 막대가 늘 보이는 설정에서 막대 폭만큼 글 오른쪽이 잘린다.
+        let scroll = NSTextView.scrollableTextView()
+        scroll.drawsBackground = false
+        scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers = true
+        let text = scroll.documentView as! NSTextView
         text.isEditable = false
         text.drawsBackground = false
         text.textContainerInset = NSSize(width: 0, height: 4)
         text.textStorage?.setAttributedString(rendered(notes))
+
+        // 높이는 글을 420 폭에 한 번 앉혀 보고 정한다. 넘치면 280 에서 끊고 스크롤한다.
+        let width: CGFloat = 420
+        scroll.frame = NSRect(x: 0, y: 0, width: width, height: 280)
+        text.textContainer?.containerSize = NSSize(width: scroll.contentSize.width,
+                                                   height: .greatestFiniteMagnitude)
         text.layoutManager?.ensureLayout(for: text.textContainer!)
         let used = text.layoutManager?.usedRect(for: text.textContainer!).height ?? 0
-        let height = min(max(used + 8, 40), 280)
-
-        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: width, height: height))
-        scroll.hasVerticalScroller = used + 8 > height
-        scroll.drawsBackground = false
-        scroll.documentView = text
-        text.autoresizingMask = [.width]
+        scroll.frame.size.height = min(max(used + 8, 40), 280)
         return scroll
     }
 
     /// 마크다운은 글줄 안의 것(굵게·코드·링크)만 살린다. 제목 줄의 `#` 은 굵게로 바꾼다 —
     /// 상자 안에서 제목 크기까지 흉내 내면 버튼보다 커진다.
     private static func rendered(_ notes: String) -> NSAttributedString {
+        // `#` 뒤에 띄어쓰기가 있어야 제목이다 — `#12 고침` 같은 이슈 번호는 그대로 둔다.
         let lines = notes.split(separator: "\n", omittingEmptySubsequences: false).map { line -> String in
             let trimmed = line.drop { $0 == "#" }
-            guard trimmed.count < line.count else { return String(line) }
+            guard trimmed.count < line.count, trimmed.first == " " else { return String(line) }
             return "**" + trimmed.trimmingCharacters(in: .whitespaces) + "**"
         }
         let source = lines.joined(separator: "\n")
@@ -388,7 +396,7 @@ final class UpdateCheck: ObservableObject {
         for line in body.split(separator: "\n", omittingEmptySubsequences: false) {
             let mark = line.trimmingCharacters(in: .whitespaces)
             if mark.hasPrefix("<!--"), mark.hasSuffix("-->") {
-                let code = mark.dropFirst(4).dropLast(3).trimmingCharacters(in: .whitespaces)
+                let code = mark.dropFirst(4).dropLast(3).trimmingCharacters(in: .whitespaces).lowercased()
                 if codes.values.contains(code) { close(current); current = code; continue }
             }
             lines.append(line)
