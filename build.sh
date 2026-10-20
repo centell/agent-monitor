@@ -12,7 +12,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION="0.8.2"
+VERSION="0.8.3"
 APP_NAME="AgentMonitor"
 DEST="$HOME/Applications/${APP_NAME}.app"
 RELEASE=0
