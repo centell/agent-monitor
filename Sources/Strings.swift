@@ -178,6 +178,12 @@ public enum S {
           "This app cannot write where it is installed. Please replace it by hand.",
           "インストール先に書き込めません。手動で入れ替えてください。")
     }
+
+    static var updateAddonBuild: String {
+        p("이 앱은 애드온을 꽂는 판이라 릴리즈판으로 바꾸면 애드온이 빠집니다. 소스 폴더에서 ./build.sh 로 올려 주세요.",
+          "This build carries add-ons; the release build would drop them. Update it with ./build.sh in the source folder.",
+          "このビルドはアドオン入りで、リリース版に替えるとアドオンが外れます。ソースフォルダで ./build.sh を実行してください。")
+    }
     static var updateDownloadFailed: String {
         p("받아 오지 못했습니다.", "The download did not finish.", "ダウンロードできませんでした。")
     }

@@ -171,6 +171,14 @@ final class UpdateCheck: ObservableObject {
     /// 받아서 갈아 끼운다. 주인이 눌렀을 때만 불린다.
     func install(_ release: Release) {
         guard !busy else { return }
+        #if ADDONS
+        // **애드온판을 릴리즈판으로 갈아 끼우지 않는다.** 릴리즈 zip 은 애드온 자리를 빼고
+        // 지은 판이라(`build.sh --release`), 받아 끼우면 꽂혀 있던 애드온이 아무 말 없이
+        // 빠진다. 실제로 그랬다 — 애드온판이 릴리즈판 0.8.4 로 바뀐 뒤 `ticket` 이 「unknown command」가
+        // 됐는데, 훅은 계속 그 명령을 치라고 했다. 이 판은 소스 옆에서 지은 것이므로
+        // 올리는 길도 거기다.
+        return failed(S.updateAddonBuild, release: release)
+        #endif
         busy = true
         status = S.updateDownloading
 
