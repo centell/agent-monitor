@@ -35,6 +35,14 @@ struct DemoSource: SessionSource {
                                            compressedBytes: 3_600_000_000)
 
     /// 줄 하나를 짓는 재료.
+    private static let demoModels: [String: String] = [
+        "payments-api": "claude-opus-5-5",
+        "docs-site": "claude-sonnet-5-5",
+        "web-client": "claude-opus-5-5",
+        "data-pipeline": "gpt-6.1-sol",
+        "design-tokens": "gpt-6.1-sol",
+    ]
+
     private struct Fixture {
         let id: String
         let pid: Int32
@@ -122,6 +130,8 @@ struct DemoSource: SessionSource {
                 accountRoot: URL(fileURLWithPath: "/demo")
             )
             session.currentTool = f.tool
+            // 지어낸 모델. 모델 표시를 켰을 때 미리보기와 문서 사진이 비지 않게 한다.
+            session.model = Self.demoModels[f.name]
             session.lastActivity = now.addingTimeInterval(-f.secondsAgo)
             // «왜 기다리는가» 는 상태에 따라 다른 칸에서 나온다. 실물과 같은 자리에 넣어야
             // 마우스를 올렸을 때 실물과 같은 글이 뜬다.

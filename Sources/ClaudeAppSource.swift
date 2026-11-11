@@ -76,6 +76,7 @@ struct ClaudeAppSource: SessionSource {
             session.lastSay = facts.lastSay
             session.lastActivity = facts.timestamp ?? record.lastActivityAt
             session.usage = facts.usage.isEmpty ? nil : facts.usage
+            session.model = facts.model
             // 앱은 상태를 적지 않는다. 우리가 기록에서 읽어 낸 것이므로 «추정» 이라 적는다.
             session.isEstimated = true
             out.append(session)
@@ -160,6 +161,8 @@ struct ClaudeAppSource: SessionSource {
         var lastSay: String?
         /// 이 세션이 태운 토큰. CLI 와 **같은 기록**을 읽으므로 얻는 것도 같다.
         var usage = TokenUsage()
+        /// 마지막 본선 턴의 모델. CLI 와 같은 기록이라 같은 자리에서 읽는다.
+        var model: String?
     }
 
     private func readState(for record: Record) -> Facts {
@@ -167,6 +170,8 @@ struct ClaudeAppSource: SessionSource {
             return Facts()
         }
         var facts = parseTail(text)
+        // CLI 쪽과 같은 받침. 찾은 자리를 기억하므로 파일이 그대로면 다시 읽지 않는다.
+        if facts.model == nil { facts.model = ClaudeModelFinder.shared.lastModel(in: url) }
         if let totals = TokenLedger.shared.session(transcript: url) {
             facts.usage.fresh = totals.fresh
             facts.usage.total = totals.total
@@ -227,6 +232,9 @@ struct ClaudeAppSource: SessionSource {
                let usage = message?["usage"] as? [String: Any] {
                 facts.usage.context = TokenMath.claude(usage: usage).context
             }
+            if type == "assistant", facts.model == nil {
+                facts.model = Transcript.claudeModel(in: message)
+            }
 
             if !stateFound {
                 if type == "assistant" {
@@ -265,7 +273,7 @@ struct ClaudeAppSource: SessionSource {
 
             // 컨텍스트도 손에 넣기 전에는 멈추지 않는다 (CLI 쪽과 같은 이유).
             if stateFound && facts.tool != nil && facts.timestamp != nil
-                && facts.usage.context != nil { break }
+                && facts.usage.context != nil && facts.model != nil { break }
         }
         return facts
     }

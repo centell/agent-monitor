@@ -53,6 +53,8 @@ struct CodexAppSource: SessionSource {
         // 잴 수 있다. 이것이 이 출처가 가진 유일하고 확실한 살아있음 신호다.
         guard Self.appIsRunning else { return [] }
 
+        // 모델은 스레드 묻기와 **따로** 묻는다 — 열이 사라져도 세션은 그대로 나가야 한다.
+        let models = CodexThreads.models(codexHome: root)
         return threads(since: Date().addingTimeInterval(-window * 60)).map { thread in
             var session = Session(
                 id: thread.id,
@@ -71,6 +73,7 @@ struct CodexAppSource: SessionSource {
             )
             session.lastActivity = thread.updatedAt
             session.usage = thread.usage.isEmpty ? nil : thread.usage
+            session.model = models[thread.id]
             session.deepLink = Self.deepLink(for: thread.id)
             // 상태를 codex 가 직접 적었다. 추정이 아니므로 «추정» 을 달지 않는다.
             session.isEstimated = false

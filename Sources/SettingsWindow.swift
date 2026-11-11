@@ -117,6 +117,8 @@ struct LayoutSettingsView: View {
                     ForEach(SourceStyle.allCases) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
+                // 출처 표시 바로 밑에 둔다 — 바꾸는 자리가 바로 그 출처의 엔진 이름이라서.
+                Toggle(S.showModel, isOn: $settings.showModel)
 
                 // 출처 표시 바로 밑에 둔다 — 엔진 색이 칠하는 곳이 바로 그 출처라서.
                 Picker(S.engineTint, selection: $settings.engineTint) {

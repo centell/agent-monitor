@@ -257,7 +257,10 @@ struct ClaudeCodeSource: SessionSource {
         var remembered = stamp.flatMap { Self.tails.facts(for: url, stamp: $0) }
         if remembered == nil {
             guard let tail = readTail(url) else { return }
-            let parsed = parseTail(tail)
+            var parsed = parseTail(tail)
+            // 꼬리가 첨부로 가득 차 모델을 못 찾았으면 더 거슬러 찾는다 (`ClaudeModelFinder`).
+            // 이 자리는 파일이 바뀌었을 때만 오므로 매 훑기마다 읽지 않는다.
+            if parsed.model == nil { parsed.model = ClaudeModelFinder.shared.lastModel(in: url) }
             if let stamp { Self.tails.remember(parsed, for: url, stamp: stamp) }
             remembered = parsed
         }
@@ -268,6 +271,7 @@ struct ClaudeCodeSource: SessionSource {
         session.pendingCall = facts.pendingCall
         session.lastSay = facts.lastSay
         session.continuedIn = facts.continuedIn
+        session.model = facts.model
 
         // 컨텍스트는 방금 읽은 꼬리에서 공짜로 나온다. 누적은 기록을 통째로 훑어야
         // 하므로 원장에 맡긴다 — 꺼져 있으면 원장이 아무것도 하지 않는다.
@@ -334,6 +338,8 @@ struct ClaudeCodeSource: SessionSource {
         var continuedIn: String?
         /// 마지막 턴이 들고 간 컨텍스트 크기.
         var context: UInt64?
+        /// 마지막 본선 턴의 모델.
+        var model: String?
     }
 
     /// 끝에서부터 거슬러 올라가며 마지막 대화 이벤트를 찾는다.
@@ -382,6 +388,11 @@ struct ClaudeCodeSource: SessionSource {
                let usage = message?["usage"] as? [String: Any] {
                 facts.context = TokenMath.claude(usage: usage).context
             }
+            // 모델도 마지막 턴 하나의 값이다. 서브에이전트는 위에서 걸렀으므로 haiku 로
+            // 돌린 서브에이전트가 본선의 이름을 덮지 않는다.
+            if type == "assistant", facts.model == nil {
+                facts.model = Transcript.claudeModel(in: message)
+            }
 
             if type == "user" {
                 // 도구 결과가 돌아온 호출을 적어 둔다. 남은 것이 대기 중인 호출이다.
@@ -419,6 +430,7 @@ struct ClaudeCodeSource: SessionSource {
             // 컨텍스트도 손에 넣기 전에는 멈추지 않는다. 없이 멈추면 켜 둔 칸이
             // «—» 로 깜빡인다 — 값이 없어서가 아니라 우리가 덜 읽어서.
             if facts.timestamp != nil && facts.tool != nil && facts.context != nil
+                && facts.model != nil
                 && (facts.lastSay != nil || reachedPreviousTurn) { break }
         }
         return facts

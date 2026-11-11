@@ -247,18 +247,28 @@ struct RowFormatter {
     /// 칠할 자리를 글자 수로 셈하지 않고 **여기서 받아 쓴다** — 모양이 셋이라, 셈으로 두면
     /// 모양이 하나 늘 때 칠이 조용히 어긋난다.
     func sourcePrefix(for session: Session) -> String {
+        let engine = engineLabel(for: session)
         switch settings.sourceStyle {
         case .short:
-            return session.sourceTag
+            return session.runsInApp ? "\(engine)-app" : engine
         case .symmetric:
             // 넷이 다 자기가 뭔지 말한다. 「표시 없는 것이 터미널」이라는 암묵을 없앤다.
-            return session.runsInApp ? "\(session.source)-app" : "\(session.source)-cli"
+            return session.runsInApp ? "\(engine)-app" : "\(engine)-cli"
         case .symbol:
             // 이름은 짧게 두고 한 칸짜리 표식으로 가른다.
             // 폭이 고른 글자만 쓴다 — 상태 표식(◆○●◐)과 같은 이유다.
             let mark = session.runsInApp ? "□" : ">"
-            return "\(mark) \(session.sourceTag)"
+            return "\(mark) \(session.runsInApp ? "\(engine)-app" : engine)"
         }
+    }
+
+    /// 출처의 엔진 자리. 모델을 켰고 읽어 냈으면 모델 이름이, 아니면 엔진 이름이 온다.
+    ///
+    /// 못 읽은 세션은 **엔진 이름으로 돌아간다** — 비워 두면 열이 흔들리고, 엔진에서
+    /// 모델을 짐작해 채우면 없는 것을 지어낸다. 앱/터미널 표시는 위에서 스타일대로 붙는다.
+    private func engineLabel(for session: Session) -> String {
+        guard settings.showModel, let model = session.model else { return session.source }
+        return ModelName.short(model)
     }
 
     // MARK: 도우미
