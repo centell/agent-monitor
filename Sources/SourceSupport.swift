@@ -186,6 +186,16 @@ enum Transcript {
         }
     }
 
+    /// Claude 기록 한 줄의 `message.model`. 지어낸 줄이면 없다.
+    ///
+    /// API 가 실패하면 Claude Code 가 오류를 assistant 줄로 적는데, 그 줄의 모델은
+    /// `<synthetic>` 이다. 그걸 받으면 오류 한 번에 모델 이름이 그 글자로 바뀐다.
+    static func claudeModel(in message: [String: Any]?) -> String? {
+        guard let raw = message?["model"] as? String,
+              !raw.isEmpty, !raw.hasPrefix("<") else { return nil }
+        return raw
+    }
+
     /// 마지막 텍스트 블록에서 사람에게 건넨 **마지막 줄**을 집는다.
     ///
     /// 첫 줄이 아니라 마지막 줄인 이유: 첫 줄은 머리말이거나 제목일 때가 많고
@@ -233,6 +243,22 @@ enum CodexThreads {
     /// 이름은 보기 좋으라고 있는 것이지 세션의 뼈대가 아니므로, 실패해도 부르는 쪽이
     /// 원래 쓰던 이름(작업 폴더)으로 돌아가면 그만이다. 세션이 사라지지는 않는다.
     static func titles(codexHome: URL) -> [String: String] {
+        column("COALESCE(NULLIF(name, ''), NULLIF(title, ''), '')", codexHome: codexHome)
+    }
+
+    /// codex 가 스레드에 적어 둔 모델. `<id> → gpt-6.1-sol`.
+    ///
+    /// rollout 꼬리에서 못 찾았을 때의 받침이다. 모델은 턴이 **시작할 때** 한 번 적히므로
+    /// (`turn_context`) 출력이 64KB 를 넘긴 긴 턴에서는 꼬리 밖으로 밀려난다.
+    ///
+    /// 이름과 **따로 묻는다.** 한 문장으로 물으면 codex 가 판을 올려 `model` 열이
+    /// 사라지는 날 `prepare` 가 실패해 이름까지 함께 잃는다. 모델은 곁들이다.
+    static func models(codexHome: URL) -> [String: String] {
+        column("COALESCE(model, '')", codexHome: codexHome)
+    }
+
+    /// `threads` 의 열 하나를 `id → 값` 표로 읽는다. 빈 값은 담지 않는다.
+    private static func column(_ expression: String, codexHome: URL) -> [String: String] {
         let path = codexHome.appendingPathComponent("state_5.sqlite").path
         guard FileManager.default.fileExists(atPath: path) else { return [:] }
 
@@ -244,9 +270,7 @@ enum CodexThreads {
         }
         defer { sqlite3_close(db) }
 
-        let sql = """
-        SELECT id, COALESCE(NULLIF(name, ''), NULLIF(title, ''), '') FROM threads
-        """
+        let sql = "SELECT id, \(expression) FROM threads"
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [:] }
         defer { sqlite3_finalize(stmt) }
@@ -254,10 +278,138 @@ enum CodexThreads {
         var out: [String: String] = [:]
         while sqlite3_step(stmt) == SQLITE_ROW {
             guard let id = sqlite3_column_text(stmt, 0),
-                  let name = sqlite3_column_text(stmt, 1) else { continue }
-            let title = String(cString: name)
-            if !title.isEmpty { out[String(cString: id)] = title }
+                  let raw = sqlite3_column_text(stmt, 1) else { continue }
+            let value = String(cString: raw)
+            if !value.isEmpty { out[String(cString: id)] = value }
         }
         return out
+    }
+}
+
+// MARK: - 모델 이름
+
+enum ModelName {
+    /// 목록에 적을 짧은 모델 이름.
+    ///
+    /// `claude-opus-5-5` → `opus-5.5`. 앞의 `claude-` 는 이름 앞 자리의 색이 이미 말하고,
+    /// 뒤의 날짜(`-20260101`)는 같은 모델의 판이라 목록에서 가를 일이 없다.
+    /// 판 번호의 `-` 를 `.` 로 바꾸는 것은 사람이 그렇게 부르기 때문이다.
+    ///
+    /// **모르는 모양은 손대지 않는다** (`gpt-6.1-sol` 은 그대로). 규칙에 억지로 맞추면
+    /// 다른 두 모델이 같은 이름으로 접힐 수 있고, 그건 길게 적는 것보다 나쁘다.
+    static func short(_ raw: String) -> String {
+        var name = raw
+        // `[1m]` 같은 꼬리표는 컨텍스트 창 표시이지 모델이 아니다.
+        if let bracket = name.firstIndex(of: "[") { name = String(name[..<bracket]) }
+        guard name.hasPrefix("claude-") else { return name }
+        name.removeFirst("claude-".count)
+
+        var parts = name.split(separator: "-").map(String.init)
+        // 날짜 꼬리 (여덟 자리 숫자).
+        if let last = parts.last, last.count == 8, last.allSatisfy(\.isNumber) { parts.removeLast() }
+        // 이름 뒤에 숫자 둘이 오면 판 번호다 (`opus-5-5` → `opus-5.5`).
+        if parts.count == 3, !parts[0].allSatisfy(\.isNumber),
+           parts[1].allSatisfy(\.isNumber), parts[2].allSatisfy(\.isNumber) {
+            return "\(parts[0])-\(parts[1]).\(parts[2])"
+        }
+        return parts.joined(separator: "-")
+    }
+}
+
+// MARK: - 꼬리 밖의 모델
+
+/// 꼬리(64KB)에서 모델을 못 찾았을 때 더 거슬러 올라가 찾는다.
+///
+/// **꼬리가 첨부 줄로 가득 찬 세션이 실제로 있다** (실측 2026-11-11: 열한 세션 중 넷,
+/// 마지막 64KB 가 전부 `attachment` 줄). 그런 세션은 지금 한창 쓰이는 세션이라, 거기서
+/// 모델이 빠지면 켜 둔 표시가 가장 필요한 줄에서 `claude/` 로 돌아간다.
+///
+/// 비싸지 않게 두 가지를 지킨다.
+/// · 끝에서부터 덩어리로 읽고 **찾으면 멈춘다.** 상한을 넘으면 그만 찾는다 — 모름은 모름이다.
+/// · 지난번에 찾은 자리를 기억한다. 파일이 자랐으면 **새로 붙은 쪽만** 보고, 거기 없으면
+///   지난 답을 쓴다. 새 턴이 오면 새 줄이 붙으니 대개 첫 덩어리에서 끝난다.
+final class ClaudeModelFinder {
+    static let shared = ClaudeModelFinder()
+
+    private struct Entry { let size: UInt64; let model: String?; var touched: Date }
+    private var entries: [String: Entry] = [:]
+    private let lock = NSLock()
+
+    private static let chunk: UInt64 = 256 * 1024
+    private static let limit: UInt64 = 8 * 1024 * 1024
+    private static let needle = Data("\"model\"".utf8)
+
+    func lastModel(in url: URL) -> String? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        guard let size = try? handle.seekToEnd() else { return nil }
+
+        lock.lock()
+        let cached = entries[url.path]
+        lock.unlock()
+        if let cached, cached.size == size { return remember(url, size, cached.model) }
+
+        // 지난번 크기보다 앞은 이미 본 곳이다. 거기서 멈추고 지난 답을 쓴다.
+        let floor = cached.map { $0.size < size ? $0.size : 0 } ?? 0
+        var end = size
+        var carry = Data()              // 덩어리 경계에서 잘린 줄의 뒷부분
+        while end > floor {
+            // 상한을 넘었다. 지난 답으로 내려가지 않는다 — 안 본 자리에 더 새 줄이 있을 수
+            // 있으므로 그 답은 낡았을 수 있다. 모름으로 둔다.
+            guard size - end < Self.limit else { return remember(url, size, nil) }
+            let start = max(floor, end >= Self.chunk ? end - Self.chunk : 0)
+            try? handle.seek(toOffset: start)
+            guard var data = try? handle.read(upToCount: Int(end - start)) else { break }
+            data.append(carry)
+            // 덩어리의 맨 앞이 줄의 처음인가. 파일 맨 앞이거나 바로 앞 바이트가 줄바꿈이면
+            // 온전한 줄이다. 지난번 끝(`floor`)에서 이어 읽을 때가 대개 그렇다 — 그 줄을
+            // 잘린 것으로 치고 넘기면 새로 붙은 첫 줄을 통째로 못 본다.
+            let whole = start == 0 || byte(before: start, in: handle) == UInt8(ascii: "\n")
+            var body = data
+            if whole {
+                carry = Data()
+            } else if let nl = data.firstIndex(of: UInt8(ascii: "\n")) {
+                carry = data[data.startIndex..<nl]
+                body = data[data.index(after: nl)...]
+            } else {
+                // 덩어리보다 긴 한 줄의 가운데다. 다음 덩어리와 이어 붙여야 읽힌다.
+                carry = data
+                body = Data()
+            }
+            if let model = Self.lastMainModel(in: body) { return remember(url, size, model) }
+            end = start
+        }
+        // 새로 붙은 쪽에 없었으면 지난 답이 여전히 지금 모델이다.
+        return remember(url, size, cached?.model)
+    }
+
+    private func byte(before offset: UInt64, in handle: FileHandle) -> UInt8? {
+        try? handle.seek(toOffset: offset - 1)
+        return (try? handle.read(upToCount: 1))?.first
+    }
+
+    private func remember(_ url: URL, _ size: UInt64, _ model: String?) -> String? {
+        lock.lock() ; defer { lock.unlock() }
+        entries[url.path] = Entry(size: size, model: model, touched: Date())
+        if entries.count > 64 {
+            let cutoff = Date().addingTimeInterval(-600)
+            entries = entries.filter { $0.value.touched > cutoff }
+        }
+        return model
+    }
+
+    /// 덩어리 안에서 **마지막** 본선 assistant 줄의 모델.
+    private static func lastMainModel(in data: Data) -> String? {
+        for line in data.split(separator: UInt8(ascii: "\n")).reversed() {
+            // 모델이 안 적힌 줄은 JSON 으로 풀지 않는다. 대부분이 그렇다.
+            guard line.range(of: needle) != nil,
+                  let obj = (try? JSONSerialization.jsonObject(with: Data(line))) as? [String: Any],
+                  obj["type"] as? String == "assistant",
+                  obj["isSidechain"] as? Bool != true,
+                  let model = Transcript.claudeModel(in: obj["message"] as? [String: Any])
+            else { continue }
+            return model
+        }
+        return nil
     }
 }

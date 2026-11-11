@@ -200,6 +200,12 @@ public final class Settings: ObservableObject {
 
     /// 줄에 출처를 어떻게 적을지.
     @Published var sourceStyle: SourceStyle         { didSet { persist() } }
+    /// 이름 앞 출처의 엔진 자리(`claude`·`codex`)에 모델 이름을 적을 것인가.
+    ///
+    /// 칸을 새로 내지 않고 **엔진 자리를 바꿔 쓴다.** 모델 이름이 엔진을 이미 말하고
+    /// (opus 면 claude), 엔진 색도 그 자리에 그대로 칠해지므로 잃는 것이 없다.
+    /// 기본은 끔이다 — 켜면 이름 열이 넓어지는데, 쓰던 폭이 말없이 바뀌면 안 된다.
+    @Published var showModel: Bool                  { didSet { persist() } }
 
     /// 이름 앞머리(출처)를 어느 색 벌로 칠할 것인가 — claude · codex (`RowTint`).
     @Published var engineTint: EngineTint           { didSet { persist() } }
@@ -311,6 +317,7 @@ public final class Settings: ObservableObject {
         refreshInterval = store.object(forKey: Key.interval) as? Double ?? 2
         codexAppWindow = store.object(forKey: Key.codexAppWindow) as? Double ?? 30
         sourceStyle = SourceStyle(rawValue: store.string(forKey: Key.sourceStyle) ?? "") ?? .short
+        showModel = store.object(forKey: Key.showModel) as? Bool ?? false
         // 켬/끔이었던 옛 설정에서 옮겨온다. 꺼 두셨으면 끈 채로 둔다.
         engineTint = EngineTint(rawValue: store.string(forKey: Key.engineTint) ?? "")
             ?? (store.object(forKey: Key.legacyTintEngine) as? Bool == false ? .off : .accessible)
@@ -385,6 +392,7 @@ public final class Settings: ObservableObject {
         refreshInterval = 2
         codexAppWindow = 30
         sourceStyle = .short
+        showModel = false
         engineTint = .accessible
         tintRepo = true
         panelAlwaysOnTop = true
@@ -427,6 +435,7 @@ public final class Settings: ObservableObject {
         store.set(refreshInterval, forKey: Key.interval)
         store.set(codexAppWindow, forKey: Key.codexAppWindow)
         store.set(sourceStyle.rawValue, forKey: Key.sourceStyle)
+        store.set(showModel, forKey: Key.showModel)
         store.set(engineTint.rawValue, forKey: Key.engineTint)
         store.set(tintRepo, forKey: Key.tintRepo)
         store.set(pinnedSessions.sorted(), forKey: Key.pinned)
@@ -478,6 +487,7 @@ public final class Settings: ObservableObject {
         static let interval = "refreshInterval"
         static let codexAppWindow = "codexAppWindow"
         static let sourceStyle = "sourceStyle"
+        static let showModel = "showModel"
         /// 켬/끔이던 옛 설정. 새 값이 아직 없을 때 여기서 옮겨온다.
         static let legacyTintEngine = "tintEngine"
         static let engineTint = "engineTint"

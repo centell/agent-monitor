@@ -210,6 +210,8 @@ if args.contains("--json") {
         row["hostPid"] = Int(s.hostPid)
         row["continuedFromPid"] = s.continuedFromPid.map { Int($0) }
         row["currentTool"] = s.currentTool
+        // 원문 그대로, 설정과 무관하게 낸다. 줄이는 것은 화면의 일이다.
+        row["model"] = s.model
         // 표시 설정과 무관하게 낸다. 기계가 읽는 값이 사람의 손잡이에 따라 흔들리면 안 된다.
         row["reason"] = s.reason
         // **재는 자를 함께 낸다.** 이 값은 툴팁에만 뜨는데, 툴팁은 마우스를 올려야 보이므로

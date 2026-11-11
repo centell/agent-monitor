@@ -52,6 +52,7 @@ struct CodexSource: SessionSource {
         // 없으면 앱이 남긴 색인, 그것도 없으면 작업 폴더 이름으로 내려간다.
         // 앞의 둘이 다 비어도 세션은 그대로 나온다 — 이름은 뼈대가 아니다.
         let titles = CodexThreads.titles(codexHome: root)
+        let models = CodexThreads.models(codexHome: root)
         let names = threadNames()
         let processes = LiveProcessTable()
         var used = Set<Int32>()
@@ -82,6 +83,9 @@ struct CodexSource: SessionSource {
             )
             session.currentTool = facts.tool
             session.usage = facts.usage.isEmpty ? nil : facts.usage
+            // 꼬리가 먼저다 — 턴마다 다시 적히므로 가장 최근 값이다. 긴 턴이라 꼬리 밖으로
+            // 밀려났으면 codex 가 스레드에 적어 둔 것으로 받친다.
+            session.model = facts.model ?? models[meta.sessionID]
             session.lastActivity = facts.timestamp
             // 상태를 우리가 추정했다는 표식. 화면에 «추정» 으로 나간다.
             session.isEstimated = true
@@ -185,6 +189,8 @@ struct CodexSource: SessionSource {
         var timestamp: Date?
         /// 이 세션이 태운 토큰. codex 는 누적을 **스스로 적어 둔다** — 훑을 필요가 없다.
         var usage = TokenUsage()
+        /// 마지막 턴의 모델. 턴이 시작할 때 `turn_context` 에 적힌다.
+        var model: String?
     }
 
     /// 끝에서 거슬러 올라가며 turn 의 경계를 찾는다.
@@ -204,6 +210,14 @@ struct CodexSource: SessionSource {
 
             if facts.timestamp == nil, let ts = obj["timestamp"] as? String {
                 facts.timestamp = Transcript.parseISO(ts)
+            }
+
+            // 턴의 설정. 모델은 여기 적힌다 (`event_msg` 가 아니라 따로 선 줄이다).
+            if facts.model == nil, obj["type"] as? String == "turn_context",
+               let payload = obj["payload"] as? [String: Any],
+               let model = payload["model"] as? String, !model.isEmpty {
+                facts.model = model
+                continue
             }
 
             guard obj["type"] as? String == "event_msg",
@@ -238,7 +252,11 @@ struct CodexSource: SessionSource {
                 facts.tool = type
             }
 
-            if stateFound && usageFound && facts.tool != nil && facts.timestamp != nil { break }
+            // 모델도 찾기 전에는 멈추지 않는다. 일찍 멈추면 꼬리 안에 있던 최근 값을 두고
+            // 스레드 표의 값으로 내려가는데, 그쪽이 `/model` 로 바꾼 뒤에도 따라오는지는
+            // 재 보지 못했다.
+            if stateFound && usageFound && facts.tool != nil && facts.timestamp != nil
+                && facts.model != nil { break }
         }
         return facts
     }

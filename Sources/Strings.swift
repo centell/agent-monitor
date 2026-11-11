@@ -499,6 +499,11 @@ public enum S {
     static var styleShort: String    { p("앱만", "App only", "アプリのみ") }
     static var styleSymmetric: String { p("양쪽 다", "Both", "両方") }
     static var styleSymbol: String   { p("표식", "Mark", "印") }
+    static var showModel: String {
+        p("엔진 대신 모델 이름 (claude → opus-5.5)",
+          "Model instead of engine (claude → opus-5.5)",
+          "エンジンの代わりにモデル名 (claude → opus-5.5)")
+    }
     static var engineTint: String    { p("엔진 색", "Engine color", "エンジンの色") }
     static var engineTintOff: String { p("끔", "Off", "オフ") }
     static var engineTintBrand: String { p("브랜드", "Brand", "ブランド") }

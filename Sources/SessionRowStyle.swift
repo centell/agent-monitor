@@ -207,6 +207,10 @@ enum SessionRowStyle {
             tip += extra + "\n\n"
         }
         tip += session.cwd
+        // 줄에는 줄인 이름(`opus-5.5`)이 가므로 여기에 원문을 둔다. 줄인 규칙이 두 모델을
+        // 하나로 접었는지 의심될 때 볼 자리가 있어야 한다. 모델을 켰을 때만 — 끈 판의
+        // 툴팁은 예전과 한 글자도 다르지 않아야 한다.
+        if settings.showModel, let model = session.model { tip += "\n" + model }
         // 합쳐진 줄이라는 것을 밝힌다. 밝히지 않으면 목록의 pid 와 창의 주인이 다른
         // 이유를 알 길이 없다.
         if let from = session.continuedFromPid { tip += "\n" + S.continuedFrom(Int(from)) }
