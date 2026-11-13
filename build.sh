@@ -8,11 +8,12 @@
 #   ./build.sh --no-run      빌드 · 설치 · 띄우지 않음 (돌고 있었으면 내려간 채로 둔다)
 #   ./build.sh --no-install  빌드만. **도는 앱을 건드리지 않는다** — 그 앱은 이전 판이다
 #   ./build.sh --release     올릴 판. 애드온 자리를 빼고 build/release 에 짓고 zip 으로 묶는다.
-#                            도는 앱도 ~/Applications 도 건드리지 않는다
+#                            도는 앱도 ~/Applications 도 건드리지 않는다. 키체인에 Developer ID
+#                            인증서가 있으면 그것으로 서명하고 애플 공증까지 받는다 (아래 「릴리즈판은」)
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION="0.9.0"
+VERSION="0.9.1"
 APP_NAME="AgentMonitor"
 DEST="$HOME/Applications/${APP_NAME}.app"
 RELEASE=0
@@ -167,8 +168,71 @@ PLIST
 # 서명 전 두 번 띄워 무반응 → 번들째 서명 뒤 첫 실행에 권한 상자가 떴다).
 codesign --force --sign - "$DEST" >/dev/null 2>&1 || echo "  ⚠ 서명하지 못했습니다 — 맥 알림 권한이 붙지 않을 수 있습니다"
 
+# 릴리즈판은 Developer ID 로 다시 서명하고 애플에 공증받는다.
+#
+# 받은 사람의 맥은 서명도 공증도 없는 앱을 처음 열 때 막는다. 키체인에 「Developer ID
+# Application」 인증서가 있으면 그것으로 서명하고, 없으면 위의 임시 서명 그대로 묶는다 —
+# 인증서가 없는 맥에서도 릴리즈판이 지어지기는 해야 한다. 직접 짓는 판(릴리즈가 아닌 것)은
+# 언제나 임시 서명이다.
+#
+# 공증 자격은 App Store Connect API 키다. 드로우마크와 같은 계정·같은 키라 그쪽이 만들어 둔
+# 키체인 항목을 그대로 읽는다 (만드는 법은 drawmark/scripts/release-desktop.sh 주석).
+#   키체인 drawmark-notary-key-id · drawmark-notary-issuer
+#   ~/.appstoreconnect/private_keys/AuthKey_<키 ID>.p8
+TEAM_ID="M9NML4Y8N9"
+SIGN_ID=""
+if [[ $RELEASE -eq 1 ]]; then
+    SIGN_ID=$(security find-identity -v -p codesigning \
+        | sed -n "s/.*\"\(Developer ID Application: [^\"]*(${TEAM_ID})\)\".*/\1/p" | head -1)
+fi
+if [[ -n "$SIGN_ID" ]]; then
+    NOTARY_KEY=$(security find-generic-password -s drawmark-notary-key-id -w 2>/dev/null || true)
+    NOTARY_ISSUER=$(security find-generic-password -s drawmark-notary-issuer -w 2>/dev/null || true)
+    NOTARY_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${NOTARY_KEY}.p8"
+    # 서명만 하고 공증하지 않은 앱도 처음 열 때 막힌다 — 공증할 수 없으면 만들지 않는다.
+    [[ -n "$NOTARY_KEY" && -n "$NOTARY_ISSUER" && -f "$NOTARY_KEY_PATH" ]] || {
+        echo "서명 인증서는 있지만 공증 자격(키체인 drawmark-notary-key-id · drawmark-notary-issuer, $NOTARY_KEY_PATH)이 없습니다" >&2
+        exit 1
+    }
+    NOTARY=(--key "$NOTARY_KEY_PATH" --key-id "$NOTARY_KEY" --issuer "$NOTARY_ISSUER")
+
+    # 공증은 강화 런타임(--options runtime)과 시각 도장(--timestamp)을 요구한다. 강화 런타임이
+    # 막는 것 가운데 이 앱이 쓰는 것은 Terminal 에 보내는 Apple Event 하나라 그것만 연다.
+    codesign --force --sign "$SIGN_ID" --options runtime --timestamp \
+        --entitlements Resources/AgentMonitor.entitlements "$DEST"
+    codesign --verify --strict --verbose=2 "$DEST"
+
+    # 공증은 묶음을 받는다. 앱만 묶어 보내고, 통과하면 그 표(ticket)를 앱에 붙인다(staple) —
+    # 그래야 받은 사람의 맥이 인터넷에 묻지 않고도 공증된 앱인 줄 안다.
+    SUBMIT="build/${APP_NAME}-notarize.zip"
+    rm -f "$SUBMIT"
+    ditto -c -k --keepParent "$DEST" "$SUBMIT"
+    echo "  · 애플에 공증을 맡깁니다 (몇 분 걸립니다)"
+    # 거절돼도 0 으로 끝날 수 있다 — 상태를 읽고, 아니면 애플이 적어 준 까닭을 남기고 멈춘다.
+    RESULT=$(xcrun notarytool submit "$SUBMIT" "${NOTARY[@]}" --wait --output-format json)
+    rm -f "$SUBMIT"
+    STATUS=$(/usr/bin/python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("status",""))' "$RESULT")
+    if [[ "$STATUS" != "Accepted" ]]; then
+        SUBMISSION=$(/usr/bin/python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("id",""))' "$RESULT")
+        [[ -n "$SUBMISSION" ]] && xcrun notarytool log "$SUBMISSION" "${NOTARY[@]}" >&2 || true
+        echo "공증 실패: ${STATUS:-응답 없음}" >&2
+        exit 1
+    fi
+    xcrun stapler staple "$DEST"
+
+    # 받은 사람의 맥이 보는 대로 확인한다. 하나라도 어긋나면 여기서 멈춘다.
+    xcrun stapler validate "$DEST"
+    spctl --assess --type execute --verbose=2 "$DEST"
+    EDITION="Developer ID 서명 · 공증"
+elif [[ $RELEASE -eq 1 ]]; then
+    echo "  ⚠ Developer ID 인증서(팀 ${TEAM_ID})가 없어 임시 서명으로 묶습니다 — 받은 사람의 맥이 첫 실행을 막고,"
+    echo "    0.9.1 부터의 앱 안 업데이트는 이 판을 받지 않습니다 (Sources/UpdateCheck.swift 의 requirement)"
+    EDITION="임시 서명"
+fi
+
 # 릴리즈판은 여기서 묶고 끝낸다. 앱의 업데이트가 릴리즈에 붙은 .zip 을 받아 풀므로,
-# 번들 하나를 맨 위에 둔 채로 묶는다 (`--keepParent`).
+# 번들 하나를 맨 위에 둔 채로 묶는다 (`--keepParent`). 공증표를 붙인 **뒤에** 묶어야
+# 묶음 안의 앱에도 표가 따라간다.
 if [[ $RELEASE -eq 1 ]]; then
     ZIP="build/${APP_NAME}-v${VERSION}.zip"
     rm -f "$ZIP"
@@ -177,7 +241,7 @@ if [[ $RELEASE -eq 1 ]]; then
     # 앱 안에서 업데이트한 횟수다 (`Sources/UpdateCheck.swift` 의 parse).
     UPDATE_ZIP="build/${APP_NAME}-v${VERSION}-update.zip"
     cp "$ZIP" "$UPDATE_ZIP"
-    echo "빌드 완료  릴리즈판 ${VERSION}  ($(lipo -archs build/agent-monitor 2>/dev/null || echo native))"
+    echo "빌드 완료  릴리즈판 ${VERSION}  ${EDITION}  ($(lipo -archs build/agent-monitor 2>/dev/null || echo native))"
     echo "  앱  : $DEST"
     echo "  zip : $ZIP"
     echo "        $UPDATE_ZIP   ← 둘 다 릴리즈에 올린다"

@@ -187,6 +187,12 @@ public enum S {
     static var updateDownloadFailed: String {
         p("받아 오지 못했습니다.", "The download did not finish.", "ダウンロードできませんでした。")
     }
+    static var updateBadSignature: String {
+        p("받은 판에 이 앱의 서명이 없어 넣지 않았습니다. 릴리즈 페이지에서 직접 받아 주세요.",
+          "What arrived does not carry this app's signature, so nothing was replaced. Please download it from the release page.",
+          "届いた版にこのアプリの署名がないため、入れ替えていません。リリースページから直接ダウンロードしてください。")
+    }
+
     static var updateBadArchive: String {
         p("받은 것이 이 앱의 그 판이 아니어서 넣지 않았습니다.",
           "What arrived was not this app at that version, so nothing was replaced.",
