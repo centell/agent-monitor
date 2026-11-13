@@ -101,7 +101,7 @@
       <h2 id="start">Getting started</h2>
       <ol class="steps">
         <li>Download it from Releases, unzip it, and move it to where you keep applications.</li>
-        <li>Right-click the app and choose Open. It is unsigned, so macOS refuses the first launch. Once is enough.</li>
+        <li>Open it. Releases are signed and notarised by Apple, so macOS opens it like any other downloaded app.</li>
         <li>The number appears in the menu bar. The first time you click a session row, allow the Terminal control prompt.</li>
       </ol>
     </section>
@@ -116,7 +116,7 @@
     <section class="wrap prose" aria-labelledby="know">
       <h2 id="know">Good to know</h2>
       <ul class="plain">
-        <li>It is neither signed nor notarised. Signing a release needs a paid Apple Developer account, which this project does not have, so macOS blocks the first launch — right-click and open gets you past it.</li>
+        <li>From 0.9.1 on, releases are signed with a Developer ID and notarised by Apple. Before an in-app update swaps anything in, the app checks that the download carries that same signature.</li>
         <li>macOS only, universal (Apple Silicon and Intel). It is built against the macOS 13 SDK, but macOS 26 is the only version it has actually been run on.</li>
         <li>Clicking through to the window works in Terminal.app only. In iTerm2, Ghostty, WezTerm or kitty the click moves nothing and says why. Inside tmux it reaches the window but not the pane.</li>
         <li>The Claude desktop app and codex in a terminal write no status down, so theirs is estimated from the tail of the transcript. Those rows say they are estimates rather than passing as measured.</li>
@@ -127,7 +127,7 @@
       <h2 id="faq">FAQ</h2>
       <div class="faq">
         <details><summary>Is the source available?</summary><p>Yes. It is open under the MIT licence.</p></details>
-        <details><summary>It will not open — macOS says it cannot verify the app.</summary><p>That is the missing signature. Right-click the app and choose Open once. If it still refuses, go to System Settings → Privacy &amp; Security and use “Open Anyway” near the bottom.</p></details>
+        <details><summary>It will not open — macOS says it cannot verify the app.</summary><p>Versions up to 0.9.0 are unsigned. Go to System Settings → Privacy &amp; Security and use “Open Anyway” near the bottom, once. Or download the latest release, which is signed.</p></details>
         <details><summary>Can I build it myself?</summary><p>Yes. With a Swift compiler, cloning it and running build.sh is the whole thing. There are no other dependencies.</p></details>
         <details><summary>Windows or Linux?</summary><p>macOS only, for now.</p></details>
       </div>

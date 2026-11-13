@@ -1,9 +1,10 @@
 import AppKit
 import Foundation
+import Security
 
 /// 새 판이 나왔는지 보고, 주인이 누르면 받아 갈아 끼운다.
 ///
-/// **Sparkle 을 쓰지 않는다.** 이 앱은 서명이 없어 Sparkle 의 가장 큰 값(EdDSA 로 받은
+/// **Sparkle 을 쓰지 않는다.** 이 결정을 내릴 때(0.9.0 까지) 이 앱은 서명이 없어 Sparkle 의 가장 큰 값(EdDSA 로 받은
 /// 것을 검증해 «받아오는 곳을 못 믿어도 되게» 하는 것)이 덜 쳐진다 — 사람들은 이미 같은
 /// GitHub 릴리즈에서 같은 HTTPS 로 zip 을 손으로 받고 있고, 자동으로 받는다고 그 기준이
 /// 낮아지지 않는다. 대신 치를 값은 컸다: 의존성 0 이 깨지고(손으로 짓는 번들에 프레임워크가
@@ -11,6 +12,11 @@ import Foundation
 /// 앱에서 유일하게 말투가 다른 창이 하나 생긴다.
 ///
 /// 다만 **사람이 받을 땐 눈이 한 번 거치는데 자동은 안 거친다.** 그 차이는 남는다.
+///
+/// 0.9.1 부터 릴리즈판은 Developer ID 로 서명하고 공증한다(`build.sh --release`). 그래서
+/// 받은 번들이 **우리 팀의 Developer ID 서명인지** 갈아 끼우기 전에 본다(`isSignedByUs`).
+/// 이제 받아오는 곳(GitHub)을 누가 가로채도 우리 인증서 없이 지은 판은 들어오지 않는다.
+/// 0.9.0 까지의 앱에는 이 검사가 없어 서명된 새 판을 그대로 받는다 — 막히지 않는다.
 ///
 /// 재 둔 것 둘 — 이 길이 막히지 않는다는 근거다.
 /// · `URLSession` 으로 받은 파일에는 격리 딱지가 안 붙는다(실측). 붙었다면 서명 없는 앱은
@@ -212,6 +218,12 @@ final class UpdateCheck: ObservableObject {
                 self.failed(S.updateBadArchive, release: release)
                 return
             }
+            guard Self.isSignedByUs(fresh) else {
+                self.busy = false
+                try? FileManager.default.removeItem(at: stage)
+                self.failed(S.updateBadSignature, release: release)
+                return
+            }
             self.swap(to: fresh, at: destination, stage: stage, release: release)
         }
     }
@@ -295,6 +307,32 @@ final class UpdateCheck: ObservableObject {
             return item
         }
         return nil
+    }
+
+    /// 받은 번들이 **우리 팀의 Developer ID 로 서명되어 있고 그 뒤로 안 바뀌었는지** 본다.
+    ///
+    /// 팀 ID 까지 못 박는다. 「애플이 내준 아무 Developer ID」면 남의 인증서로 지은 판도
+    /// 통과한다. 번들 식별자도 함께 묻는다 — 같은 팀의 다른 앱(드로우마크)이 이 자리에
+    /// 들어오는 것도 막는다.
+    ///
+    /// 직접 지은 판(임시 서명)에서 돌아도 같은 검사를 한다. 그 사람이 받는 것도 릴리즈판이라
+    /// 서명이 있어야 맞다.
+    static func isSignedByUs(_ bundle: URL) -> Bool {
+        let rule = "anchor apple generic and identifier \"me.centell.agent-monitor\""
+            + " and certificate leaf[subject.OU] = \"M9NML4Y8N9\""
+            // Developer ID Application 인증서만. 개발용(Apple Development)으로 서명한 판은 안 받는다.
+            + " and certificate 1[field.1.2.840.113635.100.6.2.6] exists"
+            + " and certificate leaf[field.1.2.840.113635.100.6.1.13] exists"
+        var code: SecStaticCode?
+        var requirement: SecRequirement?
+        guard SecStaticCodeCreateWithPath(bundle as CFURL, [], &code) == errSecSuccess, let code,
+              SecRequirementCreateWithString(rule as CFString, [], &requirement) == errSecSuccess,
+              let requirement
+        else { return false }
+        // 두 아키텍처 모두, 엄격하게. 한쪽만 고쳐 끼운 번들도 거른다.
+        let flags = SecCSFlags(rawValue: kSecCSCheckAllArchitectures | kSecCSStrictValidate
+                               | kSecCSCheckNestedCode)
+        return SecStaticCodeCheckValidity(code, flags, requirement) == errSecSuccess
     }
 
     private static func unzip(_ archive: URL, into directory: URL) -> Bool {

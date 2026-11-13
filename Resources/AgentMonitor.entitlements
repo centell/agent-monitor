@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 강화 런타임은 이것 없이 다른 앱에 Apple Event 를 못 보낸다. 세션을 눌러 그 터미널
+         창으로 가는 것(TerminalJump)과 그 창이 앞에 있으면 알림을 거르는 것(Notifier)이
+         Terminal 에 묻는 길이다. 릴리즈판(build.sh 의 release 길)만 이 파일을 쓴다. -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+</dict>
+</plist>

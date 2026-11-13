@@ -199,15 +199,14 @@ unfrozen list would move the row you were reaching for out from under you.
 
 [Releases](https://github.com/centell/agent-monitor/releases) carries a prebuilt universal app.
 
-> **It is not signed or notarised.** Signing for distribution needs a paid Apple Developer
-> account, which this project does not have. macOS will refuse to open it the first time.
+Unzip, put `AgentMonitor.app` wherever you keep apps, and open it. From 0.9.1 on, releases are
+signed with a Developer ID and notarised by Apple, so macOS opens them like any other downloaded
+app. Or build it yourself instead — two commands, about fifteen seconds.
 
-1. Unzip, and put `AgentMonitor.app` wherever you keep apps
-2. **Right-click the app → Open**, then confirm in the dialog
-3. If macOS still refuses: System Settings → Privacy & Security → scroll down → **Open Anyway**
-
-Once is enough; later launches are normal. Or build it yourself instead — two commands, about
-fifteen seconds.
+> **0.9.0 and earlier are unsigned.** If you download one of those, macOS refuses the first
+> launch: go to System Settings → Privacy & Security, scroll down, and press **Open Anyway**.
+> Once is enough. An unsigned copy you already have needs nothing — its in-app update moves it to
+> a signed release.
 
 **New versions.** Once a day the app asks GitHub whether a newer release exists, and if there is
 one a single line appears in the menu: *Version 0.6.0 — install now*. Nothing is downloaded until
@@ -218,9 +217,11 @@ old one back rather than leaving you with nothing. Turn the whole thing off in *
 The update comes from its own copy of the release zip, `…-update.zip`, so that GitHub's download
 count for that file tells how many updates happened. Nothing is sent from your Mac.
 
-> Because the app is unsigned, an update is only as trustworthy as the HTTPS connection to GitHub
-> — the same trust you already extend when you download the zip by hand. The difference is that a
-> human download passes under your eyes and an automatic one does not.
+> Before swapping anything in, the app also checks that the downloaded app is signed with this
+> project's Developer ID (team `M9NML4Y8N9`) and has not been altered since. So a download that was
+> tampered with on the way is refused even if the connection to GitHub were not to be trusted.
+> This check exists from 0.9.1; versions up to 0.9.0 trust only the HTTPS connection for their
+> one update to a signed release.
 
 ### Build from source
 
@@ -355,7 +356,7 @@ has to come from recorded days, not from a guess made before any day was recorde
 - **Servers a session spawned can escape its total.** A dev server or container that detaches from
   the process tree is not counted in that session. The memory tab lists them separately, and says
   "multiple sessions (n)" rather than guessing when several sessions share a project.
-- **Unsigned.** Releases are not signed or notarised, so macOS blocks the first launch.
+- **Releases up to 0.9.0 are unsigned.** Their first launch needs the Open Anyway step above.
 - **macOS only**, universal (Apple Silicon and Intel), built against the macOS 13 SDK but only run
   on macOS 26.
 
