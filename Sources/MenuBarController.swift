@@ -59,6 +59,10 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         if !demo { Notifier.shared.start() }
 
+        // 재부팅 뒤면 끊길 때 살아 있던 세션을 다시 열 목록으로 올린다. 첫 훑기보다 먼저 —
+        // 훑기가 기록을 새로 쓰면 「재부팅 전에 적힌 것」이라는 단서가 사라진다.
+        if !demo { SessionReopen.shared.launched() }
+
         refresh()
         restartTimer()
         restartHoverWatch()
@@ -167,6 +171,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if settings.recordStats && !demo { stats.record(sessions: sessions, memory: systemMemory) }
         // 지어낸 세션으로는 울리지 않는다.
         if !demo { Notifier.shared.observe(sessions) }
+        // 다시 열 세션을 계속 적는다. 정전처럼 「저장하고 닫기」를 못 누른 경우의 대비다.
+        if !demo { SessionReopen.shared.record(sessions) }
         // 새 판이 나왔는지는 하루에 한 번만 본다. 여기서 불려도 대개 그 자리에서 돌아선다 —
         // 그래서 타이머를 하나 더 두지 않는다.
         if !demo { UpdateCheck.shared.check() }
@@ -323,6 +329,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(item)
         }
 
+        if !demo { addReopenItems(to: menu) }
+
         menu.addItem(.separator())
         // 창을 여닫는 문. 항목 하나가 양쪽을 겸한다 — 「열기」와 「닫기」가 따로 있으면
         // 지금 떠 있는지를 메뉴가 아니라 화면을 보고 판단해야 한다.
@@ -354,6 +362,118 @@ final class MenuBarController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         quit.target = self
         menu.addItem(quit)
     }
+
+    // MARK: 저장하고 닫기 · 다시 열기
+
+    /// 세 갈래 중 지금 맞는 것만 선다 — 닫기를 기다리는 중 · 다시 열 목록 · 저장하고 닫기.
+    private func addReopenItems(to menu: NSMenu) {
+        let reopen = SessionReopen.shared
+        menu.addItem(.separator())
+
+        if !reopen.closing.isEmpty {
+            menu.addItem(disabledRow(S.closingLine(reopen.closing.count)))
+            menu.addItem(action(S.closingNowItem, #selector(closeNow)))
+            menu.addItem(action(S.closingCancelItem, #selector(cancelClosing)))
+        }
+
+        let pending = reopen.pending(live: sessions)
+        if !pending.isEmpty {
+            let item = NSMenuItem(title: S.reopenItem(pending.count), action: nil, keyEquivalent: "")
+            let sub = NSMenu()
+            sub.autoenablesItems = false
+            for saved in pending {
+                let entry = action(reopenTitle(saved), #selector(reopenOne(_:)))
+                // 순번이 아니라 id 로 단다. 메뉴를 그린 뒤 하나가 살아나면 순번이 밀린다.
+                entry.representedObject = saved.id
+                if !saved.droppedArgs.isEmpty { entry.toolTip = S.reopenDropped(saved.droppedArgs) }
+                sub.addItem(entry)
+            }
+            sub.addItem(.separator())
+            sub.addItem(action(S.reopenAll, #selector(reopenAll)))
+            sub.addItem(action(S.reopenDismiss, #selector(dismissReopen)))
+            item.submenu = sub
+            menu.addItem(item)
+        }
+
+        if reopen.closing.isEmpty, sessions.contains(where: SessionReopen.closable) {
+            menu.addItem(action(S.saveCloseItem, #selector(saveAndCloseAll)))
+        }
+    }
+
+    /// 다시 열 세션 한 줄: 이름 · 폴더 · 끊길 때 작업 중이었는지 · 안 붙인 옵션.
+    private func reopenTitle(_ saved: SavedSession) -> String {
+        let folder = (saved.cwd as NSString).abbreviatingWithTildeInPath
+        var parts = [saved.name, folder]
+        if saved.source != "claude" { parts.append(saved.source) }
+        if saved.background { parts.append(S.reopenBackground) }
+        if saved.wasWorking { parts.append(S.reopenWasWorking) }
+        if !saved.droppedArgs.isEmpty { parts.append(S.reopenDropped(saved.droppedArgs)) }
+        return parts.joined(separator: "  ·  ")
+    }
+
+    private func action(_ title: String, _ selector: Selector) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
+        item.target = self
+        return item
+    }
+
+    @objc private func reopenOne(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String,
+              let saved = SessionReopen.shared.pending(live: sessions).first(where: { $0.id == id }) else { return }
+        reopen([saved])
+    }
+
+    @objc private func reopenAll() {
+        reopen(SessionReopen.shared.pending(live: sessions))
+    }
+
+    private func reopen(_ list: [SavedSession]) { SessionReopen.shared.openAll(list) }
+
+    @objc private func dismissReopen() { SessionReopen.shared.dismiss() }
+
+    /// 저장은 누르는 순간 한다. 닫기는 확인을 받고 한다.
+    @objc private func saveAndCloseAll() {
+        let live = scanned()
+        let closable = live.filter(SessionReopen.closable)
+        guard !closable.isEmpty else { return }
+        let working = closable.filter { $0.state != .idle }
+
+        NSApp.activate(ignoringOtherApps: true)
+        let box = NSAlert()
+        box.messageText = S.saveCloseTitle(closable.count)
+        var body = S.saveCloseBody
+        if !working.isEmpty { body += "\n\n" + S.saveCloseWorking(working.map(\.name)) }
+        if live.contains(where: { !$0.runsInApp && $0.source == "codex" }) { body += "\n\n" + S.saveCloseCodexNote }
+        box.informativeText = body
+        // 작업 중인 것이 있을 때만 「끝나면 닫기」가 선다. 맨 앞 단추가 기본값이다.
+        if !working.isEmpty { box.addButton(withTitle: S.saveCloseWait) }
+        box.addButton(withTitle: S.saveCloseNow)
+        box.addButton(withTitle: S.addonCancel)
+
+        let answer = box.runModal()
+        let first = NSApplication.ModalResponse.alertFirstButtonReturn
+        let second = NSApplication.ModalResponse.alertSecondButtonReturn
+        let wait: Bool
+        if working.isEmpty {
+            guard answer == first else { return }
+            wait = false
+        } else {
+            guard answer == first || answer == second else { return }
+            wait = answer == first
+        }
+        // 상자가 떠 있던 사이 세션이 끝나고 pid 가 재사용됐을 수 있다. 다시 훑은 것으로
+        // 저장하고 닫는다 — 신호는 늘 지금 살아 있는 그 세션에게만 간다.
+        let now = scanned()
+        SessionReopen.shared.save(now)
+        SessionReopen.shared.close(now.filter(SessionReopen.closable), waitForWork: wait)
+        refresh()
+    }
+
+    @objc private func closeNow() {
+        SessionReopen.shared.closeNow(scanned())
+    }
+
+    @objc private func cancelClosing() { SessionReopen.shared.cancelClosing() }
 
     /// 줄의 생김새(굵기·색·툴팁)는 상시 창과 한 벌을 쓴다 — `SessionRowStyle`.
     /// 다 짜인 글을 받는다. 여기서 만들면 그 줄 하나만 보게 되어 칸이 안 맞는다.
