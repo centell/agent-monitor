@@ -197,7 +197,22 @@ enum ReopenArgs {
             // `-` 없는 낱말은 처음 띄울 때 건넨 첫 질문이다. 다시 보내면 안 된다.
             i += 1
         }
-        return (keep, dropped)
+        return (unique(keep), unique(dropped))
+    }
+
+    /// 같은 옵션을 한 번만 남긴다. 옵션과 그 값들을 한 묶음으로 본다.
+    ///
+    /// 다시 열 때 옵션을 `--resume` 뒤에 붙이므로, 그 세션을 다시 저장하면 처음 것과 붙인
+    /// 것이 둘 다 잡힌다. 안 걷으면 다시 열 때마다 하나씩 늘었다 (실측 2026-11-15, 한 세션에
+    /// `--remote-control=agent-monitor` 가 여러 번).
+    static func unique(_ args: [String]) -> [String] {
+        var groups: [[String]] = []
+        for t in args {
+            if t.hasPrefix("-") || groups.isEmpty { groups.append([t]) } else { groups[groups.count - 1].append(t) }
+        }
+        var seen: [[String]] = []
+        for g in groups where !seen.contains(g) { seen.append(g) }
+        return seen.flatMap { $0 }
     }
 }
 
@@ -294,7 +309,7 @@ enum ReopenCommand {
             return "\(cd) && \(env)codex resume \(quoted(s.id))"
         default:
             let env = isDefault ? "" : "CLAUDE_CONFIG_DIR=\(quoted(s.accountRoot)) "
-            let rest = s.args.map(quoted).joined(separator: " ")
+            let rest = ReopenArgs.unique(s.args).map(quoted).joined(separator: " ")
             return "\(cd) && \(env)claude --resume \(quoted(s.id))" + (rest.isEmpty ? "" : " \(rest)")
         }
     }
