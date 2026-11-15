@@ -44,7 +44,7 @@ final class SessionReopen {
     /// 앱이 켜질 때 한 번. 재부팅 뒤면 끊길 때 살아 있던 세션을 다시 열 목록으로 올린다.
     func launched() {
         // 탭으로 열기의 권한을 켤 때 남긴다 — 목록에는 켜져 있는데 앱은 없다고 보는 일이 있었다.
-        Self.log("launch ax=\(AXIsProcessTrusted()) se=\(Self.mayAutomateSystemEvents(ask: false))")
+        Self.log("launch ax=\(AXIsProcessTrusted())")
         guard let old = load() else { return }
         let next = SnapshotLogic.afterLaunch(old, bootedAt: Self.bootTime() ?? .distantPast)
         snapshot = next
@@ -235,60 +235,93 @@ final class SessionReopen {
 
     /// 창 `window` 에 탭을 하나 붙이고 거기서 연다. 못 붙였으면 nil. 돌려주는 것은 새 탭의 창 id.
     ///
-    /// Terminal 의 AppleScript 에는 「새 탭」이 없다. 그 창을 맨 앞에 세우고 ⌘T 를 대신
-    /// 누른다 — 그래서 손쉬운 사용 권한이 든다. 글자(`keystroke "t"`)가 아니라 자판 자리
-    /// (`key code 17` = T)로 누른다 — 한글 자판이면 글자 t 는 오류도 없이 사라진다
-    /// (실측 2026-11-15, 2SetHangul: keystroke 는 창 수 7→7, key code 는 7→8). macOS 탭이라 새 탭도 AppleScript 에는 **새 창**
-    /// 으로 보인다 (`ReopenLayout.TerminalWindow`). 창 수가 늘고 맨 앞 창이 바뀐 것을 본
-    /// 뒤에야 명령을 넣는다 — 안 그러면 남의 탭에 명령이 들어간다.
+    /// Terminal 의 AppleScript 에는 「새 탭」이 없다. 그 창을 맨 앞에 세우고 Shell → New Tab
+    /// 메뉴를 손쉬운 사용 API 로 누른다 (`newTabMenuItem`). 키도 이름도 쓰지 않는다 — 키는
+    /// 자판을 타고(한글 자판에서 `keystroke "t"` 가 오류 없이 사라졌다, 실측 2026-11-15),
+    /// 단축키는 사람이 바꿀 수 있고, 이름은 OS 언어를 탄다.
+    ///
+    /// macOS 탭이라 새 탭도 AppleScript 에는 **새 창**으로 보인다 (`ReopenLayout.TerminalWindow`).
+    /// 창 수가 늘고, 맨 앞 창이 바뀌고, 그 틀이 대상 창과 같을 때만 — 곧 정말 같은 창의
+    /// 탭일 때만 명령을 넣는다. 엉뚱한 메뉴를 눌렀거나 남의 탭이면 넣지 않는다.
     private static func addTab(to window: Int, line: String) -> Int? {
-        guard AXIsProcessTrusted(), mayAutomateSystemEvents(ask: false) else { return nil }
-        let script = """
+        guard AXIsProcessTrusted(),
+              let terminal = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Terminal").first
+        else { return nil }
+        let front = """
         tell application "Terminal"
             activate
             set index of window id \(window) to 1
-            set had to count windows
+            return count windows
         end tell
-        delay 0.2
-        tell application "System Events" to key code 17 using command down
+        """
+        var error: NSDictionary?
+        guard let had = NSAppleScript(source: front)?.executeAndReturnError(&error).int32Value, error == nil else {
+            log("addTab front failed \(error ?? [:])")
+            return nil
+        }
+        Thread.sleep(forTimeInterval: 0.2)
+        guard let item = newTabMenuItem(of: terminal.processIdentifier) else {
+            log("addTab no New Tab menu item")
+            return nil
+        }
+        let pressed = AXUIElementPerformAction(item, kAXPressAction as CFString)
+        guard pressed == .success else {
+            log("addTab press failed \(pressed.rawValue)")
+            return nil
+        }
+        let fill = """
+        tell application "Terminal" to get bounds of window id \(window)
+        set wanted to result
         repeat 20 times
-            delay 0.1
             tell application "Terminal"
-                if (count windows) > had and (id of window 1) is not \(window) then
+                if (count windows) > \(had) and (id of window 1) is not \(window) then
+                    if (bounds of window 1) is not wanted then return -1
                     do script \(ReopenCommand.appleScriptString(line)) in window 1
                     return id of window 1
                 end if
             end tell
+            delay 0.1
         end repeat
         return 0
         """
-        var error: NSDictionary?
-        guard let out = NSAppleScript(source: script)?.executeAndReturnError(&error), error == nil else {
-            log("addTab failed \(error ?? [:])")
+        guard let out = NSAppleScript(source: fill)?.executeAndReturnError(&error), error == nil else {
+            log("addTab fill failed \(error ?? [:])")
             return nil
         }
         let id = Int(out.int32Value)
-        return id == 0 ? nil : id
+        if id <= 0 { log(id == 0 ? "addTab no new tab appeared" : "addTab new window is not a tab of \(window)") }
+        return id > 0 ? id : nil
     }
 
-    /// System Events 를 부려도 되는가. `ask` 면 아직 안 정한 사람에게 묻는다 (답할 때까지 막힌다).
-    private static func mayAutomateSystemEvents(ask: Bool) -> Bool {
-        let bundle = "com.apple.systemevents"
-        guard let desc = NSAppleEventDescriptor(bundleIdentifier: bundle).aeDesc else { return false }
-        func check() -> OSStatus { AEDeterminePermissionToAutomateTarget(desc, typeWildCard, typeWildCard, ask) }
-        var status = check()
-        // 안 떠 있으면 허락을 잴 수 없다 (procNotFound). 띄우고 잠깐 기다린다 — 쉬면 스스로 내려간다.
-        if status == OSStatus(procNotFound),
-           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) {
-            let config = NSWorkspace.OpenConfiguration()
-            config.activates = false
-            NSWorkspace.shared.openApplication(at: url, configuration: config)
-            for _ in 0..<20 where status == OSStatus(procNotFound) {
-                Thread.sleep(forTimeInterval: 0.05)
-                status = check()
-            }
+    /// Terminal 의 Shell → New Tab 하위 메뉴 첫 항목 (기본 프로필로 새 탭).
+    ///
+    /// 찾는 길 둘: ① 메뉴의 식별자 `_NS:712` (Terminal 2.15 · macOS 27.2 실측. nib 이 매긴 값이라
+    /// 판이 바뀌면 달라질 수 있다) ② 자리 — 메뉴막대 세 번째(Apple · Terminal · Shell)에서
+    /// 하위 메뉴를 가진 **두 번째** 항목 (첫째는 New Window 다 — 실측에서 첫째를 골랐다가
+    /// 새 창이 떴다). 어느 쪽이든 누른 뒤 `addTab` 이 틀을 보고 확인한다.
+    private static func newTabMenuItem(of pid: pid_t) -> AXUIElement? {
+        func value(_ e: AXUIElement, _ name: String) -> AnyObject? {
+            var v: AnyObject?
+            return AXUIElementCopyAttributeValue(e, name as CFString, &v) == .success ? v : nil
         }
-        return status == noErr
+        func children(_ e: AXUIElement) -> [AXUIElement] {
+            (value(e, kAXChildrenAttribute) as? [AXUIElement]) ?? []
+        }
+        /// 메뉴 항목 → 그 하위 메뉴의 첫 항목.
+        func firstSubitem(_ item: AXUIElement) -> AXUIElement? {
+            children(item).first.flatMap { children($0).first }
+        }
+        guard let barValue = value(AXUIElementCreateApplication(pid), kAXMenuBarAttribute) else { return nil }
+        let menus = children(barValue as! AXUIElement)
+        guard menus.count > 2, let shell = children(menus[2]).first else { return nil }
+        let items = children(shell)
+        if let byID = items.first(where: { (value($0, "AXIdentifier") as? String) == "_NS:712" }),
+           let sub = firstSubitem(byID) {
+            return sub
+        }
+        log("addTab New Tab id not found — using position")
+        let withSubmenu = items.filter { !children($0).isEmpty }
+        return withSubmenu.count > 1 ? firstSubitem(withSubmenu[1]) : nil
     }
 
     /// 목록을 연다. 같은 창에 있던 것은 같은 창에 탭으로 모은다 (`ReopenLayout.groups`).
@@ -304,13 +337,8 @@ final class SessionReopen {
             let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
             _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
         }
-        // System Events 를 부릴 허락도 따로다. 아직이면 묻는 상자를 **뒤에서** 띄운다 — 메인
-        // 스레드에서 물으면 사람이 답할 때까지(안 답하면 2분) 메뉴바가 언다 (실측 -1712).
-        if wantsTabs && !Self.mayAutomateSystemEvents(ask: false) {
-            DispatchQueue.global().async { _ = Self.mayAutomateSystemEvents(ask: true) }
-        }
         Self.log("openAll groups=\(groups.map { $0.map { "\($0.name)@\($0.window.map(String.init) ?? "-").\($0.tab.map(String.init) ?? "-")" } }) "
-                 + "ax=\(AXIsProcessTrusted()) se=\(Self.mayAutomateSystemEvents(ask: false))")
+                 + "ax=\(AXIsProcessTrusted())")
         var allTabbed = true
         for group in groups {
             var window: Int?

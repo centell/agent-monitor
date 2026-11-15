@@ -467,25 +467,22 @@ public enum S {
     }
     static var reopenTabsBody: String {
         p("""
-          같은 창에 탭으로 모으려면 AgentMonitor 가 ⌘T 를 대신 누를 수 있어야 합니다.
+          같은 창에 탭으로 모으려면 AgentMonitor 가 Terminal 의 새 탭 메뉴를 대신 누를 수 있어야 합니다.
 
           시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용 에서 AgentMonitor 를 켜 주세요.
           목록에 없으면 + 로 ~/Applications/AgentMonitor.app 을 더해 주세요.
-          System Events 를 묻는 상자가 뜨면 허용해 주세요.
           """,
           """
-          To gather them as tabs in one window, AgentMonitor needs to press ⌘T for you.
+          To gather them as tabs in one window, AgentMonitor needs to choose Terminal's New Tab menu for you.
 
           System Settings → Privacy & Security → Accessibility, then enable AgentMonitor.
           If it is not listed, add ~/Applications/AgentMonitor.app with +.
-          If asked about controlling System Events, allow it.
           """,
           """
-          同じウィンドウにタブとしてまとめるには、AgentMonitor が ⌘T を代わりに押せる必要があります。
+          同じウィンドウにタブとしてまとめるには、AgentMonitor が Terminal の新規タブメニューを代わりに選べる必要があります。
 
           システム設定 → プライバシーとセキュリティ → アクセシビリティ で AgentMonitor をオンにしてください。
           一覧になければ + で ~/Applications/AgentMonitor.app を追加してください。
-          System Events の操作を尋ねられたら許可してください。
           """)
     }
 
