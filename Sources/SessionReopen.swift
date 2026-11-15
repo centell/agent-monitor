@@ -110,6 +110,8 @@ final class SessionReopen {
     func save(_ sessions: [Session]) {
         layout = Self.terminalLayout()
         let live = sessions.compactMap { Self.saved(from: $0, layout: layout) }
+        Self.log("save layout=\(layout.map { "\($0.key)=\($0.value.window).\($0.value.tab)" }.sorted()) "
+                 + "sessions=\(live.map { "\($0.name)@\($0.window.map(String.init) ?? "-").\($0.tab.map(String.init) ?? "-")" })")
         let next = SnapshotLogic.saving(live, into: snapshot, now: Date())
         snapshot = next
         write(next)
@@ -229,35 +231,38 @@ final class SessionReopen {
         return (.opened, Int(out.int32Value))
     }
 
-    /// 창 `window` 에 탭을 하나 붙이고 거기서 연다. 못 붙였으면 nil.
+    /// 창 `window` 에 탭을 하나 붙이고 거기서 연다. 못 붙였으면 nil. 돌려주는 것은 새 탭의 창 id.
     ///
     /// Terminal 의 AppleScript 에는 「새 탭」이 없다. 그 창을 맨 앞에 세우고 ⌘T 를 대신
-    /// 누른다 — 그래서 손쉬운 사용 권한이 든다. 탭 수가 늘었는지 보고 나서야 그 탭에
-    /// 명령을 넣는다. 안 늘었는데 넣으면 남의 탭에 명령이 들어간다.
+    /// 누른다 — 그래서 손쉬운 사용 권한이 든다. macOS 탭이라 새 탭도 AppleScript 에는 **새 창**
+    /// 으로 보인다 (`ReopenLayout.TerminalWindow`). 창 수가 늘고 맨 앞 창이 바뀐 것을 본
+    /// 뒤에야 명령을 넣는다 — 안 그러면 남의 탭에 명령이 들어간다.
     private static func addTab(to window: Int, line: String) -> Int? {
         guard AXIsProcessTrusted(), mayAutomateSystemEvents(ask: false) else { return nil }
         let script = """
         tell application "Terminal"
             activate
-            set w to window id \(window)
-            set index of w to 1
-            set had to count tabs of w
+            set index of window id \(window) to 1
+            set had to count windows
         end tell
         delay 0.2
         tell application "System Events" to keystroke "t" using command down
         repeat 20 times
             delay 0.1
             tell application "Terminal"
-                if (count tabs of w) > had then
-                    do script \(ReopenCommand.appleScriptString(line)) in (selected tab of w)
-                    return id of w
+                if (count windows) > had and (id of window 1) is not \(window) then
+                    do script \(ReopenCommand.appleScriptString(line)) in window 1
+                    return id of window 1
                 end if
             end tell
         end repeat
         return 0
         """
         var error: NSDictionary?
-        guard let out = NSAppleScript(source: script)?.executeAndReturnError(&error), error == nil else { return nil }
+        guard let out = NSAppleScript(source: script)?.executeAndReturnError(&error), error == nil else {
+            log("addTab failed \(error ?? [:])")
+            return nil
+        }
         let id = Int(out.int32Value)
         return id == 0 ? nil : id
     }
@@ -300,11 +305,14 @@ final class SessionReopen {
         if wantsTabs && !Self.mayAutomateSystemEvents(ask: false) {
             DispatchQueue.global().async { _ = Self.mayAutomateSystemEvents(ask: true) }
         }
+        Self.log("openAll groups=\(groups.map { $0.map { "\($0.name)@\($0.window.map(String.init) ?? "-").\($0.tab.map(String.init) ?? "-")" } }) "
+                 + "ax=\(AXIsProcessTrusted()) se=\(Self.mayAutomateSystemEvents(ask: false))")
         var allTabbed = true
         for group in groups {
             var window: Int?
             for saved in group {
                 let (outcome, opened, tabbed) = open(saved, beside: window)
+                Self.log("open \(saved.name) beside=\(window.map(String.init) ?? "-") -> \(outcome) window=\(opened.map(String.init) ?? "-") tabbed=\(tabbed)")
                 allTabbed = allTabbed && tabbed
                 switch outcome {
                 case .opened:
@@ -365,9 +373,8 @@ final class SessionReopen {
                 repeat with i from 1 to count windows
                     try
                         set w to window i
-                        repeat with j from 1 to count tabs of w
-                            set out to out & i & " " & j & " " & (tty of tab j of w) & linefeed
-                        end repeat
+                        set b to bounds of w
+                        set out to out & i & " " & (id of w) & " " & (item 1 of b) & "," & (item 2 of b) & "," & (item 3 of b) & "," & (item 4 of b) & " " & (tty of tab 1 of w) & linefeed
                     end try
                 end repeat
                 return out
@@ -376,8 +383,14 @@ final class SessionReopen {
         """
         var error: NSDictionary?
         guard let text = NSAppleScript(source: script)?.executeAndReturnError(&error).stringValue,
-              error == nil else { return [:] }
-        return ReopenLayout.parse(text)
+              error == nil else { log("layout failed \(error ?? [:])"); return [:] }
+        return ReopenLayout.groups(of: ReopenLayout.parse(text, onScreen: onScreenWindows()))
+    }
+
+    /// 지금 그려지고 있는 창 번호들. 묶음 뒤에 숨은 탭은 여기 없다. 화면 녹화 권한 없이 읽힌다.
+    private static func onScreenWindows() -> Set<Int> {
+        let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+        return Set(info.compactMap { $0[kCGWindowNumber as String] as? Int })
     }
 
     static func saved(from session: Session, layout: [String: (window: Int, tab: Int)]) -> SavedSession? {
@@ -416,6 +429,18 @@ final class SessionReopen {
     }
 
     // MARK: 파일
+
+    /// 다시 열기가 어디서 어긋났는지 남는 자리. 저장·열기 때만 적으므로 작다.
+    static func log(_ line: String) {
+        let url = defaultFile.deletingLastPathComponent().appendingPathComponent("reopen.log")
+        let stamp = ISO8601DateFormatter().string(from: Date())
+        guard let data = "\(stamp) \(line)\n".data(using: .utf8) else { return }
+        if let h = try? FileHandle(forWritingTo: url) {
+            h.seekToEndOfFile(); h.write(data); try? h.close()
+        } else {
+            try? data.write(to: url)
+        }
+    }
 
     private func load() -> SessionSnapshot? {
         guard let data = try? Data(contentsOf: file) else { return nil }

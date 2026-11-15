@@ -206,13 +206,51 @@ enum ReopenArgs {
 /// Terminal 의 창·탭 배치를 적고 되살리는 셈.
 enum ReopenLayout {
 
-    /// `창순번 탭순번 tty` 줄들 → tty 별 자리.
-    static func parse(_ text: String) -> [String: (window: Int, tab: Int)] {
-        var out: [String: (window: Int, tab: Int)] = [:]
-        for line in text.split(whereSeparator: \.isNewline) {
+    /// Terminal 창 하나 (AppleScript 가 보는 것).
+    ///
+    /// macOS 탭을 쓰는 Terminal 은 **탭 하나하나를 창으로** 돌려준다 (실측 2026-11-15 — 탭 둘인
+    /// 창이 「탭 하나짜리 창 둘」로 나왔다). 그래서 「몇 번째 창의 몇 번째 탭」을 그대로 물으면
+    /// 모두 1번 탭이 된다. 같은 묶음의 탭은 틀(bounds)이 같고, 앞에 보이는 탭만 화면에
+    /// 그려진다 — 이 둘로 묶음을 되짓는다.
+    struct TerminalWindow: Equatable {
+        var index: Int      // 앞에서부터 순번
+        var id: Int         // 창 번호 (CGWindowID 와 같다)
+        var bounds: String
+        var tty: String
+        var onScreen: Bool  // 그려지고 있는가. 묶음 뒤에 숨은 탭은 거짓이다
+    }
+
+    /// `순번 id 틀 tty` 줄들. 틀은 공백 없이 `x1,y1,x2,y2`.
+    static func parse(_ text: String, onScreen: Set<Int>) -> [TerminalWindow] {
+        text.split(whereSeparator: \.isNewline).compactMap { line in
             let f = line.split(separator: " ")
-            guard f.count == 3, let w = Int(f[0]), let t = Int(f[1]), f[2].hasPrefix("/dev/") else { continue }
-            out[String(f[2])] = (w, t)
+            guard f.count == 4, let i = Int(f[0]), let id = Int(f[1]), f[3].hasPrefix("/dev/") else { return nil }
+            return TerminalWindow(index: i, id: id, bounds: String(f[2]), tty: String(f[3]), onScreen: onScreen.contains(id))
+        }
+    }
+
+    /// tty → (묶음 순번, 묶음 안 탭 순번).
+    ///
+    /// - 그려지는 창은 저마다 한 묶음이다. 틀이 같아도 둘 다 보이면 다른 창이다.
+    /// - 숨은 창은 틀이 같은 그려지는 창 중 가장 앞의 것에 붙는다. 붙을 데가 없으면
+    ///   (다른 데스크탑에 있거나 접혀 있으면) 틀이 같은 숨은 창끼리 한 묶음이다.
+    /// - 묶음 순번은 그 묶음에서 가장 앞에 있는 창의 순번 차례, 탭 순번은 창 번호 차례다.
+    ///   탭을 끌어 순서를 바꿨으면 그건 못 따라간다 — 창 번호는 만든 차례다.
+    static func groups(of windows: [TerminalWindow]) -> [String: (window: Int, tab: Int)] {
+        var leader: [Int: Int] = [:]                    // 창 id → 묶음 대표 id
+        let front = windows.sorted { $0.index < $1.index }
+        for w in front where w.onScreen { leader[w.id] = w.id }
+        for w in front where !w.onScreen {
+            let host = front.first { $0.onScreen && $0.bounds == w.bounds }
+                ?? front.first { !$0.onScreen && $0.bounds == w.bounds && leader[$0.id] == $0.id }
+            leader[w.id] = host?.id ?? w.id
+        }
+        var members: [Int: [TerminalWindow]] = [:]
+        for w in front { members[leader[w.id]!, default: []].append(w) }
+        let order = members.values.sorted { $0.map(\.index).min()! < $1.map(\.index).min()! }
+        var out: [String: (window: Int, tab: Int)] = [:]
+        for (g, list) in order.enumerated() {
+            for (t, w) in list.sorted(by: { $0.id < $1.id }).enumerated() { out[w.tty] = (g + 1, t + 1) }
         }
         return out
     }
