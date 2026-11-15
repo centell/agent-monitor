@@ -326,7 +326,24 @@ final class SessionReopen {
                 }
             }
         }
-        if !allTabbed { Self.alert(S.reopenTabsTitle, S.reopenTabsBody) }
+        if !allTabbed { Self.askForTabPermission() }
+    }
+
+    /// 탭으로 못 묶은 까닭을 말하고, 설정을 바로 열 단추를 준다.
+    ///
+    /// 시스템의 권한 상자는 앱마다 한 번만 뜬다 — 한 번 지나가면 다시 불러도 조용하다
+    /// (실측 2026-11-15, 로컬 빌드). 그래서 길만 말하지 않고 그 자리를 열어 준다.
+    private static func askForTabPermission() {
+        NSApp.activate(ignoringOtherApps: true)
+        let box = NSAlert()
+        box.messageText = S.reopenTabsTitle
+        box.informativeText = S.reopenTabsBody
+        box.addButton(withTitle: S.reopenOpenSettings)
+        box.addButton(withTitle: S.okButton)
+        guard box.runModal() == .alertFirstButtonReturn,
+              let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+        else { return }
+        NSWorkspace.shared.open(url)
     }
 
     static func alert(_ title: String, _ body: String) {
