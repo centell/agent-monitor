@@ -173,7 +173,7 @@ codesign --force --sign - "$DEST" >/dev/null 2>&1 || echo "  ⚠ 서명하지 �
 # 받은 사람의 맥은 서명도 공증도 없는 앱을 처음 열 때 막는다. 키체인에 「Developer ID
 # Application」 인증서가 있으면 그것으로 서명하고, 없으면 위의 임시 서명 그대로 묶는다 —
 # 인증서가 없는 맥에서도 릴리즈판이 지어지기는 해야 한다. 직접 짓는 판(릴리즈가 아닌 것)은
-# 언제나 임시 서명이다.
+# 인증서가 있으면 Developer ID 로 서명만 하고, 없으면 임시 서명이다.
 #
 # 공증 자격은 App Store Connect API 키다. 드로우마크와 같은 계정·같은 키라 그쪽이 만들어 둔
 # 키체인 항목을 그대로 읽는다 (만드는 법은 drawmark/scripts/release-desktop.sh 주석).
@@ -224,6 +224,19 @@ if [[ -n "$SIGN_ID" ]]; then
     xcrun stapler validate "$DEST"
     spctl --assess --type execute --verbose=2 "$DEST"
     EDITION="Developer ID 서명 · 공증"
+elif [[ $RELEASE -eq 0 ]]; then
+    # 직접 짓는 판도 인증서가 있으면 Developer ID 로 서명한다 (공증은 하지 않는다).
+    #
+    # 임시 서명은 macOS 가 「이 빌드 파일 하나」로 기억해서, 빌드할 때마다 손쉬운 사용 허락이
+    # 풀린다 — 목록에는 켜져 있는데 앱은 허락이 없다고 본다 (실측 2026-11-15, 탭으로 다시
+    # 열기가 ax=false 로 새 창만 띄웠다). 팀 인증서로 서명하면 「팀 + 번들 id」로 기억해 유지된다.
+    # 강화 런타임은 켜지 않는다 — 켜면 따로 서명한 애드온 번들을 읽지 못한다.
+    LOCAL_ID=$(security find-identity -v -p codesigning \
+        | sed -n "s/.*\"\(Developer ID Application: [^\"]*(${TEAM_ID})\)\".*/\1/p" | head -1)
+    if [[ -n "$LOCAL_ID" ]]; then
+        codesign --force --sign "$LOCAL_ID" "$DEST" >/dev/null 2>&1 \
+            || echo "  ⚠ Developer ID 로 서명하지 못해 임시 서명으로 둡니다 — 손쉬운 사용 허락이 빌드마다 풀립니다"
+    fi
 elif [[ $RELEASE -eq 1 ]]; then
     echo "  ⚠ Developer ID 인증서(팀 ${TEAM_ID})가 없어 임시 서명으로 묶습니다 — 받은 사람의 맥이 첫 실행을 막고,"
     echo "    0.9.1 부터의 앱 안 업데이트는 이 판을 받지 않습니다 (Sources/UpdateCheck.swift 의 requirement)"
