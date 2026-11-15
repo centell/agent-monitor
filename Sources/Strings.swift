@@ -458,6 +458,30 @@ public enum S {
         return p("안 붙인 옵션: \(list)", "Not passed: \(list)", "付けないオプション: \(list)")
     }
     static var reopenFailedTitle: String { p("다시 열지 못했습니다", "Could not reopen", "再び開けませんでした") }
+    static var reopenTabsTitle: String {
+        p("일부 세션을 새 창으로 열었습니다", "Some sessions opened in new windows",
+          "一部のセッションを新しいウィンドウで開きました")
+    }
+    static var reopenTabsBody: String {
+        p("""
+          같은 창에 탭으로 모으려면 AgentMonitor 가 ⌘T 를 대신 누를 수 있어야 합니다.
+
+          시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용 에서 AgentMonitor 를 켜 주세요.
+          자동화 에서 System Events 를 묻는 상자가 뜨면 허용해 주세요.
+          """,
+          """
+          To gather them as tabs in one window, AgentMonitor needs to press ⌘T for you.
+
+          System Settings → Privacy & Security → Accessibility, then enable AgentMonitor.
+          If asked about controlling System Events, allow it.
+          """,
+          """
+          同じウィンドウにタブとしてまとめるには、AgentMonitor が ⌘T を代わりに押せる必要があります。
+
+          システム設定 → プライバシーとセキュリティ → アクセシビリティ で AgentMonitor をオンにしてください。
+          System Events の操作を尋ねられたら許可してください。
+          """)
+    }
 
     // MARK: 요약
 

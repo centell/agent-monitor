@@ -118,7 +118,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     }
 
     /// 묻지 않고, 이미 허락받았는지만 본다.
-    private static func mayAutomateTerminal() -> Bool {
+    static func mayAutomateTerminal() -> Bool {
         let target = NSAppleEventDescriptor(bundleIdentifier: "com.apple.Terminal")
         guard let desc = target.aeDesc else { return false }
         return AEDeterminePermissionToAutomateTarget(desc, typeWildCard, typeWildCard, false) == noErr

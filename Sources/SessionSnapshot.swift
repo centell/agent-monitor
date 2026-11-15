@@ -20,6 +20,12 @@ struct SavedSession: Codable, Equatable {
     var droppedArgs: [String]   // 붙이지 않은 옵션 — 메뉴에 보인다
     var state: String           // 적을 때의 상태 원문
     var lastSeen: Date
+    /// Terminal 의 몇 번째 창(앞에서부터)의 몇 번째 탭에 있었는가. 못 쟀으면 없다.
+    ///
+    /// 창 id 가 아니라 순번을 적는다. id 는 재부팅하면 새로 매겨져 맞출 데가 없고,
+    /// 다시 열 때 필요한 것은 「누구와 한 창에, 몇 번째로」뿐이다.
+    var window: Int? = nil
+    var tab: Int? = nil
 
     /// 끊길 때 턴이 돌고 있었는가. 다시 열 때 「작업 중이었음」으로 보인다.
     ///
@@ -192,6 +198,39 @@ enum ReopenArgs {
             i += 1
         }
         return (keep, dropped)
+    }
+}
+
+// MARK: - 창 배치
+
+/// Terminal 의 창·탭 배치를 적고 되살리는 셈.
+enum ReopenLayout {
+
+    /// `창순번 탭순번 tty` 줄들 → tty 별 자리.
+    static func parse(_ text: String) -> [String: (window: Int, tab: Int)] {
+        var out: [String: (window: Int, tab: Int)] = [:]
+        for line in text.split(whereSeparator: \.isNewline) {
+            let f = line.split(separator: " ")
+            guard f.count == 3, let w = Int(f[0]), let t = Int(f[1]), f[2].hasPrefix("/dev/") else { continue }
+            out[String(f[2])] = (w, t)
+        }
+        return out
+    }
+
+    /// 한 창에 열 묶음들. 묶음 안은 탭 차례대로, 묶음은 **뒤 창부터** 둔다.
+    ///
+    /// 차례대로 열면 마지막에 연 창이 맨 앞에 온다. 뒤 창부터 열어야 끊기 전에 맨 앞이던
+    /// 창이 다시 맨 앞에 선다. 자리를 모르는 세션과 백그라운드 세션은 저마다 한 묶음이다.
+    static func groups(_ list: [SavedSession]) -> [[SavedSession]] {
+        var byWindow: [Int: [SavedSession]] = [:]
+        var alone: [[SavedSession]] = []
+        for s in list {
+            if !s.background, let w = s.window { byWindow[w, default: []].append(s) } else { alone.append([s]) }
+        }
+        let windows = byWindow.keys.sorted(by: >).map { w in
+            byWindow[w]!.sorted { ($0.tab ?? 0, $0.id) < ($1.tab ?? 0, $1.id) }
+        }
+        return alone + windows
     }
 }
 

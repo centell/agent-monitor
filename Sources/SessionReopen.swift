@@ -23,6 +23,11 @@ final class SessionReopen {
     /// 방금 연 세션. 다음 훑기에 잡히기 전에 「모두 열기」를 또 누르면 창이 둘 뜬다.
     private var recentlyOpened: [String: Date] = [:]
 
+    /// 마지막으로 잰 Terminal 창·탭 배치 (tty → 자리). 훑을 때마다 묻지 않는다 — 쓸 때만 다시 잰다.
+    private var layout: [String: (window: Int, tab: Int)] = [:]
+    private var layoutAt: Date = .distantPast
+    private var layoutIDs: Set<String> = []
+
     init(file: URL? = nil) {
         self.file = file ?? Self.defaultFile
     }
@@ -51,10 +56,18 @@ final class SessionReopen {
     /// 매번 쓰지는 않는다. 세션이나 상태가 바뀌었을 때, 아니면 30초마다 쓴다.
     /// 「마지막으로 적은 시각」만 낡지 않으면 재부팅 뒤 후보를 가리는 데 모자람이 없다.
     func record(_ sessions: [Session]) {
-        let live = sessions.compactMap(Self.saved(from:))
+        var live = sessions.compactMap { Self.saved(from: $0, layout: layout) }
         let liveIDs = Set(sessions.map(\.id))
         let shape = live.map { "\($0.id):\($0.state)" }.sorted()
         let now = Date()
+        // 배치는 세션이 들고 나거나 30초가 지났을 때만 다시 잰다. 상태가 바뀔 때마다
+        // Terminal 에 물으면 바쁜 날엔 몇 초마다 메인 스레드를 붙든다. 탭을 옮긴 것은 30초 안에 따라온다.
+        if liveIDs != layoutIDs || now.timeIntervalSince(layoutAt) > 30 {
+            layout = Self.terminalLayout()
+            layoutAt = now
+            layoutIDs = liveIDs
+            live = sessions.compactMap { Self.saved(from: $0, layout: layout) }
+        }
 
         var next = SnapshotLogic.recording(live, into: snapshot, now: now)
         next = SnapshotLogic.settled(next, liveIDs: liveIDs)
@@ -95,7 +108,8 @@ final class SessionReopen {
 
     /// 지금 목록을 저장한다. 닫기는 `close(_:waitForWork:)` 가 한다.
     func save(_ sessions: [Session]) {
-        let live = sessions.compactMap(Self.saved(from:))
+        layout = Self.terminalLayout()
+        let live = sessions.compactMap { Self.saved(from: $0, layout: layout) }
         let next = SnapshotLogic.saving(live, into: snapshot, now: Date())
         snapshot = next
         write(next)
@@ -170,46 +184,141 @@ final class SessionReopen {
         case failed(String)
     }
 
-    func open(_ saved: SavedSession) -> OpenOutcome {
-        let outcome = saved.background ? openInBackground(saved) : openInTerminal(saved)
-        if case .opened = outcome { recentlyOpened[saved.id] = Date() }
-        return outcome
+    /// 하나를 연다. `beside` 가 있으면 그 창(id)에 탭으로 붙인다.
+    ///
+    /// 탭으로 못 붙였으면 새 창으로 열고 `tabbed` 를 거짓으로 돌린다. 열기 자체는 된 것이라
+    /// 멈추지 않는다 — 배치가 흐트러지는 것보다 세션이 안 열리는 편이 더 나쁘다.
+    private func open(_ saved: SavedSession, beside window: Int?) -> (OpenOutcome, window: Int?, tabbed: Bool) {
+        if saved.background {
+            let outcome = openInBackground(saved)
+            if case .opened = outcome { recentlyOpened[saved.id] = Date() }
+            return (outcome, nil, true)
+        }
+        let line = ReopenCommand.terminalLine(for: saved, defaultRoot: Self.defaultRoot(for: saved.source))
+        var tabbed = true
+        var result: (OpenOutcome, Int?)
+        if let window, let w = Self.addTab(to: window, line: line) {
+            result = (.opened, w)
+        } else {
+            tabbed = window == nil
+            result = Self.openWindow(line: line)
+        }
+        if case .opened = result.0 { recentlyOpened[saved.id] = Date() }
+        return (result.0, result.1, tabbed)
     }
 
-    private func openInTerminal(_ saved: SavedSession) -> OpenOutcome {
-        let line = ReopenCommand.terminalLine(for: saved, defaultRoot: Self.defaultRoot(for: saved.source))
+    func open(_ saved: SavedSession) -> OpenOutcome { open(saved, beside: nil).0 }
+
+    /// 새 창에 연다. 돌려주는 것은 그 창의 id — 같은 창에 탭을 더 붙일 때 쓴다.
+    private static func openWindow(line: String) -> (OpenOutcome, Int?) {
         let script = """
         tell application "Terminal"
             do script \(ReopenCommand.appleScriptString(line))
             activate
+            return id of front window
         end tell
         """
         var error: NSDictionary?
-        guard let apple = NSAppleScript(source: script) else { return .failed(S.errScript) }
-        apple.executeAndReturnError(&error)
+        guard let apple = NSAppleScript(source: script) else { return (.failed(S.errScript), nil) }
+        let out = apple.executeAndReturnError(&error)
         if let error {
             let code = error[NSAppleScript.errorNumber] as? Int ?? 0
-            if code == -1743 || code == errAEEventNotPermitted { return .notPermitted }
-            return .failed(error[NSAppleScript.errorMessage] as? String ?? S.errUnknown(code))
+            if code == -1743 || code == errAEEventNotPermitted { return (.notPermitted, nil) }
+            return (.failed(error[NSAppleScript.errorMessage] as? String ?? S.errUnknown(code)), nil)
         }
-        return .opened
+        return (.opened, Int(out.int32Value))
     }
 
-    /// 목록을 차례로 연다. 처음 실패에서 멈추고 상자로 말한다 — 권한이 없으면 나머지도
-    /// 다 같은 이유로 안 되고, 이 앱의 실패는 삑 소리 하나로 삼키지 않는다 (`TerminalJump.report`).
-    func openAll(_ list: [SavedSession]) {
-        for saved in list {
-            switch open(saved) {
-            case .opened:
-                continue
-            case .notPermitted:
-                Self.alert(S.permissionTitle, S.permissionBody)
-                return
-            case .failed(let why):
-                Self.alert(S.reopenFailedTitle, "\(saved.name): \(why)")
-                return
+    /// 창 `window` 에 탭을 하나 붙이고 거기서 연다. 못 붙였으면 nil.
+    ///
+    /// Terminal 의 AppleScript 에는 「새 탭」이 없다. 그 창을 맨 앞에 세우고 ⌘T 를 대신
+    /// 누른다 — 그래서 손쉬운 사용 권한이 든다. 탭 수가 늘었는지 보고 나서야 그 탭에
+    /// 명령을 넣는다. 안 늘었는데 넣으면 남의 탭에 명령이 들어간다.
+    private static func addTab(to window: Int, line: String) -> Int? {
+        guard AXIsProcessTrusted(), mayAutomateSystemEvents(ask: false) else { return nil }
+        let script = """
+        tell application "Terminal"
+            activate
+            set w to window id \(window)
+            set index of w to 1
+            set had to count tabs of w
+        end tell
+        delay 0.2
+        tell application "System Events" to keystroke "t" using command down
+        repeat 20 times
+            delay 0.1
+            tell application "Terminal"
+                if (count tabs of w) > had then
+                    do script \(ReopenCommand.appleScriptString(line)) in (selected tab of w)
+                    return id of w
+                end if
+            end tell
+        end repeat
+        return 0
+        """
+        var error: NSDictionary?
+        guard let out = NSAppleScript(source: script)?.executeAndReturnError(&error), error == nil else { return nil }
+        let id = Int(out.int32Value)
+        return id == 0 ? nil : id
+    }
+
+    /// System Events 를 부려도 되는가. `ask` 면 아직 안 정한 사람에게 묻는다 (답할 때까지 막힌다).
+    private static func mayAutomateSystemEvents(ask: Bool) -> Bool {
+        let bundle = "com.apple.systemevents"
+        guard let desc = NSAppleEventDescriptor(bundleIdentifier: bundle).aeDesc else { return false }
+        func check() -> OSStatus { AEDeterminePermissionToAutomateTarget(desc, typeWildCard, typeWildCard, ask) }
+        var status = check()
+        // 안 떠 있으면 허락을 잴 수 없다 (procNotFound). 띄우고 잠깐 기다린다 — 쉬면 스스로 내려간다.
+        if status == OSStatus(procNotFound),
+           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) {
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = false
+            NSWorkspace.shared.openApplication(at: url, configuration: config)
+            for _ in 0..<20 where status == OSStatus(procNotFound) {
+                Thread.sleep(forTimeInterval: 0.05)
+                status = check()
             }
         }
+        return status == noErr
+    }
+
+    /// 목록을 연다. 같은 창에 있던 것은 같은 창에 탭으로 모은다 (`ReopenLayout.groups`).
+    ///
+    /// 처음 실패에서 멈추고 상자로 말한다 — 권한이 없으면 나머지도 다 같은 이유로 안 되고,
+    /// 이 앱의 실패는 삑 소리 하나로 삼키지 않는다 (`TerminalJump.report`). 탭으로 못 붙인
+    /// 것은 새 창으로 열고, 다 연 뒤에 왜 그랬는지 한 번 말한다.
+    func openAll(_ list: [SavedSession]) {
+        let groups = ReopenLayout.groups(list)
+        let wantsTabs = groups.contains { $0.count > 1 }
+        // 권한을 묻는 시스템 상자를 띄운다. 이번 열기는 기다리지 않고 새 창으로 간다.
+        if wantsTabs && !AXIsProcessTrusted() {
+            let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+            _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+        }
+        // System Events 를 부릴 허락도 따로다. 아직이면 묻는 상자를 **뒤에서** 띄운다 — 메인
+        // 스레드에서 물으면 사람이 답할 때까지(안 답하면 2분) 메뉴바가 언다 (실측 -1712).
+        if wantsTabs && !Self.mayAutomateSystemEvents(ask: false) {
+            DispatchQueue.global().async { _ = Self.mayAutomateSystemEvents(ask: true) }
+        }
+        var allTabbed = true
+        for group in groups {
+            var window: Int?
+            for saved in group {
+                let (outcome, opened, tabbed) = open(saved, beside: window)
+                allTabbed = allTabbed && tabbed
+                switch outcome {
+                case .opened:
+                    window = opened
+                case .notPermitted:
+                    Self.alert(S.permissionTitle, S.permissionBody)
+                    return
+                case .failed(let why):
+                    Self.alert(S.reopenFailedTitle, "\(saved.name): \(why)")
+                    return
+                }
+            }
+        }
+        if !allTabbed { Self.alert(S.reopenTabsTitle, S.reopenTabsBody) }
     }
 
     static func alert(_ title: String, _ body: String) {
@@ -241,7 +350,37 @@ final class SessionReopen {
 
     // MARK: 세션 → 기록
 
-    static func saved(from session: Session) -> SavedSession? {
+    /// Terminal 의 창마다 탭마다 tty 를 묻는다. 못 물으면 빈 것.
+    ///
+    /// **메인 스레드에서 돈다.** 그래서 Terminal 이 안 떠 있으면 묻지 않고(물으면 Terminal 이
+    /// 켜진다), 자동화 권한을 아직 안 받았으면 묻지 않고(상자가 훑기 한가운데 뜬다),
+    /// 대답이 늦으면 2초에서 끊는다. 탭이 없는 창(설정 창 등)은 건넌다.
+    static func terminalLayout() -> [String: (window: Int, tab: Int)] {
+        guard !NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Terminal").isEmpty,
+              Notifier.mayAutomateTerminal() else { return [:] }
+        let script = """
+        with timeout of 2 seconds
+            tell application "Terminal"
+                set out to ""
+                repeat with i from 1 to count windows
+                    try
+                        set w to window i
+                        repeat with j from 1 to count tabs of w
+                            set out to out & i & " " & j & " " & (tty of tab j of w) & linefeed
+                        end repeat
+                    end try
+                end repeat
+                return out
+            end tell
+        end timeout
+        """
+        var error: NSDictionary?
+        guard let text = NSAppleScript(source: script)?.executeAndReturnError(&error).stringValue,
+              error == nil else { return [:] }
+        return ReopenLayout.parse(text)
+    }
+
+    static func saved(from session: Session, layout: [String: (window: Int, tab: Int)]) -> SavedSession? {
         guard !session.runsInApp, session.source == "claude" || session.source == "codex" else { return nil }
         let background = session.isBackground && session.continuedFromPid == nil
         var keep: [String] = []
@@ -258,10 +397,17 @@ final class SessionReopen {
                 dropped = split.keep + split.dropped
             }
         }
-        return SavedSession(source: session.source, id: session.id, name: session.name,
-                            cwd: session.cwd, accountRoot: session.accountRoot.path,
-                            background: background, args: keep, droppedArgs: dropped,
-                            state: session.state.raw, lastSeen: Date())
+        var out = SavedSession(source: session.source, id: session.id, name: session.name,
+                               cwd: session.cwd, accountRoot: session.accountRoot.path,
+                               background: background, args: keep, droppedArgs: dropped,
+                               state: session.state.raw, lastSeen: Date())
+        // tmux 안이면 pane 의 tty 라 어느 탭도 그 값을 안 갖는다. 보고 있는 창의 tty 로 건넌다.
+        if !background, var tty = TerminalJump.ttyPath(pid: session.hostPid) {
+            if layout[tty] == nil, let client = Tmux.pane(forTTY: tty)?.clientTTY { tty = client }
+            out.window = layout[tty]?.window
+            out.tab = layout[tty]?.tab
+        }
+        return out
     }
 
     private static func defaultRoot(for source: String) -> String {
