@@ -43,6 +43,8 @@ final class SessionReopen {
 
     /// 앱이 켜질 때 한 번. 재부팅 뒤면 끊길 때 살아 있던 세션을 다시 열 목록으로 올린다.
     func launched() {
+        // 탭으로 열기의 권한을 켤 때 남긴다 — 목록에는 켜져 있는데 앱은 없다고 보는 일이 있었다.
+        Self.log("launch ax=\(AXIsProcessTrusted()) se=\(Self.mayAutomateSystemEvents(ask: false))")
         guard let old = load() else { return }
         let next = SnapshotLogic.afterLaunch(old, bootedAt: Self.bootTime() ?? .distantPast)
         snapshot = next
