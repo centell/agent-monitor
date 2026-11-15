@@ -236,7 +236,9 @@ final class SessionReopen {
     /// 창 `window` 에 탭을 하나 붙이고 거기서 연다. 못 붙였으면 nil. 돌려주는 것은 새 탭의 창 id.
     ///
     /// Terminal 의 AppleScript 에는 「새 탭」이 없다. 그 창을 맨 앞에 세우고 ⌘T 를 대신
-    /// 누른다 — 그래서 손쉬운 사용 권한이 든다. macOS 탭이라 새 탭도 AppleScript 에는 **새 창**
+    /// 누른다 — 그래서 손쉬운 사용 권한이 든다. 글자(`keystroke "t"`)가 아니라 자판 자리
+    /// (`key code 17` = T)로 누른다 — 한글 자판이면 글자 t 는 오류도 없이 사라진다
+    /// (실측 2026-11-15, 2SetHangul: keystroke 는 창 수 7→7, key code 는 7→8). macOS 탭이라 새 탭도 AppleScript 에는 **새 창**
     /// 으로 보인다 (`ReopenLayout.TerminalWindow`). 창 수가 늘고 맨 앞 창이 바뀐 것을 본
     /// 뒤에야 명령을 넣는다 — 안 그러면 남의 탭에 명령이 들어간다.
     private static func addTab(to window: Int, line: String) -> Int? {
@@ -248,7 +250,7 @@ final class SessionReopen {
             set had to count windows
         end tell
         delay 0.2
-        tell application "System Events" to keystroke "t" using command down
+        tell application "System Events" to key code 17 using command down
         repeat 20 times
             delay 0.1
             tell application "Terminal"
