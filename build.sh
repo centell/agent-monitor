@@ -13,7 +13,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION="0.9.1"
+VERSION="0.9.2"
 APP_NAME="AgentMonitor"
 DEST="$HOME/Applications/${APP_NAME}.app"
 RELEASE=0
@@ -155,7 +155,7 @@ cat > "$DEST/Contents/Info.plist" <<PLIST
     <key>CFBundleVersion</key><string>${VERSION}</string>
     <key>LSMinimumSystemVersion</key><string>${DEPLOYMENT_TARGET}</string>
     <key>LSUIElement</key><true/>
-    <key>NSAppleEventsUsageDescription</key><string>세션을 누르면 그 세션이 도는 터미널 창으로 이동하기 위해 Terminal 제어 권한이 필요합니다.</string>
+    <key>NSAppleEventsUsageDescription</key><string>세션을 누르면 그 세션이 도는 터미널 창으로 이동하고, 저장한 세션을 같은 창·탭으로 다시 열기 위해 Terminal 과 System Events 제어 권한이 필요합니다.</string>
     <key>NSHumanReadableCopyright</key><string>MIT</string>
 </dict>
 </plist>
