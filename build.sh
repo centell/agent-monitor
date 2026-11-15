@@ -288,5 +288,7 @@ if [[ "${1:-}" == "--no-run" ]]; then
     exit 0
 fi
 
-open "$DEST"
+# Claude 세션 안에서 빌드해도 그 세션의 표지를 앱에 넘기지 않는다 (`open` 은 환경을 넘긴다).
+# 앱도 켤 때 지우지만, 앱이 읽기 전에 깨운 것이 없도록 여기서도 끊는다 (Sources/main.swift).
+env $(env | sed -En 's/^(CLAUDECODE|CLAUDE_PID|CLAUDE_EFFORT|CLAUDE_CODE_[A-Z0-9_]*)=.*/-u \1/p') open "$DEST"
 echo "  → 띄웠습니다$([[ $WAS_RUNNING -eq 1 ]] && echo " (쓰고 계셔서 다시 올렸습니다)")"

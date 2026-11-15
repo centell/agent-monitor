@@ -369,6 +369,18 @@ if !demoMode {
 }
 
 // 기본 — 메뉴바에 띄운다.
+
+// Claude 세션 안에서 띄워졌으면(`open` 은 부른 셸의 환경을 넘긴다) 그 세션의 표지를 지운다.
+//
+// 이 앱이 Terminal 을 깨우면 Terminal 이, 그 안의 셸이, 다시 연 claude 가 차례로 물려받는다.
+// claude 는 `CLAUDE_CODE_CHILD_SESSION` 을 보면 남의 하위 세션인 줄 알고 기록을 남기지 않고
+// 세션 등록도 하지 않는다 — 다시 연 세션 다섯이 기록 없이 돌고, 이 앱 목록에서 사라졌다
+// (2026-11-15). 계정 자리(`CLAUDE_CONFIG_DIR`)는 세션 표지가 아니라 남긴다.
+for key in ProcessInfo.processInfo.environment.keys
+where key == "CLAUDECODE" || key == "CLAUDE_PID" || key == "CLAUDE_EFFORT" || key.hasPrefix("CLAUDE_CODE_") {
+    unsetenv(key)
+}
+
 let app = NSApplication.shared
 let controller = MenuBarController(source: source, demo: demoMode)
 app.delegate = controller
