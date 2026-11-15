@@ -415,6 +415,77 @@ public enum S {
           "子孫プロセス \(count)個を含む")
     }
 
+    // MARK: 저장하고 닫기 · 다시 열기
+
+    static var saveCloseItem: String {
+        p("세션 저장하고 모두 닫기…", "Save Sessions and Close All…", "セッションを保存してすべて閉じる…")
+    }
+    static func saveCloseTitle(_ n: Int) -> String {
+        p("세션 \(n)개를 저장하고 닫습니다", "Save and close \(n) sessions",
+          "\(n)件のセッションを保存して閉じます")
+    }
+    static var saveCloseBody: String {
+        p("메뉴의 「저장한 세션 다시 열기」로 같은 폴더·계정에서 다시 열 수 있습니다. 재부팅은 직접 해 주세요.",
+          "Reopen them later from “Reopen Saved Sessions” in the same folder and account. Restart the Mac yourself.",
+          "メニューの「保存したセッションを再び開く」で同じフォルダ・アカウントで開き直せます。再起動はご自身で行ってください。")
+    }
+    static func saveCloseWorking(_ names: [String]) -> String {
+        p("작업 중인 세션 \(names.count)개: \(names.joined(separator: ", "))\n지금 닫으면 쓰던 응답은 사라지고 보낸 질문만 남습니다.",
+          "\(names.count) still working: \(names.joined(separator: ", "))\nClosing now drops the reply in progress; the prompt is kept.",
+          "作業中のセッション\(names.count)件: \(names.joined(separator: ", "))\n今閉じると書きかけの応答は消え、送った質問だけが残ります。")
+    }
+    static var saveCloseCodexNote: String {
+        p("codex 세션은 저장만 하고 닫지 않습니다.", "codex sessions are saved but not closed.",
+          "codex セッションは保存のみで閉じません。")
+    }
+    static var saveCloseWait: String { p("끝나면 닫기", "Close When Done", "終わったら閉じる") }
+    static var saveCloseNow: String  { p("지금 모두 닫기", "Close All Now", "今すぐすべて閉じる") }
+    static func closingLine(_ n: Int) -> String {
+        p("닫기 대기 중 · 작업 중 \(n)개", "Waiting to close · \(n) working", "閉じる待ち · 作業中 \(n)件")
+    }
+    static var closingNowItem: String { p("기다리지 말고 지금 닫기", "Close Now Without Waiting", "待たずに今閉じる") }
+    static var closingCancelItem: String { p("닫기 취소", "Cancel Closing", "閉じるのを取り消す") }
+
+    static func reopenItem(_ n: Int) -> String {
+        p("저장한 세션 다시 열기 (\(n)개)", "Reopen Saved Sessions (\(n))", "保存したセッションを再び開く (\(n)件)")
+    }
+    static var reopenAll: String     { p("모두 열기", "Open All", "すべて開く") }
+    static var reopenDismiss: String { p("목록 지우기", "Clear List", "リストを消去") }
+    static var reopenWasWorking: String { p("작업 중이었음", "was working", "作業中だった") }
+    static var reopenBackground: String { p("백그라운드", "background", "バックグラウンド") }
+    static func reopenDropped(_ args: [String]) -> String {
+        let list = args.joined(separator: " ")
+        return p("안 붙인 옵션: \(list)", "Not passed: \(list)", "付けないオプション: \(list)")
+    }
+    static var reopenFailedTitle: String { p("다시 열지 못했습니다", "Could not reopen", "再び開けませんでした") }
+    static var reopenTabsTitle: String {
+        p("일부 세션을 새 창으로 열었습니다", "Some sessions opened in new windows",
+          "一部のセッションを新しいウィンドウで開きました")
+    }
+    static var reopenOpenSettings: String {
+        p("손쉬운 사용 설정 열기", "Open Accessibility Settings", "アクセシビリティ設定を開く")
+    }
+    static var reopenTabsBody: String {
+        p("""
+          같은 창에 탭으로 모으려면 AgentMonitor 가 Terminal 의 새 탭 메뉴를 대신 누를 수 있어야 합니다.
+
+          시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용 에서 AgentMonitor 를 켜 주세요.
+          목록에 없으면 + 로 ~/Applications/AgentMonitor.app 을 더해 주세요.
+          """,
+          """
+          To gather them as tabs in one window, AgentMonitor needs to choose Terminal's New Tab menu for you.
+
+          System Settings → Privacy & Security → Accessibility, then enable AgentMonitor.
+          If it is not listed, add ~/Applications/AgentMonitor.app with +.
+          """,
+          """
+          同じウィンドウにタブとしてまとめるには、AgentMonitor が Terminal の新規タブメニューを代わりに選べる必要があります。
+
+          システム設定 → プライバシーとセキュリティ → アクセシビリティ で AgentMonitor をオンにしてください。
+          一覧になければ + で ~/Applications/AgentMonitor.app を追加してください。
+          """)
+    }
+
     // MARK: 요약
 
     /// 두 줄로 나눈다.

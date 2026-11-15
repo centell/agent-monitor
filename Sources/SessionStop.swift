@@ -50,7 +50,7 @@ enum SessionStop {
     ///
     /// 셸을 띄워 `which` 를 묻지 않는다. 그 방법은 사용자의 `.zshrc` 를 통째로 실행하는
     /// 것이라, 남의 설정이 무엇을 하는지 모르는 채 앱이 그것을 떠안게 된다.
-    private static func binary() -> String? {
+    static func binary() -> String? {
         let home = NSHomeDirectory()
         var candidates = [
             "\(home)/.local/bin/claude",

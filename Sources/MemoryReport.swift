@@ -118,7 +118,7 @@ struct MemoryReport {
     }
 
     /// `KERN_PROCARGS2` 배치: `[argc(4)][실행 경로\0][정렬용 \0…][argv0\0][argv1\0]…`
-    private static func arguments(of pid: Int32) -> [String]? {
+    static func arguments(of pid: Int32) -> [String]? {
         var size = 0
         var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
         guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > 4 else { return nil }

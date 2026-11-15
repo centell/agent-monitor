@@ -154,6 +154,13 @@ final class FloatingPanelController: NSObject {
             }
         }
 
+        // 다시 열 세션이 있거나 닫기를 기다리는 중이면 한 줄로 알린다. 여는 일은 머리줄의
+        // 오른쪽 클릭 메뉴(「모두 열기」)와 메뉴바가 한다 — 이 줄은 «있다» 를 놓치지 않게 할 뿐이다.
+        if let line = reopenLine() {
+            pieces.append(PanelSeparatorView())
+            pieces.append(PanelNoteView(text: line, size: settings.panelFontSize - 1, emphasised: true))
+        }
+
         if settings.showSummary, let memory {
             pieces.append(PanelSeparatorView())
             let agentBytes = sessions.compactMap { $0.metrics?.memoryBytes }.reduce(0, +)
@@ -354,6 +361,12 @@ final class FloatingPanelController: NSObject {
         let menu = NSMenu()
         menu.addItem(check(S.panelAlwaysOnTop, on: settings.panelAlwaysOnTop, #selector(flipAlwaysOnTop)))
         menu.addItem(check(S.panelWaitingOnly, on: settings.panelWaitingOnly, #selector(flipWaitingOnly)))
+        if !SessionReopen.shared.pending(live: sessions).isEmpty {
+            menu.addItem(.separator())
+            let reopen = NSMenuItem(title: S.reopenAll, action: #selector(reopenAll), keyEquivalent: "")
+            reopen.target = self
+            menu.addItem(reopen)
+        }
         menu.addItem(.separator())
         let close = NSMenuItem(title: S.panelHideItem, action: #selector(hidePanel), keyEquivalent: "")
         close.target = self
@@ -380,6 +393,18 @@ final class FloatingPanelController: NSObject {
     }
 
     @objc private func hidePanel() { settings.panelOpen = false }
+
+    private func reopenLine() -> String? {
+        let reopen = SessionReopen.shared
+        if !reopen.closing.isEmpty { return S.closingLine(reopen.closing.count) }
+        let pending = reopen.pending(live: sessions)
+        return pending.isEmpty ? nil : S.reopenItem(pending.count)
+    }
+
+    /// 열면 Terminal 이 앞으로 나오므로 「상시 창은 앞을 안 뺏는다」와 다투지 않는다.
+    @objc private func reopenAll() {
+        SessionReopen.shared.openAll(SessionReopen.shared.pending(live: sessions))
+    }
 }
 
 // MARK: - 조각들
