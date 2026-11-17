@@ -193,6 +193,57 @@ drawn.
 While the pointer is over the panel the list holds still. Waiting rows sort to the top, so an
 unfrozen list would move the row you were reaching for out from under you.
 
+## Reopening sessions after a restart
+
+A restart ends every session. Getting back used to mean remembering which folder each one ran
+in, under which account, with which options, and typing `claude --resume` once per session.
+
+**Before you restart:** menu bar → **Save Sessions and Close All…**. It saves every Claude Code
+and codex session except those running in the desktop apps, background ones included. A
+confirmation appears first, listing any sessions that are still working. **Close When Done** waits until they go
+idle, and the menu reads *Waiting to close · N working* in the meantime, with items to close now
+or cancel. **Close All Now** does not wait, and a reply that was being written is lost; the
+prompt you sent is kept. Before closing, each session is written down with its folder, session
+id, account and the options it was started with. **Cancel** saves nothing. The restart itself is
+yours to do — the app never restarts the Mac.
+
+**After the restart** the menu has a **Reopen Saved Sessions (N)** item, just above
+**Show panel**; the panel shows the same line. The submenu lists each session by name and folder
+and marks the ones that were working when they were cut off. Click one to open only that session,
+or **Open All** for every one; **Clear List** forgets the list without opening anything. Each
+session comes back as `claude --resume <id>`, in its own folder, under the same account. Nothing
+opens until you click — seven sessions starting on their own would cost windows and tokens you
+may not want.
+
+**Windows and tabs come back as they were** when the app could read Terminal's layout while the
+sessions ran — that is, Terminal was open and the app had been allowed to control it. Sessions
+that were tabs of one window come back as tabs of one window, and the window that was in front is
+in front again. Tabs come back in the order they were opened, so a tab you dragged elsewhere in
+the row returns to its original place.
+
+You do not have to remember to save. While the app runs it keeps the list up to date, so after a
+power cut or a forced restart the same item appears once the app is running again, holding the
+sessions that were alive in the last few minutes before the end.
+
+**What comes back is the conversation.** These do not:
+
+- a reply that was still being written when the session closed
+- dev servers, background shells and monitors the session had started
+- tmux itself — a session that lived inside tmux reopens in a plain Terminal window
+
+**Options.** The permission mode comes back by itself: `--resume` restores it from the
+transcript. Of the rest, only `--remote-control`, `--add-dir` and the skip-permissions flags are
+passed again. Anything else is shown on the row as *Not passed* instead of being replayed
+silently. A background session comes back in the background (`claude --bg --resume <id>`). codex
+sessions are saved and reopened with `codex resume`, but they are not closed for you, and their
+options are not passed yet. Sessions in the Claude and ChatGPT apps are left alone; those apps
+restore their own.
+
+**Tabs need one more permission.** Terminal's AppleScript has no "new tab", so the app chooses
+Shell → New Tab for you, which needs **Accessibility** (System Settings → Privacy & Security →
+Accessibility). Without it, sessions that belong in one window each open in a window of their own.
+Once they are all open the app tells you why, with a button that opens that settings page.
+
 ## Install
 
 ### Download a build
@@ -347,6 +398,7 @@ has to come from recorded days, not from a guess made before any day was recorde
   (`codex-tui`) alone; `codex exec` has nobody sitting in front of it to wait for.
 - **Terminal.app only** for the jump-to-terminal feature. iTerm2, Ghostty, WezTerm and kitty each
   need their own automation path. Inside tmux it reaches the window but not the pane.
+  Reopening saved sessions also opens them in Terminal.app, whichever terminal they ran in before.
   On another terminal a row click cannot move anything, but it **says why** — in the clicked row
   for three seconds in the panel, and in a dialog from the menu.
 - **A background session has nowhere to go.** It runs on a pty the daemon made, so no terminal
