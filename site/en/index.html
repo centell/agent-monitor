@@ -77,6 +77,7 @@
         <li class="card"><h3>Why it is waiting</h3><p>Hover a row and it says what it wants approved, or the last thing it said to you.</p></li>
         <li class="card"><h3>Click through to the window</h3><p>Click a row and the terminal window running that session comes to the front (Terminal.app). Right-click to pin the ones you watch most.</p></li>
         <li class="card"><h3>A panel to park in a corner</h3><p>With screen space to spare, park the list in a corner of the desktop. It stays visible without a click, can keep only the rows that need you or stay on top, and lets you pick its backdrop, opacity and text size.</p></li>
+        <li class="card"><h3>Reopen sessions after a restart</h3><p>Before you restart, “Save Sessions and Close All…” writes down each session’s folder, account and options, then closes it. Afterwards, “Reopen Saved Sessions” brings them back with claude --resume, as tabs of the same Terminal windows. Forgot to save? After a power cut the sessions that were alive at the end are still on the list.</p></li>
         <li class="card"><h3>Mac notifications (off by default)</h3><p>A notification when a session finishes or starts waiting for approval. Clicking it takes you to that session, and it stays quiet while you are looking at that session’s tab — something only Terminal.app can tell it, so elsewhere it always notifies.</p></li>
         <li class="card"><h3>How many sessions can you feed?</h3><p>It records how long the queue of waiting sessions was, counting only the time you were at the keyboard (--stats). Counts, durations and memory only — never conversation content — and it can be switched off.</p></li>
         <li class="card"><h3>Token counters (off by default)</h3><p>Turn them on to see how full a session is right now and how much it has burned since it started. Subagents are counted in.</p></li>
@@ -119,6 +120,7 @@
         <li>From 0.9.1 on, releases are signed with a Developer ID and notarised by Apple. Before an in-app update swaps anything in, the app checks that the download carries that same signature.</li>
         <li>macOS only, universal (Apple Silicon and Intel). It is built against the macOS 13 SDK, but macOS 26 is the only version it has actually been run on.</li>
         <li>Clicking through to the window works in Terminal.app only. In iTerm2, Ghostty, WezTerm or kitty the click moves nothing and says why. Inside tmux it reaches the window but not the pane.</li>
+        <li>Reopening saved sessions also uses Terminal.app. Gathering them back into tabs of one window needs the Accessibility permission; without it each opens in a window of its own.</li>
         <li>The Claude desktop app and codex in a terminal write no status down, so theirs is estimated from the tail of the transcript. Those rows say they are estimates rather than passing as measured.</li>
       </ul>
     </section>
